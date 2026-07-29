@@ -3,6 +3,7 @@ import {
   type Recipient,
   type Role,
   type RoleTemplate,
+  type SentRecord,
   type SmtpConfig,
 } from "@/lib/types";
 
@@ -27,6 +28,7 @@ export type PersistedState = {
   delaySec: number;
   activeTemplateRole: Role;
   defaultTitle: string;
+  sentLog: SentRecord[];
 };
 
 function emptyStoredTemplates(): Record<Role, StoredTemplate> {
@@ -55,6 +57,7 @@ export function defaultState(): PersistedState {
     delaySec: 3,
     activeTemplateRole: "fullstack",
     defaultTitle: "",
+    sentLog: [],
   };
 }
 
@@ -153,6 +156,7 @@ function migrateLegacy(): PersistedState | null {
           ? parsed.delaySec
           : base.delaySec,
       defaultTitle: "",
+      sentLog: [],
     };
   } catch {
     return null;
@@ -214,6 +218,21 @@ export function loadState(): PersistedState {
       activeTemplateRole,
       defaultTitle:
         typeof parsed.defaultTitle === "string" ? parsed.defaultTitle : "",
+      sentLog: Array.isArray(parsed.sentLog)
+        ? parsed.sentLog
+            .filter(
+              (s): s is SentRecord =>
+                !!s &&
+                typeof s.email === "string" &&
+                typeof s.role === "string"
+            )
+            .map((s) => ({
+              email: s.email.toLowerCase(),
+              role: ROLES.includes(s.role) ? s.role : "custom",
+              title: s.title ?? "",
+              sentAt: s.sentAt || new Date().toISOString(),
+            }))
+        : [],
     };
   } catch {
     return defaultState();

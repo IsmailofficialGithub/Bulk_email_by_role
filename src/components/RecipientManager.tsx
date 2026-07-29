@@ -33,11 +33,14 @@ export function RecipientManager({
   const [jsonInput, setJsonInput] = useState("");
   const [jsonRole, setJsonRole] = useState<Role>("fullstack");
   const [jsonTitle, setJsonTitle] = useState(defaultTitle);
+  const [hydratedTitle, setHydratedTitle] = useState(false);
 
   useEffect(() => {
+    if (hydratedTitle) return;
     setTitleInput(defaultTitle);
     setJsonTitle(defaultTitle);
-  }, [defaultTitle]);
+    setHydratedTitle(true);
+  }, [defaultTitle, hydratedTitle]);
 
   const counts = useMemo(() => {
     const map: Record<Role, number> = {
@@ -129,10 +132,8 @@ export function RecipientManager({
             <input
               type="text"
               value={titleInput}
-              onChange={(e) => {
-                setTitleInput(e.target.value);
-                onDefaultTitleChange(e.target.value.trim());
-              }}
+              onChange={(e) => setTitleInput(e.target.value)}
+              onBlur={() => setDefaultFrom(titleInput)}
               placeholder="Name / title"
             />
           </label>
@@ -185,10 +186,8 @@ export function RecipientManager({
             <input
               type="text"
               value={jsonTitle}
-              onChange={(e) => {
-                setJsonTitle(e.target.value);
-                onDefaultTitleChange(e.target.value.trim());
-              }}
+              onChange={(e) => setJsonTitle(e.target.value)}
+              onBlur={() => setDefaultFrom(jsonTitle)}
               placeholder={defaultTitle || "Optional"}
             />
           </label>

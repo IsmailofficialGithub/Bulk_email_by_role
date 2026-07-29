@@ -17,6 +17,7 @@ import {
   type Recipient,
   type Role,
   type RoleTemplate,
+  type SentRecord,
   type SmtpConfig,
 } from "@/lib/types";
 
@@ -31,6 +32,8 @@ export default function Home() {
   const [sending, setSending] = useState(false);
   const [activeTemplateRole, setActiveTemplateRole] =
     useState<Role>("fullstack");
+  const [defaultTitle, setDefaultTitle] = useState("");
+  const [sentLog, setSentLog] = useState<SentRecord[]>([]);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -40,6 +43,8 @@ export default function Home() {
     setTemplates(templatesFromStored(saved.templates));
     setDelaySec(saved.delaySec);
     setActiveTemplateRole(saved.activeTemplateRole);
+    setDefaultTitle(saved.defaultTitle);
+    setSentLog(saved.sentLog);
     setHydrated(true);
   }, []);
 
@@ -56,6 +61,8 @@ export default function Home() {
           templates: storedTemplates,
           delaySec,
           activeTemplateRole,
+          defaultTitle,
+          sentLog,
         });
       })();
     }, 350);
@@ -70,6 +77,8 @@ export default function Home() {
     templates,
     delaySec,
     activeTemplateRole,
+    defaultTitle,
+    sentLog,
   ]);
 
   function updateTemplate(role: Role, patch: Partial<RoleTemplate>) {
@@ -87,6 +96,8 @@ export default function Home() {
     setTemplates(templatesFromStored(fresh.templates));
     setDelaySec(fresh.delaySec);
     setActiveTemplateRole(fresh.activeTemplateRole);
+    setDefaultTitle(fresh.defaultTitle);
+    setSentLog(fresh.sentLog);
   }
 
   if (!hydrated) {
@@ -114,7 +125,12 @@ export default function Home() {
       </header>
 
       <div className="board board-three">
-        <RecipientManager recipients={recipients} onChange={setRecipients} />
+        <RecipientManager
+          recipients={recipients}
+          onChange={setRecipients}
+          defaultTitle={defaultTitle}
+          onDefaultTitleChange={setDefaultTitle}
+        />
         <RoleTemplates
           recipients={recipients}
           templates={templates}
@@ -130,6 +146,8 @@ export default function Home() {
           onDelayChange={setDelaySec}
           sending={sending}
           onSendingChange={setSending}
+          sentLog={sentLog}
+          onSentLogChange={setSentLog}
         />
       </div>
     </main>

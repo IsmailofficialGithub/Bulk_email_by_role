@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { AttachmentPreviewModal } from "@/components/AttachmentPreviewModal";
 import { AutoGrowTextarea } from "@/components/AutoGrowTextarea";
 import {
   ROLE_LABELS,
@@ -25,6 +26,8 @@ export function RoleTemplates({
   onActiveRoleChange,
   onChange,
 }: Props) {
+  const [previewFile, setPreviewFile] = useState<File | null>(null);
+
   const counts = useMemo(() => {
     const map: Record<Role, number> = {
       devops: 0,
@@ -125,11 +128,15 @@ export function RoleTemplates({
                       const files = Array.from(e.target.files || []);
                       if (!files.length) return;
                       const existing = new Set(
-                        tpl.files.map((f) => `${f.name}:${f.size}:${f.lastModified}`)
+                        tpl.files.map(
+                          (f) => `${f.name}:${f.size}:${f.lastModified}`
+                        )
                       );
                       const next = files.filter(
                         (f) =>
-                          !existing.has(`${f.name}:${f.size}:${f.lastModified}`)
+                          !existing.has(
+                            `${f.name}:${f.size}:${f.lastModified}`
+                          )
                       );
                       if (next.length) {
                         onChange(activeRole, {
@@ -146,19 +153,32 @@ export function RoleTemplates({
                 <ul className="file-list tall">
                   {tpl.files.map((f, index) => (
                     <li key={`${f.name}-${f.size}-${index}`} title={f.name}>
-                      <span>
+                      <button
+                        type="button"
+                        className="file-name-btn"
+                        onClick={() => setPreviewFile(f)}
+                      >
                         {f.name}{" "}
                         <span className="muted">
                           ({Math.round(f.size / 1024)} KB)
                         </span>
-                      </span>
-                      <button
-                        type="button"
-                        className="btn ghost danger"
-                        onClick={() => removeFile(index)}
-                      >
-                        ×
                       </button>
+                      <span className="file-actions">
+                        <button
+                          type="button"
+                          className="btn ghost"
+                          onClick={() => setPreviewFile(f)}
+                        >
+                          Preview
+                        </button>
+                        <button
+                          type="button"
+                          className="btn ghost danger"
+                          onClick={() => removeFile(index)}
+                        >
+                          ×
+                        </button>
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -169,6 +189,13 @@ export function RoleTemplates({
           </div>
         </div>
       </div>
+
+      {previewFile && (
+        <AttachmentPreviewModal
+          file={previewFile}
+          onClose={() => setPreviewFile(null)}
+        />
+      )}
     </section>
   );
 }

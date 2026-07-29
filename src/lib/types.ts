@@ -38,4 +38,12 @@ export type SendResult = {
   role: Role;
   success: boolean;
   error?: string;
+  skipped?: boolean;
+};
+
+export type SentRecord = {
+  email: string;
+  role: Role;
+  title: string;
+  sentAt: string;
 };
