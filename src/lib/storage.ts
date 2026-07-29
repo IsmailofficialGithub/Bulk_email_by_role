@@ -170,15 +170,17 @@ export async function syncRecipients(userId: string, recipients: Recipient[]) {
   // Simple sync: delete all and insert. For production, you might want to diff.
   await supabase.from("automailsend_recipients").delete().eq("user_id", userId);
   if (recipients.length > 0) {
-    await supabase.from("automailsend_recipients").insert(
+    const { error } = await supabase.from("automailsend_recipients").insert(
       recipients.map((r) => ({
-        id: r.id,
         user_id: userId,
         email: r.email,
         role: r.role,
         title: r.title,
       }))
     );
+    if (error) {
+      console.error("Failed to sync recipients:", error);
+    }
   }
 }
 

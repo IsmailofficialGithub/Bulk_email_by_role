@@ -347,10 +347,10 @@ export function SendPanel({
 
           <div className="send-col">
             <div className="send-col-head">
-              <h3>History</h3>
+              <h3>History & Skipped</h3>
               <div className="send-col-actions">
                 <span className="chip">
-                  {sentLog.length}
+                  {sentLog.length} logs
                 </span>
                 {sentLog.length > 0 && (
                   <button
@@ -365,6 +365,38 @@ export function SendPanel({
               </div>
             </div>
             <div className="scroll-area send-scroll">
+              
+              {activeSent.length > 0 && (
+                <div style={{ marginBottom: "1rem" }}>
+                  <h4 style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--muted)", margin: "0.5rem 0", padding: "0 0.5rem" }}>
+                    Currently Skipped ({activeSent.length})
+                  </h4>
+                  <ul className="results">
+                    {activeSent.map((r) => (
+                      <li key={r.id} className="ok sent-row" style={{ background: "var(--bg-elevated)", border: "1px solid var(--line)" }}>
+                        <span>
+                          {r.title ? `${r.title} · ` : ""}
+                          {r.email} · {ROLE_LABELS[r.role]}
+                        </span>
+                        <button
+                          type="button"
+                          className="btn ghost"
+                          disabled={sending}
+                          onClick={() =>
+                            sendList([r], { force: true, label: "Resending one" })
+                          }
+                        >
+                          Resend
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <h4 style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--muted)", margin: "0.5rem 0", padding: "0 0.5rem" }}>
+                All History
+              </h4>
               {sentLog.length === 0 ? (
                 <p className="hint">No history yet</p>
               ) : (
