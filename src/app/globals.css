@@ -56,30 +56,18 @@ body::before {
   height: 100vh;
   max-height: 100vh;
   margin: 0 auto;
-  padding: 1.5rem 0.75rem 1.5rem 0.25rem;
+  padding: 1.5rem 0.75rem 1.5rem 0.75rem;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--accent) 45%, transparent) transparent;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 .page::-webkit-scrollbar {
-  width: 5px;
-}
-
-.page::-webkit-scrollbar-track {
-  background: transparent;
-  margin: 8px 0;
-}
-
-.page::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--accent) 40%, var(--line));
-  border-radius: 999px;
-}
-
-.page::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--accent) 70%, var(--line));
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .hero {
