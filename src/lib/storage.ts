@@ -64,6 +64,7 @@ export async function uploadAttachment(
     type: file.type || "application/octet-stream",
     url: data.publicUrl,
     storagePath: filePath,
+    size: file.size,
   };
 }
 

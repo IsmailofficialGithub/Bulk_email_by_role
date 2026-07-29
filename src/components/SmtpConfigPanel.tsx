@@ -25,7 +25,7 @@ export function SmtpConfigPanel({ config, onChange, onResetAll }: Props) {
     setEmail(config.email);
     setAppPassword(config.appPassword);
     setEditing(!config.configured);
-    if (!config.configured) setOpen(true);
+    setOpen(!config.configured);
   }, [config.email, config.appPassword, config.configured]);
 
   useEffect(() => {
@@ -38,6 +38,7 @@ export function SmtpConfigPanel({ config, onChange, onResetAll }: Props) {
   }, [open]);
 
   const locked = config.configured && !editing;
+  const displayAppPassword = appPassword.startsWith("enc:") ? "••••••••••••••••" : appPassword;
 
   async function handleVerify() {
     setLoading(true);
@@ -54,7 +55,7 @@ export function SmtpConfigPanel({ config, onChange, onResetAll }: Props) {
         setMessage({ type: "err", text: data.error || "Verification failed" });
         return;
       }
-      onChange({ email, appPassword, configured: true });
+      onChange({ email, appPassword: data.encryptedPassword || appPassword, configured: true });
       setEditing(false);
       setMessage({ type: "ok", text: "Verified" });
       setOpen(false);
@@ -178,13 +179,17 @@ export function SmtpConfigPanel({ config, onChange, onResetAll }: Props) {
                   <div className="password-wrap">
                     <input
                       type={showPassword ? "text" : "password"}
-                      value={appPassword}
+                      value={displayAppPassword}
                       disabled={locked}
                       onChange={(e) => {
-                        setAppPassword(e.target.value);
+                        let val = e.target.value;
+                        if (appPassword.startsWith("enc:")) {
+                          val = val.replace(/•/g, "");
+                        }
+                        setAppPassword(val);
                         onChange({
                           email,
-                          appPassword: e.target.value,
+                          appPassword: val,
                           configured: false,
                         });
                         setMessage(null);

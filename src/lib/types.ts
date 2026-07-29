@@ -27,6 +27,7 @@ export type Attachment = {
   type: string;
   url: string;
   storagePath: string;
+  size?: number;
 };
 
 export type RoleTemplate = {

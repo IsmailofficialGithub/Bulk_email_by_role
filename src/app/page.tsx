@@ -173,9 +173,6 @@ export default function Home() {
 
   return (
     <main className="page">
-      <div className="absolute top-4 right-4">
-        <button onClick={handleLogout} className="btn ghost">Log Out</button>
-      </div>
       <header className="hero">
         <div className="hero-text">
           <p className="brand">AutoMailSend</p>
@@ -183,11 +180,14 @@ export default function Home() {
             Role templates stay saved · switch anytime
           </p>
         </div>
-        <SmtpConfigPanel
-          config={config}
-          onChange={setConfig}
-          onResetAll={resetAll}
-        />
+        <div className="flex items-center gap-3">
+          <SmtpConfigPanel
+            config={config}
+            onChange={setConfig}
+            onResetAll={resetAll}
+          />
+          <button onClick={handleLogout} className="btn ghost">Log Out</button>
+        </div>
       </header>
 
       <div className="board board-three">

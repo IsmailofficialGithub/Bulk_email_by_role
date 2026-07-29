@@ -134,10 +134,37 @@ export function RoleTemplates({
                     onChange={async (e) => {
                       const files = Array.from(e.target.files || []);
                       if (!files.length) return;
+
+                      const MAX_FILE_SIZE = 11 * 1024 * 1024; // 11 MB
+                      const MAX_TOTAL_SIZE = 40 * 1024 * 1024; // 40 MB
+                      
+                      let currentTotalSize = Object.values(templates).reduce((sum, t) => {
+                        return sum + t.files.reduce((fSum, f) => fSum + (f.size || 0), 0);
+                      }, 0);
+
+                      const validFiles = [];
+                      for (const file of files) {
+                        if (file.size > MAX_FILE_SIZE) {
+                          alert(`File ${file.name} is too large. Maximum size per file is 11 MB.`);
+                          continue;
+                        }
+                        if (currentTotalSize + file.size > MAX_TOTAL_SIZE) {
+                          alert(`Cannot upload ${file.name}. Total upload limit of 40 MB exceeded.`);
+                          continue;
+                        }
+                        validFiles.push(file);
+                        currentTotalSize += file.size;
+                      }
+
+                      if (!validFiles.length) {
+                         e.target.value = "";
+                         return;
+                      }
+
                       try {
                         setIsUploading(true);
                         const attachments = await Promise.all(
-                          files.map((f) => uploadAttachment(f, userId))
+                          validFiles.map((f) => uploadAttachment(f, userId))
                         );
                         onChange(activeRole, {
                           files: [...tpl.files, ...attachments],

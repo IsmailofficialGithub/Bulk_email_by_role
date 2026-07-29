@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
+import { decryptPassword } from "@/lib/crypto";
 
 export const runtime = "nodejs";
 
@@ -17,6 +18,16 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    
+    let decryptedPassword = appPassword;
+    try {
+      decryptedPassword = decryptPassword(appPassword);
+    } catch (e) {
+      return NextResponse.json(
+        { success: false, error: "Failed to decrypt app password. Please re-verify SMTP config." },
+        { status: 400 }
+      );
+    }
 
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
@@ -24,7 +35,7 @@ export async function POST(request: NextRequest) {
       secure: true,
       auth: {
         user: fromEmail,
-        pass: appPassword,
+        pass: decryptedPassword,
       },
     });
 
