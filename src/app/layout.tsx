@@ -17,6 +17,8 @@ export const metadata: Metadata = {
   description: "Send role-based bulk emails with Nodemailer",
 };
 
+import { Toaster } from "react-hot-toast";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -24,7 +26,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${sans.variable} ${display.variable}`}>
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        {children}
+        <Toaster position="bottom-right" />
+      </body>
     </html>
   );
 }

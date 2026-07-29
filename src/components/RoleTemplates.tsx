@@ -12,6 +12,7 @@ import {
   type Attachment,
 } from "@/lib/types";
 import { uploadAttachment, deleteAttachment } from "@/lib/storage";
+import toast from "react-hot-toast";
 
 type Props = {
   userId: string;
@@ -32,6 +33,7 @@ export function RoleTemplates({
 }: Props) {
   const [previewFile, setPreviewFile] = useState<Attachment | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const counts = useMemo(() => {
     const map: Record<Role, number> = {
@@ -53,13 +55,19 @@ export function RoleTemplates({
     onChange(activeRole, {
       files: tpl.files.filter((_, i) => i !== index),
     });
+    toast.success("Attachment deleted");
   }
 
   return (
     <section className="panel">
       <div className="panel-head">
         <h2>3. Templates</h2>
-        <span className="badge">saved per role</span>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          <span className="badge">
+            {(Object.values(templates).reduce((sum, t) => sum + t.files.reduce((fSum, f) => fSum + (f.size || 0), 0), 0) / (1024 * 1024)).toFixed(1)} MB / 40.0 MB
+          </span>
+          <span className="badge">saved per role</span>
+        </div>
       </div>
       <div className="panel-body">
         <p className="hint compact">
@@ -145,11 +153,11 @@ export function RoleTemplates({
                       const validFiles = [];
                       for (const file of files) {
                         if (file.size > MAX_FILE_SIZE) {
-                          alert(`File ${file.name} is too large. Maximum size per file is 11 MB.`);
+                          toast.error(`File ${file.name} is too large. Maximum size per file is 11 MB.`);
                           continue;
                         }
                         if (currentTotalSize + file.size > MAX_TOTAL_SIZE) {
-                          alert(`Cannot upload ${file.name}. Total upload limit of 40 MB exceeded.`);
+                          toast.error(`Cannot upload ${file.name}. Total upload limit of 40 MB exceeded.`);
                           continue;
                         }
                         validFiles.push(file);
@@ -163,23 +171,59 @@ export function RoleTemplates({
 
                       try {
                         setIsUploading(true);
+                        setUploadProgress(0);
+                        const progressInterval = setInterval(() => {
+                          setUploadProgress(prev => {
+                            if (prev >= 90) return 90;
+                            return prev + (90 - prev) * 0.15 + Math.random() * 5;
+                          });
+                        }, 200);
+
                         const attachments = await Promise.all(
                           validFiles.map((f) => uploadAttachment(f, userId))
                         );
-                        onChange(activeRole, {
-                          files: [...tpl.files, ...attachments],
-                        });
+
+                        clearInterval(progressInterval);
+                        setUploadProgress(100);
+
+                        setTimeout(() => {
+                          onChange(activeRole, {
+                            files: [...tpl.files, ...attachments],
+                          });
+                          toast.success("Attachment(s) uploaded successfully");
+                          setIsUploading(false);
+                          setUploadProgress(0);
+                        }, 400);
                       } catch (err) {
                         console.error("Upload failed", err);
-                        alert("Failed to upload attachment");
-                      } finally {
+                        toast.error("Failed to upload attachment");
                         setIsUploading(false);
+                        setUploadProgress(0);
                       }
                       e.target.value = "";
                     }}
                   />
                 </label>
               </div>
+
+              {isUploading && uploadProgress > 0 && (
+                <div style={{ padding: "0.5rem 0" }}>
+                  <div className="progress" style={{ height: "6px", background: "var(--bg-elevated)", borderRadius: "999px", overflow: "hidden" }}>
+                    <div 
+                      className="progress-bar" 
+                      style={{ 
+                        width: `${uploadProgress}%`, 
+                        height: "100%", 
+                        background: "var(--accent)", 
+                        transition: "width 0.2s ease-out" 
+                      }} 
+                    />
+                  </div>
+                  <p className="hint text-right" style={{ marginTop: "0.25rem", marginBottom: 0 }}>
+                    Uploading... {Math.round(uploadProgress)}%
+                  </p>
+                </div>
+              )}
 
               {tpl.files.length > 0 ? (
                 <ul className="file-list tall">

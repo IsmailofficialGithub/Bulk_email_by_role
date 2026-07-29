@@ -11,6 +11,7 @@ import {
   type SmtpConfig,
 } from "@/lib/types";
 import { addSentLog } from "@/lib/storage";
+import toast from "react-hot-toast";
 
 type Props = {
   userId: string;
@@ -97,16 +98,19 @@ export function SendPanel({
   ) {
     if (!config.configured) {
       setStatus("Verify SMTP first.");
+      toast.error("Please verify SMTP settings first.");
       return;
     }
     if (!list.length) {
       setStatus(options.force ? "Nothing to resend." : "No pending emails.");
+      toast.error(options.force ? "Nothing to resend." : "No pending emails.");
       return;
     }
 
     for (const role of new Set(list.map((r) => r.role))) {
       if (!templates[role].subject.trim()) {
         setStatus(`Missing subject: ${ROLE_LABELS[role]}`);
+        toast.error(`Missing subject for role: ${ROLE_LABELS[role]}`);
         return;
       }
     }
@@ -213,6 +217,11 @@ export function SendPanel({
     setStatus(
       `Done · ${ok} sent · ${skip ? `${skip} skipped · ` : ""}${fail} failed`
     );
+    if (fail > 0) {
+      toast.error(`Completed with ${fail} errors`);
+    } else {
+      toast.success("All emails processed successfully!");
+    }
     onSendingChange(false);
   }
 
@@ -222,6 +231,7 @@ export function SendPanel({
     }
     onSentLogChange([]);
     setStatus("Sent history cleared.");
+    toast.success("Sent history cleared.");
   }
 
   function removeSentRecord(email: string, role: Role) {

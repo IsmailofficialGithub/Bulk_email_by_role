@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import type { SmtpConfig } from "@/lib/types";
+import toast from "react-hot-toast";
+import { supabase } from "@/lib/supabase";
 
 type Props = {
   config: SmtpConfig;
@@ -20,6 +22,8 @@ export function SmtpConfigPanel({ config, onChange, onResetAll }: Props) {
     type: "ok" | "err";
     text: string;
   } | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
 
   useEffect(() => {
     setEmail(config.email);
@@ -53,15 +57,18 @@ export function SmtpConfigPanel({ config, onChange, onResetAll }: Props) {
       if (!res.ok || !data.success) {
         onChange({ email, appPassword, configured: false });
         setMessage({ type: "err", text: data.error || "Verification failed" });
+        toast.error(data.error || "Verification failed");
         return;
       }
       onChange({ email, appPassword: data.encryptedPassword || appPassword, configured: true });
       setEditing(false);
       setMessage({ type: "ok", text: "Verified" });
+      toast.success("SMTP config verified!");
       setOpen(false);
     } catch {
       onChange({ email, appPassword, configured: false });
       setMessage({ type: "err", text: "Network error" });
+      toast.error("Network error during verification");
     } finally {
       setLoading(false);
     }
@@ -87,7 +94,25 @@ export function SmtpConfigPanel({ config, onChange, onResetAll }: Props) {
     setEditing(true);
     setShowPassword(false);
     setMessage({ type: "ok", text: "Reset done" });
+    toast.success("All settings have been reset.");
     setOpen(true);
+  }
+
+  async function handlePasswordChange(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newPassword || newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    setPasswordLoading(true);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setPasswordLoading(false);
+    if (error) {
+      toast.error(error.message || "Failed to update password");
+    } else {
+      toast.success("Login password updated successfully!");
+      setNewPassword("");
+    }
   }
 
   function openModal() {
@@ -245,6 +270,32 @@ export function SmtpConfigPanel({ config, onChange, onResetAll }: Props) {
                   </span>
                 )}
               </div>
+
+              <div style={{ height: "1px", background: "var(--line)", margin: "0.5rem 0" }} />
+              
+              <div>
+                <h3 style={{ fontSize: "0.85rem", fontWeight: 600, marginBottom: "0.5rem", fontFamily: "var(--font-display)" }}>Account Settings</h3>
+                <form onSubmit={handlePasswordChange} className="grid-2" style={{ alignItems: "flex-end" }}>
+                  <label className="field">
+                    <span>New Login Password</span>
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Min 6 characters"
+                      disabled={passwordLoading}
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    className="btn"
+                    disabled={passwordLoading || !newPassword}
+                  >
+                    {passwordLoading ? "Updating..." : "Update Password"}
+                  </button>
+                </form>
+              </div>
+
             </div>
           </div>
         </div>

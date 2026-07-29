@@ -13,6 +13,7 @@ import {
   saveAppState,
   saveTemplates,
   syncRecipients,
+  deleteAttachment,
 } from "@/lib/storage";
 import {
   type Recipient,
@@ -142,6 +143,13 @@ export default function Home() {
   }
 
   function resetAll() {
+    // Delete all attachments from buckets before resetting
+    Object.values(templates).forEach(tpl => {
+      tpl.files.forEach(f => {
+        deleteAttachment(f.storagePath).catch(console.error);
+      });
+    });
+
     // Only resetting local state for demo purposes, you might want a DB wipe
     const fresh = defaultState();
     setConfig(fresh.config);
@@ -186,7 +194,7 @@ export default function Home() {
             onChange={setConfig}
             onResetAll={resetAll}
           />
-          <button onClick={handleLogout} className="btn ghost">Log Out</button>
+          <button onClick={handleLogout} className="btn ghost danger">Log Out</button>
         </div>
       </header>
 
