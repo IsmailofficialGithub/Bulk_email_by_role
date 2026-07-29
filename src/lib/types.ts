@@ -54,5 +54,7 @@ export type SentRecord = {
   email: string;
   role: Role;
   title: string;
+  status: "sent" | "failed" | "skipped";
+  error?: string;
   sentAt: string;
 };

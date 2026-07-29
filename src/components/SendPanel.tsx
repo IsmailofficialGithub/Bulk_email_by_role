@@ -57,7 +57,7 @@ export function SendPanel({
   const [results, setResults] = useState<SendResult[]>([]);
 
   const sentKeys = useMemo(
-    () => new Set(sentLog.map((s) => sentKey(s.email, s.role))),
+    () => new Set(sentLog.filter(s => s.status === "sent" || s.status === "skipped").map((s) => sentKey(s.email, s.role))),
     [sentLog]
   );
 
@@ -67,26 +67,18 @@ export function SendPanel({
     [recipients, sentKeys]
   );
 
-  const alreadySent = useMemo(() => {
-    const fromRecipients = recipients.filter((r) =>
-      sentKeys.has(sentKey(r.email, r.role))
-    );
-    const recipientKeys = new Set(
-      fromRecipients.map((r) => sentKey(r.email, r.role))
-    );
-    const orphans = sentLog.filter(
-      (s) => !recipientKeys.has(sentKey(s.email, s.role))
-    );
-    return { active: fromRecipients, history: orphans };
-  }, [recipients, sentKeys, sentLog]);
+  const activeSent = useMemo(() => {
+    return recipients.filter((r) => sentKeys.has(sentKey(r.email, r.role)));
+  }, [recipients, sentKeys]);
 
-  function markSent(recipient: Recipient, log: SentRecord[]) {
-    const key = sentKey(recipient.email, recipient.role);
-    const next = log.filter((s) => sentKey(s.email, s.role) !== key);
+  function markRecord(recipient: Recipient, log: SentRecord[], status: "sent" | "failed" | "skipped", error?: string) {
+    const next = [...log];
     next.unshift({
       email: recipient.email.toLowerCase(),
       role: recipient.role,
       title: recipient.title,
+      status,
+      error,
       sentAt: new Date().toISOString(),
     });
     return next;
@@ -176,13 +168,14 @@ export function SendPanel({
             role: recipient.role,
             success: true,
           });
-          log = markSent(recipient, log);
+          log = markRecord(recipient, log, "sent");
           onSentLogChange(log);
           
           addSentLog(userId, {
              email: recipient.email.toLowerCase(),
              role: recipient.role,
              title: recipient.title,
+             status: "sent",
              sentAt: new Date().toISOString(),
           }).catch(console.error);
 
@@ -193,6 +186,17 @@ export function SendPanel({
             success: false,
             error: data.error || "Send failed",
           });
+          log = markRecord(recipient, log, "failed", data.error || "Send failed");
+          onSentLogChange(log);
+          
+          addSentLog(userId, {
+             email: recipient.email.toLowerCase(),
+             role: recipient.role,
+             title: recipient.title,
+             status: "failed",
+             error: data.error || "Send failed",
+             sentAt: new Date().toISOString(),
+          }).catch(console.error);
         }
         setResults([...collected]);
       } catch {
@@ -202,6 +206,18 @@ export function SendPanel({
           success: false,
           error: "Network error",
         });
+        log = markRecord(recipient, log, "failed", "Network error");
+        onSentLogChange(log);
+        
+        addSentLog(userId, {
+           email: recipient.email.toLowerCase(),
+           role: recipient.role,
+           title: recipient.title,
+           status: "failed",
+           error: "Network error",
+           sentAt: new Date().toISOString(),
+        }).catch(console.error);
+        
         setResults([...collected]);
       }
 
@@ -245,12 +261,12 @@ export function SendPanel({
       <div className="panel-head">
         <h2>4. Send</h2>
         <span className="badge">
-          {pending.length} pending · {alreadySent.active.length + alreadySent.history.length} sent
+          {pending.length} pending · {sentLog.length} history
         </span>
       </div>
       <div className="panel-body">
         <p className="hint compact">
-          Already sent are skipped · use Send anyway to resend
+          Successfully sent are skipped · failed remain pending
         </p>
 
         <div className="add-row">
@@ -281,14 +297,14 @@ export function SendPanel({
             type="button"
             className="btn large"
             onClick={() =>
-              sendList(alreadySent.active, {
+              sendList(activeSent, {
                 force: true,
                 label: "Resending",
               })
             }
-            disabled={sending || alreadySent.active.length === 0}
+            disabled={sending || activeSent.length === 0}
           >
-            Send anyway ({alreadySent.active.length})
+            Resend successful ({activeSent.length})
           </button>
         </div>
 
@@ -331,13 +347,12 @@ export function SendPanel({
 
           <div className="send-col">
             <div className="send-col-head">
-              <h3>Already sent</h3>
+              <h3>History</h3>
               <div className="send-col-actions">
                 <span className="chip">
-                  {alreadySent.active.length + alreadySent.history.length}
+                  {sentLog.length}
                 </span>
-                {(alreadySent.active.length > 0 ||
-                  alreadySent.history.length > 0) && (
+                {sentLog.length > 0 && (
                   <button
                     type="button"
                     className="btn ghost danger"
@@ -350,59 +365,33 @@ export function SendPanel({
               </div>
             </div>
             <div className="scroll-area send-scroll">
-              {alreadySent.active.length === 0 &&
-              alreadySent.history.length === 0 ? (
-                <p className="hint">Nothing sent yet</p>
+              {sentLog.length === 0 ? (
+                <p className="hint">No history yet</p>
               ) : (
                 <ul className="results">
-                  {alreadySent.active.map((r) => (
-                    <li key={r.id} className="ok sent-row">
-                      <span>
-                        {r.title ? `${r.title} · ` : ""}
-                        {r.email} · {ROLE_LABELS[r.role]}
-                      </span>
-                      <span className="sent-actions">
-                        <button
-                          type="button"
-                          className="btn ghost"
-                          disabled={sending}
-                          onClick={() =>
-                            sendList([r], {
-                              force: true,
-                              label: "Resending one",
-                            })
-                          }
-                        >
-                          Send anyway
-                        </button>
-                        <button
-                          type="button"
-                          className="btn ghost danger"
-                          disabled={sending}
-                          onClick={() => removeSentRecord(r.email, r.role)}
-                        >
-                          ×
-                        </button>
-                      </span>
-                    </li>
-                  ))}
-                  {alreadySent.history.map((s) => (
+                  {sentLog.map((s, idx) => (
                     <li
-                      key={`${s.email}-${s.role}-${s.sentAt}`}
-                      className="ok sent-row muted-row"
+                      key={`${s.email}-${s.role}-${s.sentAt}-${idx}`}
+                      className={s.status === "failed" ? "err sent-row" : "ok sent-row"}
+                      title={s.error || s.status}
                     >
                       <span>
                         {s.title ? `${s.title} · ` : ""}
                         {s.email} · {ROLE_LABELS[s.role]}
                       </span>
-                      <button
-                        type="button"
-                        className="btn ghost danger"
-                        disabled={sending}
-                        onClick={() => removeSentRecord(s.email, s.role)}
-                      >
-                        ×
-                      </button>
+                      <span className="sent-actions">
+                        <span className={`badge ${s.status === "failed" ? "danger" : "ok"}`} style={{ marginRight: '0.5rem' }}>
+                          {s.status}
+                        </span>
+                        <button
+                          type="button"
+                          className="btn ghost danger"
+                          disabled={sending}
+                          onClick={() => removeSentRecord(s.email, s.role)}
+                        >
+                          ×
+                        </button>
+                      </span>
                     </li>
                   ))}
                 </ul>

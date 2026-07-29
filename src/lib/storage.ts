@@ -129,6 +129,8 @@ export async function loadState(userId: string): Promise<PersistedState> {
       email: s.email,
       role: s.role as Role,
       title: s.title,
+      status: s.status || "sent",
+      error: s.error_message || undefined,
       sentAt: s.sent_at,
     }));
   }
@@ -189,6 +191,8 @@ export async function addSentLog(
     email: record.email,
     role: record.role,
     title: record.title,
+    status: record.status,
+    error_message: record.error || null,
     sent_at: record.sentAt,
   });
 }

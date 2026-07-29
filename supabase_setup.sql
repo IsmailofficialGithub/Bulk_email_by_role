@@ -66,6 +66,8 @@ create table if not exists public.automailsend_sent_log (
   email text not null,
   role text not null,
   title text default '',
+  status text default 'sent',
+  error_message text,
   sent_at timestamp with time zone default timezone('utc'::text, now())
 );
 
