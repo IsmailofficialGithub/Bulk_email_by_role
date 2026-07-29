@@ -21,10 +21,18 @@ export type Recipient = {
   title: string;
 };
 
+export type Attachment = {
+  id: string;
+  name: string;
+  type: string;
+  url: string;
+  storagePath: string;
+};
+
 export type RoleTemplate = {
   subject: string;
   content: string;
-  files: File[];
+  files: Attachment[];
 };
 
 export type SmtpConfig = {

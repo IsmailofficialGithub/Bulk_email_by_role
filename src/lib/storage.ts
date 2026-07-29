@@ -1,3 +1,4 @@
+import { supabase } from "./supabase";
 import {
   ROLES,
   type Recipient,
@@ -5,40 +6,18 @@ import {
   type RoleTemplate,
   type SentRecord,
   type SmtpConfig,
+  type Attachment,
 } from "@/lib/types";
-
-export const STORAGE_KEY = "automailsend:v2";
-
-export type StoredFile = {
-  name: string;
-  type: string;
-  data: string;
-};
-
-export type StoredTemplate = {
-  subject: string;
-  content: string;
-  files: StoredFile[];
-};
 
 export type PersistedState = {
   config: SmtpConfig;
   recipients: Recipient[];
-  templates: Record<Role, StoredTemplate>;
+  templates: Record<Role, RoleTemplate>;
   delaySec: number;
   activeTemplateRole: Role;
   defaultTitle: string;
   sentLog: SentRecord[];
 };
-
-function emptyStoredTemplates(): Record<Role, StoredTemplate> {
-  return {
-    devops: { subject: "", content: "", files: [] },
-    fullstack: { subject: "", content: "", files: [] },
-    "ai-automation": { subject: "", content: "", files: [] },
-    custom: { subject: "", content: "", files: [] },
-  };
-}
 
 export function emptyTemplates(): Record<Role, RoleTemplate> {
   return {
@@ -53,7 +32,7 @@ export function defaultState(): PersistedState {
   return {
     config: { email: "", appPassword: "", configured: false },
     recipients: [],
-    templates: emptyStoredTemplates(),
+    templates: emptyTemplates(),
     delaySec: 3,
     activeTemplateRole: "fullstack",
     defaultTitle: "",
@@ -61,213 +40,154 @@ export function defaultState(): PersistedState {
   };
 }
 
-function fileFromStored(stored: StoredFile): File {
-  const binary = atob(stored.data);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return new File([bytes], stored.name, {
-    type: stored.type || "application/octet-stream",
-  });
-}
+export async function uploadAttachment(
+  file: File,
+  userId: string
+): Promise<Attachment> {
+  const fileExt = file.name.split(".").pop();
+  const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
+  const filePath = `${userId}/${fileName}`;
 
-export async function fileToStored(file: File): Promise<StoredFile> {
-  const buffer = await file.arrayBuffer();
-  const bytes = new Uint8Array(buffer);
-  let binary = "";
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  const { error } = await supabase.storage
+    .from("attachments")
+    .upload(filePath, file);
+
+  if (error) {
+    throw error;
   }
+
+  const { data } = supabase.storage.from("attachments").getPublicUrl(filePath);
+
   return {
+    id: filePath,
     name: file.name,
     type: file.type || "application/octet-stream",
-    data: btoa(binary),
+    url: data.publicUrl,
+    storagePath: filePath,
   };
 }
 
-export function templatesFromStored(
-  stored: Record<Role, StoredTemplate>
-): Record<Role, RoleTemplate> {
-  const next = emptyTemplates();
-  for (const role of ROLES) {
-    const item = stored[role];
-    next[role] = {
-      subject: item?.subject ?? "",
-      content: item?.content ?? "",
-      files: Array.isArray(item?.files)
-        ? item.files.map((f) => fileFromStored(f))
-        : [],
-    };
-  }
-  return next;
+export async function deleteAttachment(storagePath: string) {
+  await supabase.storage.from("attachments").remove([storagePath]);
 }
 
-export async function templatesToStored(
+export async function loadState(userId: string): Promise<PersistedState> {
+  const state = defaultState();
+
+  // Load app_state
+  const { data: appState } = await supabase
+    .from("automailsend_app_state")
+    .select("*")
+    .eq("user_id", userId)
+    .single();
+
+  if (appState) {
+    state.config = appState.config;
+    state.delaySec = appState.delay_sec;
+    state.activeTemplateRole = appState.active_template_role as Role;
+    state.defaultTitle = appState.default_title;
+  }
+
+  // Load recipients
+  const { data: recipients } = await supabase
+    .from("automailsend_recipients")
+    .select("*")
+    .eq("user_id", userId);
+  if (recipients) {
+    state.recipients = recipients.map((r) => ({
+      id: r.id,
+      email: r.email,
+      role: r.role as Role,
+      title: r.title,
+    }));
+  }
+
+  // Load templates
+  const { data: templates } = await supabase
+    .from("automailsend_templates")
+    .select("*")
+    .eq("user_id", userId);
+  if (templates) {
+    templates.forEach((t) => {
+      state.templates[t.role as Role] = {
+        subject: t.subject,
+        content: t.content,
+        files: t.files as Attachment[],
+      };
+    });
+  }
+
+  // Load sent log
+  const { data: sentLog } = await supabase
+    .from("automailsend_sent_log")
+    .select("*")
+    .eq("user_id", userId)
+    .order("sent_at", { ascending: false });
+  if (sentLog) {
+    state.sentLog = sentLog.map((s) => ({
+      email: s.email,
+      role: s.role as Role,
+      title: s.title,
+      sentAt: s.sent_at,
+    }));
+  }
+
+  return state;
+}
+
+export async function saveAppState(userId: string, state: PersistedState) {
+  // Update app_state
+  await supabase.from("automailsend_app_state").upsert(
+    {
+      user_id: userId,
+      config: state.config,
+      delay_sec: state.delaySec,
+      active_template_role: state.activeTemplateRole,
+      default_title: state.defaultTitle,
+    },
+    { onConflict: "user_id" }
+  );
+}
+
+export async function saveTemplates(
+  userId: string,
   templates: Record<Role, RoleTemplate>
-): Promise<Record<Role, StoredTemplate>> {
-  const out = emptyStoredTemplates();
-  for (const role of ROLES) {
-    const tpl = templates[role];
-    out[role] = {
-      subject: tpl.subject,
-      content: tpl.content,
-      files: await Promise.all(tpl.files.map((f) => fileToStored(f))),
-    };
-  }
-  return out;
+) {
+  const upsertData = Object.entries(templates).map(([role, t]) => ({
+    user_id: userId,
+    role,
+    subject: t.subject,
+    content: t.content,
+    files: t.files,
+  }));
+  await supabase.from("automailsend_templates").upsert(upsertData, { onConflict: "user_id, role" });
 }
 
-function migrateLegacy(): PersistedState | null {
-  const legacy = localStorage.getItem("automailsend:v1");
-  if (!legacy) return null;
-  try {
-    const parsed = JSON.parse(legacy) as Partial<PersistedState>;
-    const base = defaultState();
-    return {
-      ...base,
-      config: {
-        email: parsed.config?.email ?? "",
-        appPassword: parsed.config?.appPassword ?? "",
-        configured: Boolean(parsed.config?.configured),
-      },
-      recipients: Array.isArray(parsed.recipients)
-        ? parsed.recipients.map((r) => ({
-            id: r.id || `${Date.now()}-${Math.random()}`,
-            email: r.email,
-            role: ROLES.includes(r.role) ? r.role : "custom",
-            title: r.title ?? "",
-          }))
-        : [],
-      templates: ROLES.reduce(
-        (acc, role) => {
-          acc[role] = {
-            subject: parsed.templates?.[role]?.subject ?? "",
-            content: parsed.templates?.[role]?.content ?? "",
-            files: [],
-          };
-          return acc;
-        },
-        emptyStoredTemplates()
-      ),
-      delaySec:
-        typeof parsed.delaySec === "number" && parsed.delaySec >= 0
-          ? parsed.delaySec
-          : base.delaySec,
-      defaultTitle: "",
-      sentLog: [],
-    };
-  } catch {
-    return null;
+export async function syncRecipients(userId: string, recipients: Recipient[]) {
+  // Simple sync: delete all and insert. For production, you might want to diff.
+  await supabase.from("automailsend_recipients").delete().eq("user_id", userId);
+  if (recipients.length > 0) {
+    await supabase.from("automailsend_recipients").insert(
+      recipients.map((r) => ({
+        id: r.id,
+        user_id: userId,
+        email: r.email,
+        role: r.role,
+        title: r.title,
+      }))
+    );
   }
 }
 
-export function loadState(): PersistedState {
-  if (typeof window === "undefined") return defaultState();
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      const migrated = migrateLegacy();
-      if (migrated) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
-        localStorage.removeItem("automailsend:v1");
-        return migrated;
-      }
-      return defaultState();
-    }
-    const parsed = JSON.parse(raw) as Partial<PersistedState>;
-    const base = defaultState();
-    const activeTemplateRole = ROLES.includes(
-      parsed.activeTemplateRole as Role
-    )
-      ? (parsed.activeTemplateRole as Role)
-      : base.activeTemplateRole;
-
-    return {
-      config: {
-        email: parsed.config?.email ?? "",
-        appPassword: parsed.config?.appPassword ?? "",
-        configured: Boolean(parsed.config?.configured),
-      },
-      recipients: Array.isArray(parsed.recipients)
-        ? parsed.recipients.map((r) => ({
-            id: r.id || `${Date.now()}-${Math.random()}`,
-            email: r.email,
-            role: ROLES.includes(r.role) ? r.role : "custom",
-            title: r.title ?? "",
-          }))
-        : [],
-      templates: ROLES.reduce(
-        (acc, role) => {
-          acc[role] = {
-            subject: parsed.templates?.[role]?.subject ?? "",
-            content: parsed.templates?.[role]?.content ?? "",
-            files: Array.isArray(parsed.templates?.[role]?.files)
-              ? parsed.templates![role].files
-              : [],
-          };
-          return acc;
-        },
-        emptyStoredTemplates()
-      ),
-      delaySec:
-        typeof parsed.delaySec === "number" && parsed.delaySec >= 0
-          ? parsed.delaySec
-          : base.delaySec,
-      activeTemplateRole,
-      defaultTitle:
-        typeof parsed.defaultTitle === "string" ? parsed.defaultTitle : "",
-      sentLog: Array.isArray(parsed.sentLog)
-        ? parsed.sentLog
-            .filter(
-              (s): s is SentRecord =>
-                !!s &&
-                typeof s.email === "string" &&
-                typeof s.role === "string"
-            )
-            .map((s) => ({
-              email: s.email.toLowerCase(),
-              role: ROLES.includes(s.role) ? s.role : "custom",
-              title: s.title ?? "",
-              sentAt: s.sentAt || new Date().toISOString(),
-            }))
-        : [],
-    };
-  } catch {
-    return defaultState();
-  }
-}
-
-export function saveState(state: PersistedState): void {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    const withoutHeavyFiles: PersistedState = {
-      ...state,
-      templates: ROLES.reduce(
-        (acc, role) => {
-          acc[role] = {
-            subject: state.templates[role].subject,
-            content: state.templates[role].content,
-            files: [],
-          };
-          return acc;
-        },
-        emptyStoredTemplates()
-      ),
-    };
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(withoutHeavyFiles));
-    } catch {
-      // ignore quota errors
-    }
-  }
-}
-
-export function clearState(): void {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem(STORAGE_KEY);
-  localStorage.removeItem("automailsend:v1");
+export async function addSentLog(
+  userId: string,
+  record: SentRecord
+) {
+  await supabase.from("automailsend_sent_log").insert({
+    user_id: userId,
+    email: record.email,
+    role: record.role,
+    title: record.title,
+    sent_at: record.sentAt,
+  });
 }

@@ -5,13 +5,8 @@ export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData();
-
-    const fromEmail = String(formData.get("fromEmail") || "");
-    const appPassword = String(formData.get("appPassword") || "");
-    const toEmail = String(formData.get("toEmail") || "");
-    const subject = String(formData.get("subject") || "");
-    const content = String(formData.get("content") || "");
+    const body = await request.json();
+    const { fromEmail, appPassword, toEmail, subject, content, attachments = [] } = body;
 
     if (!fromEmail || !appPassword || !toEmail || !subject) {
       return NextResponse.json(
@@ -21,20 +16,6 @@ export async function POST(request: NextRequest) {
         },
         { status: 400 }
       );
-    }
-
-    const attachments: { filename: string; content: Buffer; contentType?: string }[] =
-      [];
-
-    for (const [key, value] of formData.entries()) {
-      if (key.startsWith("attachment_") && value instanceof File) {
-        const buffer = Buffer.from(await value.arrayBuffer());
-        attachments.push({
-          filename: value.name,
-          content: buffer,
-          contentType: value.type || undefined,
-        });
-      }
     }
 
     const transporter = nodemailer.createTransport({
@@ -53,7 +34,11 @@ export async function POST(request: NextRequest) {
       subject,
       text: content,
       html: content.replace(/\n/g, "<br>"),
-      attachments,
+      attachments: attachments.map((a: any) => ({
+        filename: a.filename,
+        path: a.path, // This is the public URL
+        contentType: a.contentType,
+      })),
     });
 
     return NextResponse.json({

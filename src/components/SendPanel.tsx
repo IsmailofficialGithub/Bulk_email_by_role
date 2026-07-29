@@ -10,8 +10,10 @@ import {
   type SentRecord,
   type SmtpConfig,
 } from "@/lib/types";
+import { addSentLog } from "@/lib/storage";
 
 type Props = {
+  userId: string;
   config: SmtpConfig;
   recipients: Recipient[];
   templates: Record<Role, RoleTemplate>;
@@ -38,6 +40,7 @@ function sentKey(email: string, role: Role) {
 }
 
 export function SendPanel({
+  userId,
   config,
   recipients,
   templates,
@@ -143,20 +146,24 @@ export function SendPanel({
       setProgress({ current: i + 1, total: list.length });
       setStatus(`Sending ${name}…`);
 
-      const formData = new FormData();
-      formData.append("fromEmail", config.email);
-      formData.append("appPassword", config.appPassword);
-      formData.append("toEmail", recipient.email);
-      formData.append("subject", subject);
-      formData.append("content", content);
-      tpl.files.forEach((file, idx) => {
-        formData.append(`attachment_${idx}`, file);
-      });
+      const payload = {
+        fromEmail: config.email,
+        appPassword: config.appPassword,
+        toEmail: recipient.email,
+        subject,
+        content,
+        attachments: tpl.files.map(f => ({
+          filename: f.name,
+          path: f.url,
+          contentType: f.type,
+        })),
+      };
 
       try {
         const res = await fetch("/api/send", {
           method: "POST",
-          body: formData,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
         });
         const data = await res.json();
         if (data.success) {
@@ -167,6 +174,14 @@ export function SendPanel({
           });
           log = markSent(recipient, log);
           onSentLogChange(log);
+          
+          addSentLog(userId, {
+             email: recipient.email.toLowerCase(),
+             role: recipient.role,
+             title: recipient.title,
+             sentAt: new Date().toISOString(),
+          }).catch(console.error);
+
         } else {
           collected.push({
             email: recipient.email,

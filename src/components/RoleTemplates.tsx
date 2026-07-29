@@ -9,9 +9,12 @@ import {
   type Recipient,
   type Role,
   type RoleTemplate,
+  type Attachment,
 } from "@/lib/types";
+import { uploadAttachment, deleteAttachment } from "@/lib/storage";
 
 type Props = {
+  userId: string;
   recipients: Recipient[];
   templates: Record<Role, RoleTemplate>;
   activeRole: Role;
@@ -20,13 +23,15 @@ type Props = {
 };
 
 export function RoleTemplates({
+  userId,
   recipients,
   templates,
   activeRole,
   onActiveRoleChange,
   onChange,
 }: Props) {
-  const [previewFile, setPreviewFile] = useState<File | null>(null);
+  const [previewFile, setPreviewFile] = useState<Attachment | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const counts = useMemo(() => {
     const map: Record<Role, number> = {
@@ -43,7 +48,8 @@ export function RoleTemplates({
 
   const tpl = templates[activeRole];
 
-  function removeFile(index: number) {
+  function removeFile(index: number, storagePath: string) {
+    deleteAttachment(storagePath).catch(console.error);
     onChange(activeRole, {
       files: tpl.files.filter((_, i) => i !== index),
     });
@@ -119,29 +125,28 @@ export function RoleTemplates({
                   Attachments ({tpl.files.length})
                 </span>
                 <label className="btn attach-add">
-                  {tpl.files.length === 0 ? "Add attachment" : "Add more"}
+                  {isUploading ? "Uploading..." : tpl.files.length === 0 ? "Add attachment" : "Add more"}
                   <input
                     type="file"
                     multiple
                     className="sr-only"
-                    onChange={(e) => {
+                    disabled={isUploading}
+                    onChange={async (e) => {
                       const files = Array.from(e.target.files || []);
                       if (!files.length) return;
-                      const existing = new Set(
-                        tpl.files.map(
-                          (f) => `${f.name}:${f.size}:${f.lastModified}`
-                        )
-                      );
-                      const next = files.filter(
-                        (f) =>
-                          !existing.has(
-                            `${f.name}:${f.size}:${f.lastModified}`
-                          )
-                      );
-                      if (next.length) {
+                      try {
+                        setIsUploading(true);
+                        const attachments = await Promise.all(
+                          files.map((f) => uploadAttachment(f, userId))
+                        );
                         onChange(activeRole, {
-                          files: [...tpl.files, ...next],
+                          files: [...tpl.files, ...attachments],
                         });
+                      } catch (err) {
+                        console.error("Upload failed", err);
+                        alert("Failed to upload attachment");
+                      } finally {
+                        setIsUploading(false);
                       }
                       e.target.value = "";
                     }}
@@ -152,16 +157,13 @@ export function RoleTemplates({
               {tpl.files.length > 0 ? (
                 <ul className="file-list tall">
                   {tpl.files.map((f, index) => (
-                    <li key={`${f.name}-${f.size}-${index}`} title={f.name}>
+                    <li key={f.id} title={f.name}>
                       <button
                         type="button"
                         className="file-name-btn"
                         onClick={() => setPreviewFile(f)}
                       >
-                        {f.name}{" "}
-                        <span className="muted">
-                          ({Math.round(f.size / 1024)} KB)
-                        </span>
+                        {f.name}
                       </button>
                       <span className="file-actions">
                         <button
@@ -174,7 +176,7 @@ export function RoleTemplates({
                         <button
                           type="button"
                           className="btn ghost danger"
-                          onClick={() => removeFile(index)}
+                          onClick={() => removeFile(index, f.storagePath)}
                         >
                           ×
                         </button>

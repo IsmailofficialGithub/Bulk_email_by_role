@@ -1,17 +1,18 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { RecipientManager } from "@/components/RecipientManager";
 import { RoleTemplates } from "@/components/RoleTemplates";
 import { SendPanel } from "@/components/SendPanel";
 import { SmtpConfigPanel } from "@/components/SmtpConfigPanel";
+import { supabase } from "@/lib/supabase";
 import {
-  clearState,
   defaultState,
   loadState,
-  saveState,
-  templatesFromStored,
-  templatesToStored,
+  saveAppState,
+  saveTemplates,
+  syncRecipients,
 } from "@/lib/storage";
 import {
   type Recipient,
@@ -22,11 +23,13 @@ import {
 } from "@/lib/types";
 
 export default function Home() {
+  const router = useRouter();
+  const [userId, setUserId] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [config, setConfig] = useState<SmtpConfig>(defaultState().config);
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [templates, setTemplates] = useState<Record<Role, RoleTemplate>>(
-    templatesFromStored(defaultState().templates)
+    defaultState().templates
   );
   const [delaySec, setDelaySec] = useState(3);
   const [sending, setSending] = useState(false);
@@ -34,82 +37,145 @@ export default function Home() {
     useState<Role>("fullstack");
   const [defaultTitle, setDefaultTitle] = useState("");
   const [sentLog, setSentLog] = useState<SentRecord[]>([]);
+  
+  // Track previous state for targeted saving
+  const lastState = useRef({
+    config: defaultState().config,
+    delaySec: 3,
+    activeTemplateRole: "fullstack" as Role,
+    defaultTitle: "",
+  });
+  
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    const saved = loadState();
-    setConfig(saved.config);
-    setRecipients(saved.recipients);
-    setTemplates(templatesFromStored(saved.templates));
-    setDelaySec(saved.delaySec);
-    setActiveTemplateRole(saved.activeTemplateRole);
-    setDefaultTitle(saved.defaultTitle);
-    setSentLog(saved.sentLog);
-    setHydrated(true);
-  }, []);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        router.push("/login");
+      } else {
+        setUserId(session.user.id);
+      }
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) {
+        router.push("/login");
+      } else {
+        setUserId(session.user.id);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [router]);
 
   useEffect(() => {
-    if (!hydrated) return;
+    if (!userId) return;
+
+    loadState(userId).then((saved) => {
+      setConfig(saved.config);
+      setRecipients(saved.recipients);
+      setTemplates(saved.templates);
+      setDelaySec(saved.delaySec);
+      setActiveTemplateRole(saved.activeTemplateRole);
+      setDefaultTitle(saved.defaultTitle);
+      setSentLog(saved.sentLog);
+      
+      lastState.current = {
+        config: saved.config,
+        delaySec: saved.delaySec,
+        activeTemplateRole: saved.activeTemplateRole,
+        defaultTitle: saved.defaultTitle,
+      };
+      
+      setHydrated(true);
+    });
+  }, [userId]);
+
+  // Debounced auto-save for app_state
+  useEffect(() => {
+    if (!hydrated || !userId) return;
+    
+    // Only save if app_state parts changed
+    const currState = { config, delaySec, activeTemplateRole, defaultTitle };
+    if (JSON.stringify(currState) === JSON.stringify(lastState.current)) {
+      return;
+    }
 
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      void (async () => {
-        const storedTemplates = await templatesToStored(templates);
-        saveState({
-          config,
-          recipients,
-          templates: storedTemplates,
-          delaySec,
-          activeTemplateRole,
-          defaultTitle,
-          sentLog,
-        });
-      })();
-    }, 350);
+      saveAppState(userId, {
+        config,
+        recipients, // not saved in app_state
+        templates, // not saved in app_state
+        delaySec,
+        activeTemplateRole,
+        defaultTitle,
+        sentLog, // not saved in app_state
+      }).then(() => {
+         lastState.current = currState;
+      }).catch(console.error);
+    }, 1000);
 
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
-  }, [
-    hydrated,
-    config,
-    recipients,
-    templates,
-    delaySec,
-    activeTemplateRole,
-    defaultTitle,
-    sentLog,
-  ]);
+  }, [hydrated, userId, config, delaySec, activeTemplateRole, defaultTitle]);
 
   function updateTemplate(role: Role, patch: Partial<RoleTemplate>) {
-    setTemplates((prev) => ({
-      ...prev,
-      [role]: { ...prev[role], ...patch },
-    }));
+    const newTemplates = {
+      ...templates,
+      [role]: { ...templates[role], ...patch },
+    };
+    setTemplates(newTemplates);
+    if (userId) {
+      saveTemplates(userId, newTemplates).catch(console.error);
+    }
+  }
+  
+  function updateRecipients(newRecipients: Recipient[]) {
+    setRecipients(newRecipients);
+    if (userId) {
+      syncRecipients(userId, newRecipients).catch(console.error);
+    }
   }
 
   function resetAll() {
-    clearState();
+    // Only resetting local state for demo purposes, you might want a DB wipe
     const fresh = defaultState();
     setConfig(fresh.config);
     setRecipients([]);
-    setTemplates(templatesFromStored(fresh.templates));
+    setTemplates(fresh.templates);
     setDelaySec(fresh.delaySec);
     setActiveTemplateRole(fresh.activeTemplateRole);
     setDefaultTitle(fresh.defaultTitle);
     setSentLog(fresh.sentLog);
+    
+    if (userId) {
+      saveAppState(userId, fresh).catch(console.error);
+      saveTemplates(userId, fresh.templates).catch(console.error);
+      syncRecipients(userId, []).catch(console.error);
+    }
   }
 
-  if (!hydrated) {
+  async function handleLogout() {
+    await supabase.auth.signOut();
+  }
+
+  if (!hydrated || !userId) {
     return (
-      <main className="page">
-        <p className="status-line">Loading…</p>
+      <main className="page min-h-screen flex items-center justify-center bg-[var(--bg)]">
+        <p className="status-line animate-pulse">Loading…</p>
       </main>
     );
   }
 
   return (
     <main className="page">
+      <div className="absolute top-4 right-4">
+        <button onClick={handleLogout} className="btn ghost">Log Out</button>
+      </div>
       <header className="hero">
         <div className="hero-text">
           <p className="brand">AutoMailSend</p>
@@ -127,11 +193,12 @@ export default function Home() {
       <div className="board board-three">
         <RecipientManager
           recipients={recipients}
-          onChange={setRecipients}
+          onChange={updateRecipients}
           defaultTitle={defaultTitle}
           onDefaultTitleChange={setDefaultTitle}
         />
         <RoleTemplates
+          userId={userId}
           recipients={recipients}
           templates={templates}
           activeRole={activeTemplateRole}
@@ -139,6 +206,7 @@ export default function Home() {
           onChange={updateTemplate}
         />
         <SendPanel
+          userId={userId}
           config={config}
           recipients={recipients}
           templates={templates}

@@ -1,23 +1,24 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { type Attachment } from "@/lib/types";
 
 type Props = {
-  file: File;
+  file: Attachment;
   onClose: () => void;
 };
 
-function isImage(file: File) {
+function isImage(file: Attachment) {
   return file.type.startsWith("image/");
 }
 
-function isPdf(file: File) {
+function isPdf(file: Attachment) {
   return (
     file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")
   );
 }
 
-function isText(file: File) {
+function isText(file: Attachment) {
   return (
     file.type.startsWith("text/") ||
     /\.(txt|md|csv|json|xml|html|css|js|ts|tsx|jsx|log)$/i.test(file.name)
@@ -28,17 +29,16 @@ export function AttachmentPreviewModal({ file, onClose }: Props) {
   const [textContent, setTextContent] = useState<string | null>(null);
   const [textError, setTextError] = useState(false);
 
-  const url = useMemo(() => URL.createObjectURL(file), [file]);
-
-  useEffect(() => {
-    return () => URL.revokeObjectURL(url);
-  }, [url]);
+  const url = file.url;
 
   useEffect(() => {
     if (!isText(file)) return;
     let cancelled = false;
-    file
-      .text()
+    fetch(url)
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch");
+        return res.text();
+      })
       .then((text) => {
         if (!cancelled) setTextContent(text.slice(0, 200_000));
       })
@@ -48,7 +48,7 @@ export function AttachmentPreviewModal({ file, onClose }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [file]);
+  }, [file, url]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -71,10 +71,7 @@ export function AttachmentPreviewModal({ file, onClose }: Props) {
           <div>
             <h2 id="preview-title">{file.name}</h2>
             <p className="hint compact">
-              {file.type || "unknown type"} ·{" "}
-              {file.size > 1024 * 1024
-                ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
-                : `${Math.round(file.size / 1024)} KB`}
+              {file.type || "unknown type"}
             </p>
           </div>
           <div className="preview-actions">
