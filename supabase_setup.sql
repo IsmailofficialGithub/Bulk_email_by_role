@@ -115,6 +115,8 @@ alter table public.automailsend_app_state
   add column if not exists auto_fetch_enabled boolean default false,
   add column if not exists auto_fetch_keywords text default '',
   add column if not exists auto_fetch_interval_min integer default 5,
+  add column if not exists auto_fetch_pagination_limit integer default 3,
+  add column if not exists auto_fetch_pagination_delay_sec integer default 10,
   add column if not exists auto_fetch_li_at text default '',
   add column if not exists auto_fetch_jsessionid text default '',
   add column if not exists auto_fetch_raw_headers text default '{}';

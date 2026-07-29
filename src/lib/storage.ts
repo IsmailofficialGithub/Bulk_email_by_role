@@ -100,9 +100,13 @@ export async function loadState(userId: string): Promise<PersistedState> {
       enabled: appState.auto_fetch_enabled || false,
       keywords: appState.auto_fetch_keywords || "",
       intervalMin: appState.auto_fetch_interval_min || 5,
+      paginationLimit: appState.auto_fetch_pagination_limit || 3,
+      paginationDelaySec: appState.auto_fetch_pagination_delay_sec || 10,
       liAt: appState.auto_fetch_li_at || "",
       jsessionid: appState.auto_fetch_jsessionid || "",
-      rawHeaders: appState.auto_fetch_raw_headers || "{}",
+      rawHeaders: typeof appState.auto_fetch_raw_headers === 'string'
+        ? appState.auto_fetch_raw_headers
+        : JSON.stringify(appState.auto_fetch_raw_headers || {}),
     };
   }
 
@@ -167,6 +171,8 @@ export async function saveAppState(userId: string, state: PersistedState) {
       auto_fetch_enabled: state.autoFetch.enabled,
       auto_fetch_keywords: state.autoFetch.keywords,
       auto_fetch_interval_min: state.autoFetch.intervalMin,
+      auto_fetch_pagination_limit: state.autoFetch.paginationLimit,
+      auto_fetch_pagination_delay_sec: state.autoFetch.paginationDelaySec,
       auto_fetch_li_at: state.autoFetch.liAt,
       auto_fetch_jsessionid: state.autoFetch.jsessionid,
       auto_fetch_raw_headers: state.autoFetch.rawHeaders,

@@ -63,6 +63,8 @@ export type AutoFetchConfig = {
   enabled: boolean;
   keywords: string;
   intervalMin: number;
+  paginationLimit: number;
+  paginationDelaySec: number;
   liAt: string;
   jsessionid: string;
   rawHeaders: string;

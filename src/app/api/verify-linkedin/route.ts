@@ -42,6 +42,7 @@ export async function POST(req: Request) {
     const res = await fetch("https://www.linkedin.com/voyager/api/me", {
       method: "GET",
       headers: fetchHeaders,
+      redirect: "manual",
     });
 
     if (res.ok || res.status === 200) {

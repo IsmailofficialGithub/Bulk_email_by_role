@@ -15,6 +15,8 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
   const [enabled, setEnabled] = useState(config.enabled);
   const [keywords, setKeywords] = useState(config.keywords);
   const [intervalMin, setIntervalMin] = useState(config.intervalMin);
+  const [paginationLimit, setPaginationLimit] = useState(config.paginationLimit || 3);
+  const [paginationDelaySec, setPaginationDelaySec] = useState(config.paginationDelaySec || 10);
   const [liAt, setLiAt] = useState(config.liAt);
   const [jsessionid, setJsessionid] = useState(config.jsessionid || "ajax:");
   const [rawHeaders, setRawHeaders] = useState(config.rawHeaders || "{}");
@@ -117,19 +119,32 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
         const keys = Object.keys(parsed).map(k => k.toLowerCase());
         if (!keys.includes('csrf-token') && jsessionid && jsessionid !== "ajax:") {
            parsed['csrf-token'] = jsessionid.trim().replace(/"/g, '');
-           finalRawHeaders = JSON.stringify(parsed, null, 2);
         }
+
+        // Strictly keep ONLY required headers
+        const sanitized: Record<string, string> = {};
+        const allowedKeys = REQUIRED_HEADERS.map(h => h.toLowerCase());
+        for (const [k, v] of Object.entries(parsed)) {
+          const lowerK = k.toLowerCase();
+          if (allowedKeys.includes(lowerK)) {
+            const properKey = REQUIRED_HEADERS.find(r => r.toLowerCase() === lowerK) || k;
+            sanitized[properKey] = v as string;
+          }
+        }
+        finalRawHeaders = JSON.stringify(sanitized, null, 2);
       }
     } catch {}
 
-    onSave({
-      enabled: finalEnabled,
-      keywords,
-      intervalMin: finalInterval,
-      liAt: liAt.trim(),
-      jsessionid: jsessionid.trim(),
-      rawHeaders: finalRawHeaders,
-    });
+      onSave({
+        enabled: finalEnabled,
+        keywords: keywords.trim(),
+        intervalMin: finalInterval,
+        paginationLimit: Math.max(1, paginationLimit || 3),
+        paginationDelaySec: Math.max(1, paginationDelaySec || 10),
+        liAt: liAt.trim(),
+        jsessionid: jsessionid.trim(),
+        rawHeaders: finalRawHeaders,
+      });
     
     toast.success("Auto-fetch configuration saved!");
     onClose();
@@ -188,7 +203,17 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
 
     const parsed = parseCustom(val);
     if (parsed) {
-      setRawHeaders(JSON.stringify(parsed, null, 2));
+      // Strictly keep ONLY required headers
+      const sanitized: Record<string, string> = {};
+      const allowedKeys = REQUIRED_HEADERS.map(h => h.toLowerCase());
+      for (const [k, v] of Object.entries(parsed)) {
+        const lowerK = k.toLowerCase();
+        if (allowedKeys.includes(lowerK)) {
+          const properKey = REQUIRED_HEADERS.find(r => r.toLowerCase() === lowerK) || k;
+          sanitized[properKey] = v as string;
+        }
+      }
+      setRawHeaders(JSON.stringify(sanitized, null, 2));
     } else {
       setRawHeaders(val);
     }
@@ -283,6 +308,28 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
                 value={intervalMin}
                 onChange={(e) => setIntervalMin(Number(e.target.value))}
                 placeholder="Minimum 5"
+              />
+            </label>
+            <label className="field">
+              <span>Pages per loop</span>
+              <input
+                type="number"
+                min={1}
+                step={1}
+                value={paginationLimit}
+                onChange={(e) => setPaginationLimit(Number(e.target.value))}
+                placeholder="e.g. 3"
+              />
+            </label>
+            <label className="field">
+              <span>Delay between pages (Sec)</span>
+              <input
+                type="number"
+                min={1}
+                step={1}
+                value={paginationDelaySec}
+                onChange={(e) => setPaginationDelaySec(Number(e.target.value))}
+                placeholder="e.g. 10"
               />
             </label>
           </div>
