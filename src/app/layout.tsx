@@ -23,8 +23,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${sans.variable} ${display.variable} h-full`}>
-      <body className="min-h-full antialiased">{children}</body>
+    <html lang="en" className={`${sans.variable} ${display.variable} h-full overflow-hidden`}>
+      <body className="h-full overflow-hidden antialiased">{children}</body>
     </html>
   );
 }

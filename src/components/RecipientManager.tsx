@@ -20,9 +20,11 @@ function uid() {
 
 export function RecipientManager({ recipients, onChange }: Props) {
   const [emailInput, setEmailInput] = useState("");
+  const [titleInput, setTitleInput] = useState("");
   const [role, setRole] = useState<Role>("fullstack");
   const [jsonInput, setJsonInput] = useState("");
   const [jsonRole, setJsonRole] = useState<Role>("fullstack");
+  const [jsonTitle, setJsonTitle] = useState("");
 
   const counts = useMemo(() => {
     const map: Record<Role, number> = {
@@ -39,13 +41,16 @@ export function RecipientManager({ recipients, onChange }: Props) {
 
   function addOne() {
     const email = emailInput.trim().toLowerCase();
+    const title = titleInput.trim();
     if (!email || !email.includes("@")) return;
     if (recipients.some((r) => r.email === email)) {
       setEmailInput("");
+      setTitleInput("");
       return;
     }
-    onChange([...recipients, { id: uid(), email, role }]);
+    onChange([...recipients, { id: uid(), email, role, title }]);
     setEmailInput("");
+    setTitleInput("");
   }
 
   function importJson() {
@@ -53,10 +58,11 @@ export function RecipientManager({ recipients, onChange }: Props) {
     if (!emails.length) return;
     const existing = new Set(recipients.map((r) => r.email));
     const next = [...recipients];
+    const title = jsonTitle.trim();
     for (const email of emails) {
       if (existing.has(email)) continue;
       existing.add(email);
-      next.push({ id: uid(), email, role: jsonRole });
+      next.push({ id: uid(), email, role: jsonRole, title });
     }
     onChange(next);
     setJsonInput("");
@@ -69,6 +75,12 @@ export function RecipientManager({ recipients, onChange }: Props) {
   function updateRole(id: string, nextRole: Role) {
     onChange(
       recipients.map((r) => (r.id === id ? { ...r, role: nextRole } : r))
+    );
+  }
+
+  function updateTitle(id: string, title: string) {
+    onChange(
+      recipients.map((r) => (r.id === id ? { ...r, title } : r))
     );
   }
 
@@ -88,6 +100,15 @@ export function RecipientManager({ recipients, onChange }: Props) {
       </div>
 
       <div className="add-row">
+        <label className="field grow">
+          <span>Email title</span>
+          <input
+            type="text"
+            value={titleInput}
+            onChange={(e) => setTitleInput(e.target.value)}
+            placeholder="e.g. John Doe / Senior Engineer"
+          />
+        </label>
         <label className="field grow">
           <span>Add email</span>
           <input
@@ -131,8 +152,17 @@ export function RecipientManager({ recipients, onChange }: Props) {
         />
       </label>
       <div className="add-row">
+        <label className="field grow">
+          <span>Title for imported emails</span>
+          <input
+            type="text"
+            value={jsonTitle}
+            onChange={(e) => setJsonTitle(e.target.value)}
+            placeholder="Optional shared title"
+          />
+        </label>
         <label className="field">
-          <span>Assign role for imported emails</span>
+          <span>Assign role</span>
           <select
             value={jsonRole}
             onChange={(e) => setJsonRole(e.target.value as Role)}
@@ -153,6 +183,14 @@ export function RecipientManager({ recipients, onChange }: Props) {
         <ul className="recipient-list">
           {recipients.map((r) => (
             <li key={r.id}>
+              <input
+                className="title-inline"
+                type="text"
+                value={r.title}
+                onChange={(e) => updateTitle(r.id, e.target.value)}
+                placeholder="Title"
+                aria-label="Email title"
+              />
               <span className="email">{r.email}</span>
               <select
                 value={r.role}

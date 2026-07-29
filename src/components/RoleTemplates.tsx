@@ -43,7 +43,7 @@ export function RoleTemplates({ recipients, templates, onChange }: Props) {
       </div>
       <p className="hint">
         Set subject, body, and attachments separately for each role that has
-        recipients.
+        recipients. You can use {"{{title}}"} and {"{{email}}"} placeholders.
       </p>
 
       <div className="templates">

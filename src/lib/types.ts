@@ -18,6 +18,7 @@ export type Recipient = {
   id: string;
   email: string;
   role: Role;
+  title: string;
 };
 
 export type RoleTemplate = {

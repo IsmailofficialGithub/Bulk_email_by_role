@@ -14,15 +14,31 @@ type Props = {
   config: SmtpConfig;
   recipients: Recipient[];
   templates: Record<Role, RoleTemplate>;
+  delaySec: number;
+  onDelayChange: (delaySec: number) => void;
+  sending: boolean;
+  onSendingChange: (sending: boolean) => void;
 };
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export function SendPanel({ config, recipients, templates }: Props) {
-  const [delaySec, setDelaySec] = useState(3);
-  const [sending, setSending] = useState(false);
+function applyPlaceholders(text: string, recipient: Recipient): string {
+  return text
+    .replaceAll("{{title}}", recipient.title || "")
+    .replaceAll("{{email}}", recipient.email);
+}
+
+export function SendPanel({
+  config,
+  recipients,
+  templates,
+  delaySec,
+  onDelayChange,
+  sending,
+  onSendingChange,
+}: Props) {
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [status, setStatus] = useState("");
   const [results, setResults] = useState<SendResult[]>([]);
@@ -44,7 +60,7 @@ export function SendPanel({ config, recipients, templates }: Props) {
       }
     }
 
-    setSending(true);
+    onSendingChange(true);
     setResults([]);
     setProgress({ current: 0, total: recipients.length });
     setStatus("Starting…");
@@ -55,16 +71,23 @@ export function SendPanel({ config, recipients, templates }: Props) {
     for (let i = 0; i < recipients.length; i++) {
       const recipient = recipients[i];
       const tpl = templates[recipient.role];
+      const subject = applyPlaceholders(tpl.subject, recipient);
+      const content = applyPlaceholders(tpl.content, recipient);
+      const label = recipient.title
+        ? `${recipient.title} <${recipient.email}>`
+        : recipient.email;
 
       setProgress({ current: i + 1, total: recipients.length });
-      setStatus(`Sending to ${recipient.email} (${ROLE_LABELS[recipient.role]})…`);
+      setStatus(
+        `Sending to ${label} (${ROLE_LABELS[recipient.role]})…`
+      );
 
       const formData = new FormData();
       formData.append("fromEmail", config.email);
       formData.append("appPassword", config.appPassword);
       formData.append("toEmail", recipient.email);
-      formData.append("subject", tpl.subject);
-      formData.append("content", tpl.content);
+      formData.append("subject", subject);
+      formData.append("content", content);
       tpl.files.forEach((file, idx) => {
         formData.append(`attachment_${idx}`, file);
       });
@@ -104,7 +127,7 @@ export function SendPanel({ config, recipients, templates }: Props) {
     const ok = collected.filter((r) => r.success).length;
     const fail = collected.length - ok;
     setStatus(`Done. Sent ${ok}, failed ${fail}.`);
-    setSending(false);
+    onSendingChange(false);
   }
 
   return (
@@ -112,6 +135,11 @@ export function SendPanel({ config, recipients, templates }: Props) {
       <div className="panel-head">
         <h2>4. Send</h2>
       </div>
+      <p className="hint">
+        Use {"{{title}}"} and {"{{email}}"} in subject/content to personalize
+        per recipient. Attachments are not saved across refresh — re-select if
+        needed.
+      </p>
 
       <div className="add-row">
         <label className="field">
@@ -121,7 +149,7 @@ export function SendPanel({ config, recipients, templates }: Props) {
             min={0}
             step={1}
             value={delaySec}
-            onChange={(e) => setDelaySec(Number(e.target.value) || 0)}
+            onChange={(e) => onDelayChange(Number(e.target.value) || 0)}
             disabled={sending}
           />
         </label>
@@ -153,7 +181,10 @@ export function SendPanel({ config, recipients, templates }: Props) {
       {results.length > 0 && (
         <ul className="results">
           {results.map((r) => (
-            <li key={`${r.email}-${r.role}`} className={r.success ? "ok" : "err"}>
+            <li
+              key={`${r.email}-${r.role}`}
+              className={r.success ? "ok" : "err"}
+            >
               <span>
                 {r.email} · {ROLE_LABELS[r.role]}
               </span>
