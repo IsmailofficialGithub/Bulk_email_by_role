@@ -1,36 +1,37 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AutoMailSend
 
-## Getting Started
+Next.js app to send bulk emails with Nodemailer. Recipients can be tagged by role (DevOps, Fullstack, AI Automation, Custom), each with its own subject, body, and attachments. Supports per-email delay and JSON email extraction.
 
-First, run the development server:
+## Setup
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Gmail App Password
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Enable 2-Step Verification on your Google account.
+2. Create an [App Password](https://myaccount.google.com/apppasswords).
+3. Paste your Gmail address and that app password into **SMTP Config**, then click **Config / Verify**.
 
-## Learn More
+## Usage
 
-To learn more about Next.js, take a look at the following resources:
+1. **SMTP Config** — email + app password → verify.
+2. **Recipients** — add emails one by one (with a role), or paste JSON/text and extract emails.
+3. **Role Templates** — for each role in use, set subject, content, and attachments.
+4. **Send** — set delay (seconds) between emails, then send to all.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### JSON examples
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```json
+["a@x.com", "b@y.com"]
+```
 
-## Deploy on Vercel
+```json
+[{"email":"a@x.com"},{"email":"b@y.com"}]
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Plain text with emails also works — addresses are auto-extracted.

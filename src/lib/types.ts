@@ -1,0 +1,40 @@
+export const ROLES = [
+  "devops",
+  "fullstack",
+  "ai-automation",
+  "custom",
+] as const;
+
+export type Role = (typeof ROLES)[number];
+
+export const ROLE_LABELS: Record<Role, string> = {
+  devops: "DevOps",
+  fullstack: "Fullstack",
+  "ai-automation": "AI Automation",
+  custom: "Custom",
+};
+
+export type Recipient = {
+  id: string;
+  email: string;
+  role: Role;
+};
+
+export type RoleTemplate = {
+  subject: string;
+  content: string;
+  files: File[];
+};
+
+export type SmtpConfig = {
+  email: string;
+  appPassword: string;
+  configured: boolean;
+};
+
+export type SendResult = {
+  email: string;
+  role: Role;
+  success: boolean;
+  error?: string;
+};
