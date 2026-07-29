@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { RecipientManager } from "@/components/RecipientManager";
 import { RoleTemplates } from "@/components/RoleTemplates";
 import { SendPanel } from "@/components/SendPanel";
@@ -11,10 +11,9 @@ import {
   loadState,
   saveState,
   templatesFromStored,
-  type PersistedState,
+  templatesToStored,
 } from "@/lib/storage";
 import {
-  ROLES,
   type Recipient,
   type Role,
   type RoleTemplate,
@@ -30,6 +29,9 @@ export default function Home() {
   );
   const [delaySec, setDelaySec] = useState(3);
   const [sending, setSending] = useState(false);
+  const [activeTemplateRole, setActiveTemplateRole] =
+    useState<Role>("fullstack");
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const saved = loadState();
@@ -37,28 +39,38 @@ export default function Home() {
     setRecipients(saved.recipients);
     setTemplates(templatesFromStored(saved.templates));
     setDelaySec(saved.delaySec);
+    setActiveTemplateRole(saved.activeTemplateRole);
     setHydrated(true);
   }, []);
 
   useEffect(() => {
     if (!hydrated) return;
-    const payload: PersistedState = {
-      config,
-      recipients,
-      templates: ROLES.reduce(
-        (acc, role) => {
-          acc[role] = {
-            subject: templates[role].subject,
-            content: templates[role].content,
-          };
-          return acc;
-        },
-        {} as PersistedState["templates"]
-      ),
-      delaySec,
+
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      void (async () => {
+        const storedTemplates = await templatesToStored(templates);
+        saveState({
+          config,
+          recipients,
+          templates: storedTemplates,
+          delaySec,
+          activeTemplateRole,
+        });
+      })();
+    }, 350);
+
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
     };
-    saveState(payload);
-  }, [hydrated, config, recipients, templates, delaySec]);
+  }, [
+    hydrated,
+    config,
+    recipients,
+    templates,
+    delaySec,
+    activeTemplateRole,
+  ]);
 
   function updateTemplate(role: Role, patch: Partial<RoleTemplate>) {
     setTemplates((prev) => ({
@@ -74,6 +86,7 @@ export default function Home() {
     setRecipients([]);
     setTemplates(templatesFromStored(fresh.templates));
     setDelaySec(fresh.delaySec);
+    setActiveTemplateRole(fresh.activeTemplateRole);
   }
 
   if (!hydrated) {
@@ -89,7 +102,9 @@ export default function Home() {
       <header className="hero">
         <div className="hero-text">
           <p className="brand">AutoMailSend</p>
-          <p className="lede">Role-based bulk mail · saved locally</p>
+          <p className="lede">
+            Role templates stay saved · switch anytime
+          </p>
         </div>
       </header>
 
@@ -103,6 +118,8 @@ export default function Home() {
         <RoleTemplates
           recipients={recipients}
           templates={templates}
+          activeRole={activeTemplateRole}
+          onActiveRoleChange={setActiveTemplateRole}
           onChange={updateTemplate}
         />
         <SendPanel

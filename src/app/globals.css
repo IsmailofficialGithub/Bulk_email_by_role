@@ -449,12 +449,136 @@ body::before {
   overflow: hidden;
 }
 
+.file-list.tall {
+  max-height: none;
+  overflow: visible;
+  gap: 0.25rem;
+}
+
+.file-list.tall li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  white-space: normal;
+}
+
+.attach-block {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.attach-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.attach-label {
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+.attach-add {
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.attach-add input.sr-only {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .file-list li {
   font-size: 0.68rem;
   color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.role-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.3rem;
+  flex: 0 0 auto;
+}
+
+.role-tab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem;
+  padding: 0.35rem 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.68rem;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.role-tab span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.role-tab-count {
+  flex-shrink: 0;
+  opacity: 0.8;
+}
+
+.role-tab.has-recipients {
+  color: var(--ink);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
+}
+
+.role-tab.active {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.role-tab.active .role-tab-count {
+  color: var(--accent-ink);
+}
+
+.template-editor {
+  gap: 0;
+}
+
+.template-card.single {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+@media (max-width: 640px) {
+  .role-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .muted {
