@@ -58,3 +58,11 @@ export type SentRecord = {
   error?: string;
   sentAt: string;
 };
+
+export type AutoFetchConfig = {
+  enabled: boolean;
+  keywords: string;
+  intervalMin: number;
+  liAt: string;
+  jsessionid: string;
+};

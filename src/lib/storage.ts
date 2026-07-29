@@ -7,6 +7,7 @@ import {
   type SentRecord,
   type SmtpConfig,
   type Attachment,
+  type AutoFetchConfig,
 } from "@/lib/types";
 
 export type PersistedState = {
@@ -17,6 +18,7 @@ export type PersistedState = {
   activeTemplateRole: Role;
   defaultTitle: string;
   sentLog: SentRecord[];
+  autoFetch: AutoFetchConfig;
 };
 
 export function emptyTemplates(): Record<Role, RoleTemplate> {
@@ -37,6 +39,13 @@ export function defaultState(): PersistedState {
     activeTemplateRole: "fullstack",
     defaultTitle: "",
     sentLog: [],
+    autoFetch: {
+      enabled: false,
+      keywords: "",
+      intervalMin: 5,
+      liAt: "",
+      jsessionid: "",
+    },
   };
 }
 
@@ -87,6 +96,13 @@ export async function loadState(userId: string): Promise<PersistedState> {
     state.delaySec = appState.delay_sec;
     state.activeTemplateRole = appState.active_template_role as Role;
     state.defaultTitle = appState.default_title;
+    state.autoFetch = {
+      enabled: appState.auto_fetch_enabled || false,
+      keywords: appState.auto_fetch_keywords || "",
+      intervalMin: appState.auto_fetch_interval_min || 5,
+      liAt: appState.auto_fetch_li_at || "",
+      jsessionid: appState.auto_fetch_jsessionid || "",
+    };
   }
 
   // Load recipients
@@ -147,6 +163,11 @@ export async function saveAppState(userId: string, state: PersistedState) {
       delay_sec: state.delaySec,
       active_template_role: state.activeTemplateRole,
       default_title: state.defaultTitle,
+      auto_fetch_enabled: state.autoFetch.enabled,
+      auto_fetch_keywords: state.autoFetch.keywords,
+      auto_fetch_interval_min: state.autoFetch.intervalMin,
+      auto_fetch_li_at: state.autoFetch.liAt,
+      auto_fetch_jsessionid: state.autoFetch.jsessionid,
     },
     { onConflict: "user_id" }
   );

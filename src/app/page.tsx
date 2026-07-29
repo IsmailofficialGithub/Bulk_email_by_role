@@ -21,6 +21,7 @@ import {
   type RoleTemplate,
   type SentRecord,
   type SmtpConfig,
+  type AutoFetchConfig,
 } from "@/lib/types";
 
 export default function Home() {
@@ -38,6 +39,7 @@ export default function Home() {
     useState<Role>("fullstack");
   const [defaultTitle, setDefaultTitle] = useState("");
   const [sentLog, setSentLog] = useState<SentRecord[]>([]);
+  const [autoFetch, setAutoFetch] = useState<AutoFetchConfig>(defaultState().autoFetch);
   
   // Track previous state for targeted saving
   const lastState = useRef({
@@ -45,6 +47,7 @@ export default function Home() {
     delaySec: 3,
     activeTemplateRole: "fullstack" as Role,
     defaultTitle: "",
+    autoFetch: defaultState().autoFetch,
   });
   
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -82,12 +85,14 @@ export default function Home() {
       setActiveTemplateRole(saved.activeTemplateRole);
       setDefaultTitle(saved.defaultTitle);
       setSentLog(saved.sentLog);
+      setAutoFetch(saved.autoFetch);
       
       lastState.current = {
         config: saved.config,
         delaySec: saved.delaySec,
         activeTemplateRole: saved.activeTemplateRole,
         defaultTitle: saved.defaultTitle,
+        autoFetch: saved.autoFetch,
       };
       
       setHydrated(true);
@@ -99,7 +104,7 @@ export default function Home() {
     if (!hydrated || !userId) return;
     
     // Only save if app_state parts changed
-    const currState = { config, delaySec, activeTemplateRole, defaultTitle };
+    const currState = { config, delaySec, activeTemplateRole, defaultTitle, autoFetch };
     if (JSON.stringify(currState) === JSON.stringify(lastState.current)) {
       return;
     }
@@ -114,6 +119,7 @@ export default function Home() {
         activeTemplateRole,
         defaultTitle,
         sentLog, // not saved in app_state
+        autoFetch,
       }).then(() => {
          lastState.current = currState;
       }).catch(console.error);
@@ -122,7 +128,7 @@ export default function Home() {
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
-  }, [hydrated, userId, config, delaySec, activeTemplateRole, defaultTitle]);
+  }, [hydrated, userId, config, delaySec, activeTemplateRole, defaultTitle, autoFetch]);
 
   function updateTemplate(role: Role, patch: Partial<RoleTemplate>) {
     const newTemplates = {
@@ -159,6 +165,7 @@ export default function Home() {
     setActiveTemplateRole(fresh.activeTemplateRole);
     setDefaultTitle(fresh.defaultTitle);
     setSentLog(fresh.sentLog);
+    setAutoFetch(fresh.autoFetch);
     
     if (userId) {
       saveAppState(userId, fresh).catch(console.error);
@@ -204,6 +211,8 @@ export default function Home() {
           onChange={updateRecipients}
           defaultTitle={defaultTitle}
           onDefaultTitleChange={setDefaultTitle}
+          autoFetch={autoFetch}
+          onAutoFetchChange={setAutoFetch}
         />
         <RoleTemplates
           userId={userId}

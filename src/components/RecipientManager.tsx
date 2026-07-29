@@ -8,13 +8,17 @@ import {
   ROLES,
   type Recipient,
   type Role,
+  type AutoFetchConfig,
 } from "@/lib/types";
+import { AutoFetchModal } from "@/components/AutoFetchModal";
 
 type Props = {
   recipients: Recipient[];
   onChange: (recipients: Recipient[]) => void;
   defaultTitle: string;
   onDefaultTitleChange: (title: string) => void;
+  autoFetch: AutoFetchConfig;
+  onAutoFetchChange: (config: AutoFetchConfig) => void;
 };
 
 function uid() {
@@ -26,7 +30,10 @@ export function RecipientManager({
   onChange,
   defaultTitle,
   onDefaultTitleChange,
+  autoFetch,
+  onAutoFetchChange,
 }: Props) {
+  const [showAutoFetch, setShowAutoFetch] = useState(false);
   const [emailInput, setEmailInput] = useState("");
   const [titleInput, setTitleInput] = useState(defaultTitle);
   const [role, setRole] = useState<Role>("fullstack");
@@ -110,8 +117,23 @@ export function RecipientManager({
   return (
     <section className="panel">
       <div className="panel-head">
-        <h2>2. Recipients</h2>
-        <span className="badge">{recipients.length}</span>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+          <div>
+            <h2 style={{ display: "inline-block", marginRight: "0.5rem" }}>2. Recipients</h2>
+            <span className="badge">{recipients.length}</span>
+          </div>
+          <button 
+            type="button" 
+            className="btn ghost small" 
+            onClick={() => setShowAutoFetch(true)}
+            style={{ fontSize: "0.75rem", padding: "0.25rem 0.5rem" }}
+          >
+            <span className={`badge ${autoFetch.enabled ? "ok" : "warn"}`} style={{ marginRight: "0.3rem" }}>
+              {autoFetch.enabled ? "Auto-Fetch ON" : "Auto-Fetch OFF"}
+            </span>
+            Setup
+          </button>
+        </div>
       </div>
       <div className="panel-body">
         <div className="role-counts">
@@ -252,6 +274,14 @@ export function RecipientManager({
           )}
         </div>
       </div>
+      
+      {showAutoFetch && (
+        <AutoFetchModal
+          config={autoFetch}
+          onSave={onAutoFetchChange}
+          onClose={() => setShowAutoFetch(false)}
+        />
+      )}
     </section>
   );
 }

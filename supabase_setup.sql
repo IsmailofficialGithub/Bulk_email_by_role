@@ -110,3 +110,10 @@ for each row execute function update_modified_column();
 create trigger update_automailsend_templates_modtime
 before update on public.automailsend_templates
 for each row execute function update_modified_column();
+-- 10. (Added later) Auto-Fetch Configuration for LinkedIn
+alter table public.automailsend_app_state 
+  add column if not exists auto_fetch_enabled boolean default false,
+  add column if not exists auto_fetch_keywords text default '',
+  add column if not exists auto_fetch_interval_min integer default 5,
+  add column if not exists auto_fetch_li_at text default '',
+  add column if not exists auto_fetch_jsessionid text default '';
