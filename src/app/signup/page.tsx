@@ -6,27 +6,42 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
 
-export default function LoginPage() {
+export default function SignUpPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const router = useRouter();
 
-  async function handleLogin(e: React.FormEvent) {
+  async function handleSignUp(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const { error } = await supabase.auth.signInWithPassword({
+    setSuccess(null);
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      setLoading(false);
+      return;
+    }
+
+    const { error } = await supabase.auth.signUp({
       email,
       password,
     });
+
     if (error) {
       setError(error.message);
       setLoading(false);
     } else {
-      router.push("/");
+      setSuccess("Account created successfully! You can now log in.");
+      setLoading(false);
+      // Optional: automatically redirect to login after a few seconds
+      setTimeout(() => router.push("/login"), 3000);
     }
   }
 
@@ -35,10 +50,10 @@ export default function LoginPage() {
       <div className="w-full max-w-md p-8 bg-[var(--bg-panel)] rounded-2xl border border-[var(--line)] shadow-2xl backdrop-blur-md">
         <div className="text-center mb-8">
           <h1 className="brand text-3xl mb-2">AutoMailSend</h1>
-          <p className="text-[var(--muted)]">Welcome back. Please sign in to continue.</p>
+          <p className="text-[var(--muted)]">Create your account to get started.</p>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-5">
+        <form onSubmit={handleSignUp} className="space-y-5">
           <label className="field">
             <span>Email</span>
             <input
@@ -69,8 +84,30 @@ export default function LoginPage() {
               </button>
             </div>
           </div>
+          
+          <div className="field">
+            <span>Confirm Password</span>
+            <div className="relative flex items-center">
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                placeholder="••••••••"
+                className="w-full pr-10"
+              />
+              <button
+                type="button"
+                className="absolute right-3 text-[var(--muted)] hover:text-[var(--accent)] transition-colors"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              >
+                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </div>
 
           {error && <p className="text-[var(--danger)] text-sm">{error}</p>}
+          {success && <p className="text-[var(--ok)] text-sm">{success}</p>}
 
           <div className="pt-2">
             <button
@@ -78,15 +115,15 @@ export default function LoginPage() {
               disabled={loading}
               className="btn primary w-full justify-center py-3 text-base"
             >
-              {loading ? "Signing in..." : "Sign In"}
+              {loading ? "Creating Account..." : "Sign Up"}
             </button>
           </div>
         </form>
 
         <p className="mt-6 text-center text-sm text-[var(--muted)]">
-          Don't have an account?{" "}
-          <Link href="/signup" className="text-[var(--accent)] hover:underline font-medium">
-            Sign Up
+          Already have an account?{" "}
+          <Link href="/login" className="text-[var(--accent)] hover:underline font-medium">
+            Log In
           </Link>
         </p>
       </div>
