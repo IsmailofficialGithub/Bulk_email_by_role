@@ -49,18 +49,12 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
 
   const REQUIRED_HEADERS = [
     "Cookie",
-    "csrf-token",
-    "User-Agent",
     "Accept",
-    "Accept-Language",
+    "Content-Type",
     "Origin",
     "Referer",
-    "sec-ch-ua",
-    "sec-ch-ua-mobile",
-    "sec-ch-ua-platform",
-    "sec-fetch-dest",
-    "sec-fetch-mode",
-    "sec-fetch-site",
+    "User-Agent",
+    "csrf-token",
     "x-restli-protocol-version"
   ];
 
@@ -98,6 +92,7 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
           body: JSON.stringify({
             liAt: liAt.trim(),
             jsessionid: jsessionid.trim(),
+            rawHeaders,
           }),
         });
         
