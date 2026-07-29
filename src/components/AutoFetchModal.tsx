@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import toast from "react-hot-toast";
 import type { AutoFetchConfig } from "@/lib/types";
 
 type Props = {
@@ -16,6 +17,7 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
   const [liAt, setLiAt] = useState(config.liAt);
   const [jsessionid, setJsessionid] = useState(config.jsessionid || "ajax:");
   const [showTokens, setShowTokens] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   // Regex validation
   const isJsessionValid = jsessionid === "" || /^ajax:\d+$/.test(jsessionid);
@@ -31,11 +33,37 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
     isLiAtValid &&
     hasKeywords;
 
-  function handleSave() {
+  async function handleSave() {
     // Force disable if tokens are missing when saving
     const finalEnabled = enabled && canEnable;
     // Enforce minimum interval
     const finalInterval = Math.max(5, intervalMin || 5);
+
+    if (finalEnabled) {
+      setIsVerifying(true);
+      try {
+        const res = await fetch("/api/verify-linkedin", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            liAt: liAt.trim(),
+            jsessionid: jsessionid.trim(),
+          }),
+        });
+        
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          toast.error(data.error || "LinkedIn validation failed");
+          setIsVerifying(false);
+          return;
+        }
+      } catch (err) {
+        toast.error("Network error validating cookies");
+        setIsVerifying(false);
+        return;
+      }
+      setIsVerifying(false);
+    }
 
     onSave({
       enabled: finalEnabled,
@@ -44,6 +72,8 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
       liAt: liAt.trim(),
       jsessionid: jsessionid.trim(),
     });
+    
+    toast.success("Auto-fetch configuration saved!");
     onClose();
   }
 
@@ -197,9 +227,10 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
             type="button"
             className="btn primary large"
             onClick={handleSave}
-            style={{ marginTop: "0.5rem" }}
+            disabled={isVerifying}
+            style={{ marginTop: "0.5rem", position: "relative" }}
           >
-            Save Configuration
+            {isVerifying ? "Verifying Cookies..." : "Save Configuration"}
           </button>
         </div>
       </div>
