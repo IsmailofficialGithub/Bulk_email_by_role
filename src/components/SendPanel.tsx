@@ -45,17 +45,17 @@ export function SendPanel({
 
   async function sendAll() {
     if (!config.configured) {
-      setStatus("Configure and verify SMTP first.");
+      setStatus("Verify SMTP first.");
       return;
     }
     if (!recipients.length) {
-      setStatus("Add at least one recipient.");
+      setStatus("Add recipients.");
       return;
     }
 
     for (const role of new Set(recipients.map((r) => r.role))) {
       if (!templates[role].subject.trim()) {
-        setStatus(`Subject missing for role: ${ROLE_LABELS[role]}`);
+        setStatus(`Missing subject: ${ROLE_LABELS[role]}`);
         return;
       }
     }
@@ -78,9 +78,7 @@ export function SendPanel({
         : recipient.email;
 
       setProgress({ current: i + 1, total: recipients.length });
-      setStatus(
-        `Sending to ${label} (${ROLE_LABELS[recipient.role]})…`
-      );
+      setStatus(`Sending ${label}…`);
 
       const formData = new FormData();
       formData.append("fromEmail", config.email);
@@ -119,14 +117,14 @@ export function SendPanel({
       }
 
       if (i < recipients.length - 1 && delayMs > 0) {
-        setStatus(`Waiting ${delaySec}s before next email…`);
+        setStatus(`Wait ${delaySec}s…`);
         await sleep(delayMs);
       }
     }
 
     const ok = collected.filter((r) => r.success).length;
     const fail = collected.length - ok;
-    setStatus(`Done. Sent ${ok}, failed ${fail}.`);
+    setStatus(`Done · ${ok} sent · ${fail} failed`);
     onSendingChange(false);
   }
 
@@ -134,65 +132,68 @@ export function SendPanel({
     <section className="panel">
       <div className="panel-head">
         <h2>4. Send</h2>
+        <span className="badge">{recipients.length} mails</span>
       </div>
-      <p className="hint">
-        Use {"{{title}}"} and {"{{email}}"} in subject/content to personalize
-        per recipient. Attachments are not saved across refresh — re-select if
-        needed.
-      </p>
+      <div className="panel-body">
+        <p className="hint compact">
+          Delay between emails · attachments reselect after refresh
+        </p>
 
-      <div className="add-row">
-        <label className="field">
-          <span>Delay between emails (seconds)</span>
-          <input
-            type="number"
-            min={0}
-            step={1}
-            value={delaySec}
-            onChange={(e) => onDelayChange(Number(e.target.value) || 0)}
+        <div className="add-row">
+          <label className="field grow">
+            <span>Delay (sec)</span>
+            <input
+              type="number"
+              min={0}
+              step={1}
+              value={delaySec}
+              onChange={(e) => onDelayChange(Number(e.target.value) || 0)}
+              disabled={sending}
+            />
+          </label>
+          <button
+            type="button"
+            className="btn primary large"
+            onClick={sendAll}
             disabled={sending}
-          />
-        </label>
-        <button
-          type="button"
-          className="btn primary large"
-          onClick={sendAll}
-          disabled={sending}
-        >
-          {sending
-            ? `Sending ${progress.current}/${progress.total}…`
-            : `Send to all (${recipients.length})`}
-        </button>
-      </div>
-
-      {status && <p className="status-line">{status}</p>}
-
-      {sending && progress.total > 0 && (
-        <div className="progress">
-          <div
-            className="progress-bar"
-            style={{
-              width: `${(progress.current / progress.total) * 100}%`,
-            }}
-          />
+          >
+            {sending
+              ? `${progress.current}/${progress.total}`
+              : `Send all (${recipients.length})`}
+          </button>
         </div>
-      )}
 
-      {results.length > 0 && (
-        <ul className="results">
-          {results.map((r) => (
-            <li
-              key={`${r.email}-${r.role}`}
-              className={r.success ? "ok" : "err"}
-            >
-              <span>
-                {r.email} · {ROLE_LABELS[r.role]}
-              </span>
-              <span>{r.success ? "Sent" : r.error}</span>
-            </li>
-          ))}
-        </ul>
-      )}
+        {status && <p className="status-line">{status}</p>}
+
+        {sending && progress.total > 0 && (
+          <div className="progress">
+            <div
+              className="progress-bar"
+              style={{
+                width: `${(progress.current / progress.total) * 100}%`,
+              }}
+            />
+          </div>
+        )}
+
+        <div className="scroll-area">
+          {results.length > 0 && (
+            <ul className="results">
+              {results.slice(-8).map((r) => (
+                <li
+                  key={`${r.email}-${r.role}`}
+                  className={r.success ? "ok" : "err"}
+                >
+                  <span>
+                    {r.email} · {ROLE_LABELS[r.role]}
+                  </span>
+                  <span>{r.success ? "Sent" : r.error}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
     </section>
   );
 }

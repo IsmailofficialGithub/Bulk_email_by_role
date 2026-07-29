@@ -79,140 +79,154 @@ export function RecipientManager({ recipients, onChange }: Props) {
   }
 
   function updateTitle(id: string, title: string) {
-    onChange(
-      recipients.map((r) => (r.id === id ? { ...r, title } : r))
-    );
+    onChange(recipients.map((r) => (r.id === id ? { ...r, title } : r)));
   }
 
   return (
     <section className="panel">
       <div className="panel-head">
         <h2>2. Recipients</h2>
-        <span className="badge">{recipients.length} total</span>
+        <span className="badge">{recipients.length}</span>
       </div>
-
-      <div className="role-counts">
-        {ROLES.map((r) => (
-          <span key={r} className="chip">
-            {ROLE_LABELS[r]}: {counts[r]}
-          </span>
-        ))}
-      </div>
-
-      <div className="add-row">
-        <label className="field grow">
-          <span>Email title</span>
-          <input
-            type="text"
-            value={titleInput}
-            onChange={(e) => setTitleInput(e.target.value)}
-            placeholder="e.g. John Doe / Senior Engineer"
-          />
-        </label>
-        <label className="field grow">
-          <span>Add email</span>
-          <input
-            type="email"
-            value={emailInput}
-            onChange={(e) => setEmailInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                addOne();
-              }
-            }}
-            placeholder="candidate@company.com"
-          />
-        </label>
-        <label className="field">
-          <span>Role</span>
-          <select
-            value={role}
-            onChange={(e) => setRole(e.target.value as Role)}
-          >
-            {ROLES.map((r) => (
-              <option key={r} value={r}>
-                {ROLE_LABELS[r]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button type="button" className="btn" onClick={addOne}>
-          Add
-        </button>
-      </div>
-
-      <label className="field">
-        <span>Paste JSON / text (auto-extract emails)</span>
-        <textarea
-          rows={4}
-          value={jsonInput}
-          onChange={(e) => setJsonInput(e.target.value)}
-          placeholder={`["a@x.com","b@y.com"]\nor\n[{"email":"a@x.com"},{"email":"b@y.com"}]`}
-        />
-      </label>
-      <div className="add-row">
-        <label className="field grow">
-          <span>Title for imported emails</span>
-          <input
-            type="text"
-            value={jsonTitle}
-            onChange={(e) => setJsonTitle(e.target.value)}
-            placeholder="Optional shared title"
-          />
-        </label>
-        <label className="field">
-          <span>Assign role</span>
-          <select
-            value={jsonRole}
-            onChange={(e) => setJsonRole(e.target.value as Role)}
-          >
-            {ROLES.map((r) => (
-              <option key={r} value={r}>
-                {ROLE_LABELS[r]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button type="button" className="btn" onClick={importJson}>
-          Extract & Add
-        </button>
-      </div>
-
-      {recipients.length > 0 && (
-        <ul className="recipient-list">
-          {recipients.map((r) => (
-            <li key={r.id}>
-              <input
-                className="title-inline"
-                type="text"
-                value={r.title}
-                onChange={(e) => updateTitle(r.id, e.target.value)}
-                placeholder="Title"
-                aria-label="Email title"
-              />
-              <span className="email">{r.email}</span>
-              <select
-                value={r.role}
-                onChange={(e) => updateRole(r.id, e.target.value as Role)}
-              >
-                {ROLES.map((roleOption) => (
-                  <option key={roleOption} value={roleOption}>
-                    {ROLE_LABELS[roleOption]}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="btn ghost danger"
-                onClick={() => remove(r.id)}
-              >
-                Remove
-              </button>
-            </li>
+      <div className="panel-body">
+        <div className="role-counts">
+          {ROLES.map((r) => (
+            <span key={r} className="chip">
+              {ROLE_LABELS[r]}: {counts[r]}
+            </span>
           ))}
-        </ul>
-      )}
+        </div>
+
+        <div className="add-row">
+          <label className="field grow">
+            <span>Title</span>
+            <input
+              type="text"
+              value={titleInput}
+              onChange={(e) => setTitleInput(e.target.value)}
+              placeholder="Name / title"
+            />
+          </label>
+          <label className="field grow">
+            <span>Email</span>
+            <input
+              type="email"
+              value={emailInput}
+              onChange={(e) => setEmailInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addOne();
+                }
+              }}
+              placeholder="email@company.com"
+            />
+          </label>
+          <label className="field">
+            <span>Role</span>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value as Role)}
+            >
+              {ROLES.map((r) => (
+                <option key={r} value={r}>
+                  {ROLE_LABELS[r]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button type="button" className="btn" onClick={addOne}>
+            Add
+          </button>
+        </div>
+
+        <label className="field json-row">
+          <span>JSON / text extract</span>
+          <textarea
+            rows={2}
+            value={jsonInput}
+            onChange={(e) => setJsonInput(e.target.value)}
+            placeholder='["a@x.com"] or paste text'
+          />
+        </label>
+        <div className="add-row">
+          <label className="field grow">
+            <span>Import title</span>
+            <input
+              type="text"
+              value={jsonTitle}
+              onChange={(e) => setJsonTitle(e.target.value)}
+              placeholder="Optional"
+            />
+          </label>
+          <label className="field">
+            <span>Role</span>
+            <select
+              value={jsonRole}
+              onChange={(e) => setJsonRole(e.target.value as Role)}
+            >
+              {ROLES.map((r) => (
+                <option key={r} value={r}>
+                  {ROLE_LABELS[r]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button type="button" className="btn" onClick={importJson}>
+            Extract
+          </button>
+        </div>
+
+        <div className="scroll-area">
+          {recipients.length > 0 ? (
+            <>
+              <ul className="recipient-list">
+                {recipients.slice(-6).map((r) => (
+                  <li key={r.id}>
+                    <input
+                      className="title-inline"
+                      type="text"
+                      value={r.title}
+                      onChange={(e) => updateTitle(r.id, e.target.value)}
+                      placeholder="Title"
+                      aria-label="Email title"
+                    />
+                    <span className="email" title={r.email}>
+                      {r.email}
+                    </span>
+                    <select
+                      value={r.role}
+                      onChange={(e) =>
+                        updateRole(r.id, e.target.value as Role)
+                      }
+                    >
+                      {ROLES.map((roleOption) => (
+                        <option key={roleOption} value={roleOption}>
+                          {ROLE_LABELS[roleOption]}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      className="btn ghost danger"
+                      onClick={() => remove(r.id)}
+                    >
+                      ×
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              {recipients.length > 6 && (
+                <p className="hint compact">
+                  +{recipients.length - 6} more saved (showing latest)
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="hint">No recipients yet</p>
+          )}
+        </div>
+      </div>
     </section>
   );
 }

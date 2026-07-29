@@ -79,7 +79,7 @@ export default function Home() {
   if (!hydrated) {
     return (
       <main className="page">
-        <p className="status-line">Loading saved settings…</p>
+        <p className="status-line">Loading…</p>
       </main>
     );
   }
@@ -87,15 +87,13 @@ export default function Home() {
   return (
     <main className="page">
       <header className="hero">
-        <p className="brand">AutoMailSend</p>
-        <h1>Bulk email by role</h1>
-        <p className="lede">
-          Configure SMTP, add recipients with roles, set per-role content and
-          attachments, then send with delay. Progress is saved in this browser.
-        </p>
+        <div className="hero-text">
+          <p className="brand">AutoMailSend</p>
+          <p className="lede">Role-based bulk mail · saved locally</p>
+        </div>
       </header>
 
-      <div className="stack">
+      <div className="board">
         <SmtpConfigPanel
           config={config}
           onChange={setConfig}
@@ -117,10 +115,6 @@ export default function Home() {
           onSendingChange={setSending}
         />
       </div>
-
-      <footer className="foot">
-        Roles: {ROLES.join(" · ")} · Powered by Nodemailer + Next.js API
-      </footer>
     </main>
   );
 }
