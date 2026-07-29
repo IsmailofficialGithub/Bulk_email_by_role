@@ -179,7 +179,7 @@ export function SendPanel({
         <div className="scroll-area">
           {results.length > 0 && (
             <ul className="results">
-              {results.slice(-8).map((r) => (
+              {results.map((r) => (
                 <li
                   key={`${r.email}-${r.role}`}
                   className={r.success ? "ok" : "err"}

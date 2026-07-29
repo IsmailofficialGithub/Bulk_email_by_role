@@ -181,7 +181,7 @@ export function RecipientManager({ recipients, onChange }: Props) {
           {recipients.length > 0 ? (
             <>
               <ul className="recipient-list">
-                {recipients.slice(-6).map((r) => (
+                {recipients.map((r) => (
                   <li key={r.id}>
                     <input
                       className="title-inline"
@@ -216,11 +216,6 @@ export function RecipientManager({ recipients, onChange }: Props) {
                   </li>
                 ))}
               </ul>
-              {recipients.length > 6 && (
-                <p className="hint compact">
-                  +{recipients.length - 6} more saved (showing latest)
-                </p>
-              )}
             </>
           ) : (
             <p className="hint">No recipients yet</p>

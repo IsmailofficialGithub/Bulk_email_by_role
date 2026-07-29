@@ -354,9 +354,18 @@ body::before {
 .scroll-area {
   flex: 1 1 auto;
   min-height: 0;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scroll-area::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .recipient-list,
@@ -370,7 +379,6 @@ body::before {
   flex-direction: column;
   gap: 0.3rem;
   min-height: 0;
-  overflow: hidden;
 }
 
 .templates {
@@ -381,6 +389,11 @@ body::before {
 }
 
 .recipient-list {
+  flex: 1 1 auto;
+}
+
+.results {
+  margin-top: 0.35rem;
   flex: 1 1 auto;
 }
 
@@ -472,11 +485,6 @@ body::before {
   height: 100%;
   background: var(--accent);
   transition: width 0.25s ease;
-}
-
-.results {
-  margin-top: 0.35rem;
-  flex: 1 1 auto;
 }
 
 .results li {
