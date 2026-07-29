@@ -99,7 +99,7 @@ export function RoleTemplates({
             <label className="field stretch">
               <span>Content</span>
               <textarea
-                rows={4}
+                className="textarea-content"
                 value={tpl.content}
                 onChange={(e) =>
                   onChange(activeRole, { content: e.target.value })

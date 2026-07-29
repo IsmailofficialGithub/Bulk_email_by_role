@@ -23,16 +23,26 @@
   box-sizing: border-box;
 }
 
-html,
-body {
-  height: 100%;
+html {
   margin: 0;
-  overflow: hidden;
+  min-height: 200vh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+html::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 body {
-  height: 100vh;
-  max-height: 100vh;
+  margin: 0;
+  min-height: 200vh;
+  overflow-x: hidden;
+  overflow-y: visible;
   color: var(--ink);
   font-family: var(--font-sans), system-ui, sans-serif;
   background: var(--bg);
@@ -54,13 +64,13 @@ body::before {
 .page {
   width: 100%;
   max-width: 100vw;
-  height: 100vh;
-  max-height: 100vh;
+  min-height: 200vh;
+  height: 200vh;
   margin: 0;
-  padding: 0.55rem 0.7rem 0.65rem;
+  padding: 0.75rem 0.85rem 1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0.55rem;
   overflow: hidden;
 }
 
@@ -103,15 +113,15 @@ body::before {
   min-height: 0;
   display: grid;
   grid-template-columns: 1fr 1.15fr;
-  grid-template-rows: minmax(0, 0.95fr) minmax(0, 1.15fr);
-  gap: 0.5rem;
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: 0.65rem;
   overflow: hidden;
 }
 
 .panel {
   min-height: 0;
   min-width: 0;
-  padding: 0.55rem 0.65rem 0.6rem;
+  padding: 0.7rem 0.75rem 0.75rem;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: color-mix(in srgb, var(--bg-panel) 88%, transparent);
@@ -124,9 +134,10 @@ body::before {
 .panel-body {
   flex: 1 1 auto;
   min-height: 0;
+  height: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.4rem;
   overflow: hidden;
 }
 
@@ -204,14 +215,52 @@ body::before {
 
 .field textarea {
   resize: none;
-  flex: 1 1 auto;
-  min-height: 0;
-  height: 100%;
+  flex: none;
+  height: 8rem;
+  min-height: 8rem;
+  max-height: 8rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  line-height: 1.4;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--accent) 55%, var(--line))
+    var(--bg);
+}
+
+.field textarea::-webkit-scrollbar {
+  width: 7px;
+}
+
+.field textarea::-webkit-scrollbar-track {
+  background: var(--bg);
+  border-radius: 999px;
+}
+
+.field textarea::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--accent) 45%, var(--line));
+  border-radius: 999px;
+}
+
+.field textarea::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--accent) 70%, var(--line));
 }
 
 .field.stretch {
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 0 0 auto;
+}
+
+.json-row textarea,
+.textarea-json {
+  height: 7rem;
+  min-height: 7rem;
+  max-height: 7rem;
+}
+
+.textarea-content,
+.template-card .field.stretch textarea {
+  height: 10rem;
+  min-height: 10rem;
+  max-height: 10rem;
 }
 
 .field input:focus,
@@ -354,10 +403,11 @@ body::before {
 .scroll-area {
   flex: 1 1 auto;
   min-height: 0;
+  height: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  display: flex;
-  flex-direction: column;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
@@ -366,6 +416,10 @@ body::before {
   display: none;
   width: 0;
   height: 0;
+}
+
+.scroll-area > * {
+  flex-shrink: 0;
 }
 
 .recipient-list,
@@ -378,23 +432,22 @@ body::before {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
-  min-height: 0;
 }
 
 .templates {
-  flex: 1 1 auto;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 0.4rem;
 }
 
-.recipient-list {
-  flex: 1 1 auto;
+.recipient-list,
+.results {
+  flex: 0 0 auto;
+  width: 100%;
 }
 
 .results {
   margin-top: 0.35rem;
-  flex: 1 1 auto;
 }
 
 .recipient-list li {
@@ -418,7 +471,6 @@ body::before {
 }
 
 .template-card {
-  min-height: 0;
   padding: 0.45rem;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -426,7 +478,6 @@ body::before {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
-  overflow: hidden;
 }
 
 .template-head {
@@ -571,8 +622,8 @@ body::before {
 }
 
 .template-card.single {
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 0 0 auto;
+  width: 100%;
 }
 
 @media (max-width: 640px) {
@@ -633,12 +684,6 @@ body::before {
 
 .json-row {
   flex: 0 0 auto;
-}
-
-.json-row textarea {
-  height: 2.6rem !important;
-  min-height: 2.6rem !important;
-  flex: none;
 }
 
 @media (max-width: 900px) {

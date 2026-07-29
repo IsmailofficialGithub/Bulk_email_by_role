@@ -141,12 +141,12 @@ export function RecipientManager({ recipients, onChange }: Props) {
         </div>
 
         <label className="field json-row">
-          <span>JSON / text extract</span>
+          <span>JSON / text extract (comma, space, or JSON)</span>
           <textarea
-            rows={2}
+            className="textarea-json"
             value={jsonInput}
             onChange={(e) => setJsonInput(e.target.value)}
-            placeholder='["a@x.com"] or paste text'
+            placeholder={`a@x.com, b@y.com\nor a@x.com b@y.com\nor ["a@x.com","b@y.com"]`}
           />
         </label>
         <div className="add-row">
