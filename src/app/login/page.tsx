@@ -52,27 +52,27 @@ export default function LoginPage() {
           <p className="text-[var(--text-muted)]">Sign in or create an account</p>
         </div>
 
-        <form className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Email</label>
+        <form className="space-y-5">
+          <label className="field">
+            <span>Email</span>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="field w-full"
               required
+              placeholder="you@example.com"
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Password</label>
+          </label>
+          <label className="field">
+            <span>Password</span>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="field w-full"
               required
+              placeholder="••••••••"
             />
-          </div>
+          </label>
 
           {error && <p className="text-red-500 text-sm">{error}</p>}
 
