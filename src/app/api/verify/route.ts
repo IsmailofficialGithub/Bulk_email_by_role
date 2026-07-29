@@ -5,7 +5,7 @@ import { encryptPassword } from "@/lib/crypto";
 
 export async function POST(request: NextRequest) {
   try {
-    let { email, appPassword } = await request.json();
+    const { email, appPassword } = await request.json();
 
     if (!email || !appPassword) {
       return NextResponse.json(

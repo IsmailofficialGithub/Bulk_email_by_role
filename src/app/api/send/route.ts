@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     let decryptedPassword = appPassword;
     try {
       decryptedPassword = decryptPassword(appPassword);
-    } catch (e) {
+    } catch {
       return NextResponse.json(
         { success: false, error: "Failed to decrypt app password. Please re-verify SMTP config." },
         { status: 400 }
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       subject,
       text: content,
       html: content.replace(/\n/g, "<br>"),
-      attachments: attachments.map((a: any) => ({
+      attachments: attachments.map((a: { filename: string; path: string; contentType: string }) => ({
         filename: a.filename,
         path: a.path, // This is the public URL
         contentType: a.contentType,

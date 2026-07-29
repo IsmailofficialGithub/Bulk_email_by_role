@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
 import type { AutoFetchConfig } from "@/lib/types";
 
@@ -16,8 +17,15 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
   const [intervalMin, setIntervalMin] = useState(config.intervalMin);
   const [liAt, setLiAt] = useState(config.liAt);
   const [jsessionid, setJsessionid] = useState(config.jsessionid || "ajax:");
+  const [rawHeaders, setRawHeaders] = useState(config.rawHeaders || "{}");
   const [showTokens, setShowTokens] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  
+  const [manualKey, setManualKey] = useState<string>("");
+  const [manualValue, setManualValue] = useState<string>("");
+
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   // Regex validation
   const isJsessionValid = jsessionid === "" || /^ajax:\d+$/.test(jsessionid);
@@ -25,13 +33,55 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
 
   const hasKeywords = keywords.trim().length > 0;
 
+  // Attempt to parse rawHeaders to display what was found
+  let parsedHeaders: Record<string, string> | null = null;
+  try {
+    if (rawHeaders.trim().startsWith('{')) {
+      parsedHeaders = JSON.parse(rawHeaders);
+      const keys = Object.keys(parsedHeaders!).map(k => k.toLowerCase());
+      if (!keys.includes('csrf-token') && jsessionid && jsessionid !== "ajax:") {
+         parsedHeaders!['csrf-token'] = jsessionid.trim().replace(/"/g, '');
+      }
+    }
+  } catch {
+    // Ignore parsing errors for display
+  }
+
+  const REQUIRED_HEADERS = [
+    "Cookie",
+    "csrf-token",
+    "User-Agent",
+    "Accept",
+    "Accept-Language",
+    "Origin",
+    "Referer",
+    "sec-ch-ua",
+    "sec-ch-ua-mobile",
+    "sec-ch-ua-platform",
+    "sec-fetch-dest",
+    "sec-fetch-mode",
+    "sec-fetch-site",
+    "x-restli-protocol-version"
+  ];
+
+  let missingHeaders: string[] = [];
+  if (parsedHeaders) {
+    const keys = Object.keys(parsedHeaders).map(k => k.toLowerCase());
+    missingHeaders = REQUIRED_HEADERS.filter(h => !keys.includes(h.toLowerCase()));
+  } else {
+    missingHeaders = [...REQUIRED_HEADERS];
+  }
+
+  const hasAllHeaders = missingHeaders.length === 0;
+
   // Validate before enabling
   const canEnable = 
     liAt.trim().length > 0 && 
     jsessionid.trim().length > 0 && 
     isJsessionValid && 
     isLiAtValid &&
-    hasKeywords;
+    hasKeywords &&
+    hasAllHeaders;
 
   async function handleSave() {
     // Force disable if tokens are missing when saving
@@ -57,7 +107,7 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
           setIsVerifying(false);
           return;
         }
-      } catch (err) {
+      } catch {
         toast.error("Network error validating cookies");
         setIsVerifying(false);
         return;
@@ -65,20 +115,114 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
       setIsVerifying(false);
     }
 
+    let finalRawHeaders = rawHeaders;
+    try {
+      if (rawHeaders.trim().startsWith('{')) {
+        const parsed = JSON.parse(rawHeaders);
+        const keys = Object.keys(parsed).map(k => k.toLowerCase());
+        if (!keys.includes('csrf-token') && jsessionid && jsessionid !== "ajax:") {
+           parsed['csrf-token'] = jsessionid.trim().replace(/"/g, '');
+           finalRawHeaders = JSON.stringify(parsed, null, 2);
+        }
+      }
+    } catch {}
+
     onSave({
       enabled: finalEnabled,
       keywords,
       intervalMin: finalInterval,
       liAt: liAt.trim(),
       jsessionid: jsessionid.trim(),
+      rawHeaders: finalRawHeaders,
     });
     
     toast.success("Auto-fetch configuration saved!");
     onClose();
   }
 
-  return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+  function handleSmartPaste(val: string) {
+    let extracted = 0;
+
+    function parseCustom(text: string) {
+      const trimmed = text.trim();
+      if (!trimmed) return null;
+
+      try {
+        if (trimmed.startsWith('{')) return JSON.parse(trimmed);
+      } catch {
+        // ignore
+      }
+
+      const lines = trimmed.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      const res: Record<string, string> = {};
+      let i = 0;
+      
+      while (i < lines.length) {
+        const line = lines[i];
+        
+        if ((line.includes('li_at=') || line.includes('JSESSIONID=')) && !line.includes(': ')) {
+          res['Cookie'] = line;
+          i++;
+          continue;
+        }
+        
+        if (line.includes(': ')) {
+          const idx = line.indexOf(': ');
+          res[line.slice(0, idx).trim()] = line.slice(idx + 2).trim();
+          i++;
+          continue;
+        }
+        
+        if (i + 1 < lines.length) {
+          res[line] = lines[i + 1];
+          i += 2;
+        } else {
+          i++;
+        }
+      }
+      
+      // Auto-fill csrf-token if missing
+      const keys = Object.keys(res).map(k => k.toLowerCase());
+      if (!keys.includes('csrf-token') && res['Cookie']) {
+        const match = res['Cookie'].match(/ajax:\d+/);
+        if (match) res['csrf-token'] = match[0];
+      }
+      
+      return Object.keys(res).length > 0 ? res : null;
+    }
+
+    const parsed = parseCustom(val);
+    if (parsed) {
+      setRawHeaders(JSON.stringify(parsed, null, 2));
+    } else {
+      setRawHeaders(val);
+    }
+
+    // Extract JSESSIONID (ajax:\d+)
+    const jsessionMatch = val.match(/ajax:\d+/);
+    if (jsessionMatch) {
+      setJsessionid(jsessionMatch[0]);
+      extracted++;
+    }
+
+    // Extract li_at (li_at=VALUE)
+    const liAtMatch = val.match(/li_at=([^;"\s]+)/);
+    if (liAtMatch) {
+      setLiAt(liAtMatch[1]);
+      extracted++;
+    }
+
+    if (extracted > 0) {
+      toast.success(`Auto-extracted ${extracted} token(s)!`);
+    } else if (val.trim().length > 0) {
+      toast.error("No valid tokens found in pasted text.");
+    }
+  }
+
+  if (!mounted) return null;
+
+  return createPortal(
+    <div className="modal-backdrop" role="presentation" onClick={onClose} style={{ zIndex: 99999 }}>
       <div
         className="modal-card"
         role="dialog"
@@ -162,6 +306,93 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
             </button>
           </div>
 
+          <label className="field" style={{ marginBottom: "1rem" }}>
+            <span className="hint compact" style={{ marginBottom: "0.25rem" }}>
+              <strong>Smart Paste:</strong> Paste raw headers or cookie string here to auto-fill
+            </span>
+            <textarea
+              rows={4}
+              style={{ fontSize: "0.8rem", fontFamily: "monospace", width: "100%", padding: "0.5rem" }}
+              placeholder='e.g. {"Cookie": "...", "csrf-token": "..."}'
+              value={rawHeaders}
+              onChange={(e) => handleSmartPaste(e.target.value)}
+            />
+            {parsedHeaders && Object.keys(parsedHeaders).length > 0 && (
+              <div style={{ marginTop: "0.5rem", fontSize: "0.75rem", background: "var(--bg-card)", padding: "0.5rem", borderRadius: "4px", border: "1px solid var(--line)", maxHeight: "150px", overflowY: "auto" }}>
+                <strong style={{ display: "block", marginBottom: "0.25rem", color: "var(--ok)" }}>✅ Extracted Headers:</strong>
+                {Object.entries(parsedHeaders).map(([key, value]) => (
+                  <div key={key} style={{ display: "flex", gap: "0.5rem", marginBottom: "0.25rem" }}>
+                    <span style={{ fontWeight: "bold", minWidth: "120px", color: "var(--fg)" }}>{key}:</span>
+                    <span style={{ color: "var(--muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={value as string}>
+                      {value as string}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {!parsedHeaders && (liAt || (jsessionid && jsessionid !== "ajax:")) && (
+              <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.25rem" }}>
+                {liAt && liAt.length > 0 && (
+                  <span className="badge ok" style={{ fontSize: "0.65rem", padding: "0.1rem 0.4rem" }}>✅ li_at</span>
+                )}
+                {jsessionid && jsessionid !== "ajax:" && jsessionid.length > 0 && (
+                  <span className="badge ok" style={{ fontSize: "0.65rem", padding: "0.1rem 0.4rem" }}>✅ JSESSIONID</span>
+                )}
+              </div>
+            )}
+            {missingHeaders.length > 0 && rawHeaders.trim().length > 0 && (
+              <div style={{ marginTop: "0.5rem", fontSize: "0.75rem", color: "var(--err)", padding: "0.5rem", background: "rgba(255,0,0,0.1)", borderRadius: "4px" }}>
+                <strong>❌ Missing required headers:</strong><br />
+                {missingHeaders.join(", ")}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "0.5rem", alignItems: "center" }}>
+                  <select 
+                    value={manualKey || missingHeaders[0]} 
+                    onChange={(e) => setManualKey(e.target.value)}
+                    style={{ flex: "1 1 120px", padding: "0.3rem", borderRadius: "4px", border: "1px solid var(--err)", background: "var(--bg)", color: "var(--fg)" }}
+                  >
+                    {missingHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                  <input 
+                    type="text" 
+                    placeholder="Value..." 
+                    value={manualValue} 
+                    onChange={(e) => setManualValue(e.target.value)} 
+                    style={{ flex: "2 1 150px", minWidth: 0, padding: "0.3rem", borderRadius: "4px", border: "1px solid var(--err)", background: "var(--bg)", color: "var(--fg)" }}
+                  />
+                  <button 
+                    type="button" 
+                    className="btn primary small"
+                    style={{ padding: "0.3rem 0.75rem" }}
+                    onClick={() => {
+                      const keyToAdd = manualKey || missingHeaders[0];
+                      if (!manualValue.trim()) {
+                         toast.error("Value cannot be empty");
+                         return;
+                      }
+                      
+                      let current: Record<string, string> = {};
+                      try {
+                        if (rawHeaders.trim().startsWith('{')) {
+                           current = JSON.parse(rawHeaders);
+                        }
+                      } catch {
+                        // ignore
+                      }
+                      
+                      current[keyToAdd] = manualValue.trim();
+                      setRawHeaders(JSON.stringify(current, null, 2));
+                      setManualValue("");
+                      setManualKey(""); // Reset to next missing
+                      toast.success(`Added ${keyToAdd}!`);
+                    }}
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+            )}
+          </label>
+
           <div className="grid-2">
             <label className="field">
               <span>
@@ -209,7 +440,7 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
                   type={showTokens ? "text" : "password"}
                   value={jsessionid.replace(/^ajax:/, '')}
                   onChange={(e) => {
-                    let val = e.target.value.replace(/^ajax:/, '');
+                    const val = e.target.value.replace(/^ajax:/, '');
                     setJsessionid("ajax:" + val);
                     if (!val.trim() && enabled) setEnabled(false);
                   }}
@@ -234,6 +465,7 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

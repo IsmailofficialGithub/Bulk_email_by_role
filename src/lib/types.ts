@@ -65,4 +65,5 @@ export type AutoFetchConfig = {
   intervalMin: number;
   liAt: string;
   jsessionid: string;
+  rawHeaders: string;
 };

@@ -195,7 +195,7 @@ body::before {
 
 .modal-card {
   width: min(520px, 100%);
-  max-height: min(90vh, 560px);
+  max-height: min(95vh, 800px);
   overflow: auto;
   border: 1px solid var(--line);
   border-radius: 12px;

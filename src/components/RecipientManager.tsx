@@ -44,9 +44,11 @@ export function RecipientManager({
 
   useEffect(() => {
     if (hydratedTitle) return;
-    setTitleInput(defaultTitle);
-    setJsonTitle(defaultTitle);
-    setHydratedTitle(true);
+    setTimeout(() => {
+      setTitleInput(defaultTitle);
+      setJsonTitle(defaultTitle);
+      setHydratedTitle(true);
+    }, 0);
   }, [defaultTitle, hydratedTitle]);
 
   const counts = useMemo(() => {

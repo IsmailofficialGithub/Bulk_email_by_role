@@ -26,10 +26,12 @@ export function SmtpConfigPanel({ config, onChange, onResetAll }: Props) {
   const [passwordLoading, setPasswordLoading] = useState(false);
 
   useEffect(() => {
-    setEmail(config.email);
-    setAppPassword(config.appPassword);
-    setEditing(!config.configured);
-    setOpen(!config.configured);
+    setTimeout(() => {
+      setEmail(config.email);
+      setAppPassword(config.appPassword);
+      setEditing(!config.configured);
+      setOpen(!config.configured);
+    }, 0);
   }, [config.email, config.appPassword, config.configured]);
 
   useEffect(() => {

@@ -1,6 +1,5 @@
 import { supabase } from "./supabase";
 import {
-  ROLES,
   type Recipient,
   type Role,
   type RoleTemplate,
@@ -45,6 +44,7 @@ export function defaultState(): PersistedState {
       intervalMin: 5,
       liAt: "",
       jsessionid: "",
+      rawHeaders: "{}",
     },
   };
 }
@@ -102,6 +102,7 @@ export async function loadState(userId: string): Promise<PersistedState> {
       intervalMin: appState.auto_fetch_interval_min || 5,
       liAt: appState.auto_fetch_li_at || "",
       jsessionid: appState.auto_fetch_jsessionid || "",
+      rawHeaders: appState.auto_fetch_raw_headers || "{}",
     };
   }
 
@@ -168,6 +169,7 @@ export async function saveAppState(userId: string, state: PersistedState) {
       auto_fetch_interval_min: state.autoFetch.intervalMin,
       auto_fetch_li_at: state.autoFetch.liAt,
       auto_fetch_jsessionid: state.autoFetch.jsessionid,
+      auto_fetch_raw_headers: state.autoFetch.rawHeaders,
     },
     { onConflict: "user_id" }
   );

@@ -128,7 +128,7 @@ export default function Home() {
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
-  }, [hydrated, userId, config, delaySec, activeTemplateRole, defaultTitle, autoFetch]);
+  }, [hydrated, userId, config, delaySec, activeTemplateRole, defaultTitle, autoFetch, recipients, templates, sentLog]);
 
   function updateTemplate(role: Role, patch: Partial<RoleTemplate>) {
     const newTemplates = {
