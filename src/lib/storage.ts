@@ -26,6 +26,7 @@ export type PersistedState = {
   templates: Record<Role, StoredTemplate>;
   delaySec: number;
   activeTemplateRole: Role;
+  defaultTitle: string;
 };
 
 function emptyStoredTemplates(): Record<Role, StoredTemplate> {
@@ -53,6 +54,7 @@ export function defaultState(): PersistedState {
     templates: emptyStoredTemplates(),
     delaySec: 3,
     activeTemplateRole: "fullstack",
+    defaultTitle: "",
   };
 }
 
@@ -150,6 +152,7 @@ function migrateLegacy(): PersistedState | null {
         typeof parsed.delaySec === "number" && parsed.delaySec >= 0
           ? parsed.delaySec
           : base.delaySec,
+      defaultTitle: "",
     };
   } catch {
     return null;
@@ -209,6 +212,8 @@ export function loadState(): PersistedState {
           ? parsed.delaySec
           : base.delaySec,
       activeTemplateRole,
+      defaultTitle:
+        typeof parsed.defaultTitle === "string" ? parsed.defaultTitle : "",
     };
   } catch {
     return defaultState();

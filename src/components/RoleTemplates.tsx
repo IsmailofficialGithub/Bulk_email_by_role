@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { AutoGrowTextarea } from "@/components/AutoGrowTextarea";
 import {
   ROLE_LABELS,
   ROLES,
@@ -98,9 +99,10 @@ export function RoleTemplates({
 
             <label className="field stretch">
               <span>Content</span>
-              <textarea
+              <AutoGrowTextarea
                 className="textarea-content"
                 value={tpl.content}
+                maxHeight={320}
                 onChange={(e) =>
                   onChange(activeRole, { content: e.target.value })
                 }

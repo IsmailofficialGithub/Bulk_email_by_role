@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { AutoGrowTextarea } from "@/components/AutoGrowTextarea";
 import { extractEmails } from "@/lib/extractEmails";
 import {
   ROLE_LABELS,
@@ -12,19 +13,31 @@ import {
 type Props = {
   recipients: Recipient[];
   onChange: (recipients: Recipient[]) => void;
+  defaultTitle: string;
+  onDefaultTitleChange: (title: string) => void;
 };
 
 function uid() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-export function RecipientManager({ recipients, onChange }: Props) {
+export function RecipientManager({
+  recipients,
+  onChange,
+  defaultTitle,
+  onDefaultTitleChange,
+}: Props) {
   const [emailInput, setEmailInput] = useState("");
-  const [titleInput, setTitleInput] = useState("");
+  const [titleInput, setTitleInput] = useState(defaultTitle);
   const [role, setRole] = useState<Role>("fullstack");
   const [jsonInput, setJsonInput] = useState("");
   const [jsonRole, setJsonRole] = useState<Role>("fullstack");
-  const [jsonTitle, setJsonTitle] = useState("");
+  const [jsonTitle, setJsonTitle] = useState(defaultTitle);
+
+  useEffect(() => {
+    setTitleInput(defaultTitle);
+    setJsonTitle(defaultTitle);
+  }, [defaultTitle]);
 
   const counts = useMemo(() => {
     const map: Record<Role, number> = {
@@ -39,18 +52,24 @@ export function RecipientManager({ recipients, onChange }: Props) {
     return map;
   }, [recipients]);
 
+  function setDefaultFrom(title: string) {
+    const next = title.trim();
+    onDefaultTitleChange(next);
+  }
+
   function addOne() {
     const email = emailInput.trim().toLowerCase();
-    const title = titleInput.trim();
+    const title = titleInput.trim() || defaultTitle.trim();
     if (!email || !email.includes("@")) return;
     if (recipients.some((r) => r.email === email)) {
       setEmailInput("");
-      setTitleInput("");
       return;
     }
+    if (title) setDefaultFrom(title);
     onChange([...recipients, { id: uid(), email, role, title }]);
     setEmailInput("");
-    setTitleInput("");
+    // keep title as default for next recipient
+    setTitleInput(title || defaultTitle);
   }
 
   function importJson() {
@@ -58,7 +77,8 @@ export function RecipientManager({ recipients, onChange }: Props) {
     if (!emails.length) return;
     const existing = new Set(recipients.map((r) => r.email));
     const next = [...recipients];
-    const title = jsonTitle.trim();
+    const title = jsonTitle.trim() || defaultTitle.trim();
+    if (title) setDefaultFrom(title);
     for (const email of emails) {
       if (existing.has(email)) continue;
       existing.add(email);
@@ -66,6 +86,7 @@ export function RecipientManager({ recipients, onChange }: Props) {
     }
     onChange(next);
     setJsonInput("");
+    setJsonTitle(title || defaultTitle);
   }
 
   function remove(id: string) {
@@ -80,6 +101,7 @@ export function RecipientManager({ recipients, onChange }: Props) {
 
   function updateTitle(id: string, title: string) {
     onChange(recipients.map((r) => (r.id === id ? { ...r, title } : r)));
+    if (title.trim()) setDefaultFrom(title);
   }
 
   return (
@@ -97,13 +119,20 @@ export function RecipientManager({ recipients, onChange }: Props) {
           ))}
         </div>
 
+        {defaultTitle ? (
+          <p className="hint compact">Default title: {defaultTitle}</p>
+        ) : null}
+
         <div className="add-row">
           <label className="field grow">
-            <span>Title</span>
+            <span>Title (saved as default)</span>
             <input
               type="text"
               value={titleInput}
-              onChange={(e) => setTitleInput(e.target.value)}
+              onChange={(e) => {
+                setTitleInput(e.target.value);
+                onDefaultTitleChange(e.target.value.trim());
+              }}
               placeholder="Name / title"
             />
           </label>
@@ -142,21 +171,25 @@ export function RecipientManager({ recipients, onChange }: Props) {
 
         <label className="field json-row">
           <span>JSON / text extract (comma, space, or JSON)</span>
-          <textarea
+          <AutoGrowTextarea
             className="textarea-json"
             value={jsonInput}
+            maxHeight={260}
             onChange={(e) => setJsonInput(e.target.value)}
             placeholder={`a@x.com, b@y.com\nor a@x.com b@y.com\nor ["a@x.com","b@y.com"]`}
           />
         </label>
         <div className="add-row">
           <label className="field grow">
-            <span>Import title</span>
+            <span>Import title (uses default)</span>
             <input
               type="text"
               value={jsonTitle}
-              onChange={(e) => setJsonTitle(e.target.value)}
-              placeholder="Optional"
+              onChange={(e) => {
+                setJsonTitle(e.target.value);
+                onDefaultTitleChange(e.target.value.trim());
+              }}
+              placeholder={defaultTitle || "Optional"}
             />
           </label>
           <label className="field">
@@ -179,44 +212,42 @@ export function RecipientManager({ recipients, onChange }: Props) {
 
         <div className="scroll-area">
           {recipients.length > 0 ? (
-            <>
-              <ul className="recipient-list">
-                {recipients.map((r) => (
-                  <li key={r.id}>
-                    <input
-                      className="title-inline"
-                      type="text"
-                      value={r.title}
-                      onChange={(e) => updateTitle(r.id, e.target.value)}
-                      placeholder="Title"
-                      aria-label="Email title"
-                    />
-                    <span className="email" title={r.email}>
-                      {r.email}
-                    </span>
-                    <select
-                      value={r.role}
-                      onChange={(e) =>
-                        updateRole(r.id, e.target.value as Role)
-                      }
-                    >
-                      {ROLES.map((roleOption) => (
-                        <option key={roleOption} value={roleOption}>
-                          {ROLE_LABELS[roleOption]}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      className="btn ghost danger"
-                      onClick={() => remove(r.id)}
-                    >
-                      ×
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </>
+            <ul className="recipient-list">
+              {recipients.map((r) => (
+                <li key={r.id}>
+                  <input
+                    className="title-inline"
+                    type="text"
+                    value={r.title}
+                    onChange={(e) => updateTitle(r.id, e.target.value)}
+                    placeholder={defaultTitle || "Title"}
+                    aria-label="Email title"
+                  />
+                  <span className="email" title={r.email}>
+                    {r.email}
+                  </span>
+                  <select
+                    value={r.role}
+                    onChange={(e) =>
+                      updateRole(r.id, e.target.value as Role)
+                    }
+                  >
+                    {ROLES.map((roleOption) => (
+                      <option key={roleOption} value={roleOption}>
+                        {ROLE_LABELS[roleOption]}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="btn ghost danger"
+                    onClick={() => remove(r.id)}
+                  >
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
           ) : (
             <p className="hint">No recipients yet</p>
           )}

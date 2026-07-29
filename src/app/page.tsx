@@ -106,14 +106,14 @@ export default function Home() {
             Role templates stay saved · switch anytime
           </p>
         </div>
-      </header>
-
-      <div className="board">
         <SmtpConfigPanel
           config={config}
           onChange={setConfig}
           onResetAll={resetAll}
         />
+      </header>
+
+      <div className="board board-three">
         <RecipientManager recipients={recipients} onChange={setRecipients} />
         <RoleTemplates
           recipients={recipients}
