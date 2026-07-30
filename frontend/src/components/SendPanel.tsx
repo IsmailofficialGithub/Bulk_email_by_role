@@ -11,6 +11,7 @@ import {
   type SmtpConfig,
 } from "@/lib/types";
 import { addSentLog } from "@/lib/storage";
+import { supabase } from "@/lib/supabase";
 import toast from "react-hot-toast";
 
 type Props = {
@@ -58,7 +59,6 @@ export function SendPanel({
 }: Props) {
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [status, setStatus] = useState("");
-  const [results, setResults] = useState<SendResult[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const sentKeys = useMemo(
@@ -118,140 +118,52 @@ export function SendPanel({
     }
 
     onSendingChange(true);
-    setResults([]);
     setProgress({ current: 0, total: list.length });
-    setStatus(`${options.label}…`);
+    setStatus(`Queuing ${list.length} emails…`);
 
-    const collected: SendResult[] = [];
-    let log = [...sentLog];
-    const delayMs = Math.max(0, delaySec) * 1000;
-
-    for (let i = 0; i < list.length; i++) {
-      const recipient = list[i];
-      const already = sentKeys.has(sentKey(recipient.email, recipient.role));
-
-      if (already && !options.force) {
-        collected.push({
-          email: recipient.email,
-          role: recipient.role,
-          success: true,
-          skipped: true,
-        });
-        setResults([...collected]);
-        setProgress({ current: i + 1, total: list.length });
-        continue;
-      }
-
-      const tpl = templates[recipient.role];
-      const subject = applyPlaceholders(tpl.subject, recipient);
-      const content = applyPlaceholders(tpl.content, recipient);
-      const name = recipient.title
-        ? `${recipient.title} <${recipient.email}>`
-        : recipient.email;
-
-      setProgress({ current: i + 1, total: list.length });
-      setStatus(`Sending ${name}…`);
-
-      const payload = {
-        fromName: config.fromName,
-        fromEmail: config.email,
-        appPassword: config.appPassword,
-        host: config.host || "smtp.gmail.com",
-        port: config.port || 465,
-        toEmail: recipient.email,
-        subject,
-        content,
-        attachments: tpl.files.map(f => ({
-          filename: f.name,
-          path: f.url,
-          contentType: f.type,
-        })),
-      };
-
-      try {
-        const res = await fetch("/api/send", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        const data = await res.json();
-        if (data.success) {
-          collected.push({
-            email: recipient.email,
-            role: recipient.role,
-            success: true,
-          });
-          log = markRecord(recipient, log, "sent");
-          onSentLogChange(log);
-          
-          addSentLog(userId, {
-             email: recipient.email.toLowerCase(),
-             role: recipient.role,
-             title: recipient.title,
-             status: "sent",
-             sentAt: new Date().toISOString(),
-          }).catch(console.error);
-
-        } else {
-          collected.push({
-            email: recipient.email,
-            role: recipient.role,
-            success: false,
-            error: data.error || "Send failed",
-          });
-          log = markRecord(recipient, log, "failed", data.error || "Send failed");
-          onSentLogChange(log);
-          
-          addSentLog(userId, {
-             email: recipient.email.toLowerCase(),
-             role: recipient.role,
-             title: recipient.title,
-             status: "failed",
-             error: data.error || "Send failed",
-             sentAt: new Date().toISOString(),
-          }).catch(console.error);
-        }
-        setResults([...collected]);
-      } catch {
-        collected.push({
-          email: recipient.email,
-          role: recipient.role,
-          success: false,
-          error: "Network error",
-        });
-        log = markRecord(recipient, log, "failed", "Network error");
-        onSentLogChange(log);
-        
-        addSentLog(userId, {
-           email: recipient.email.toLowerCase(),
-           role: recipient.role,
-           title: recipient.title,
-           status: "failed",
-           error: "Network error",
-           sentAt: new Date().toISOString(),
-        }).catch(console.error);
-        
-        setResults([...collected]);
-      }
-
-      if (i < list.length - 1 && delayMs > 0) {
-        setStatus(`Wait ${delaySec}s…`);
-        await sleep(delayMs);
-      }
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast.error("You must be logged in to send emails.");
+      onSendingChange(false);
+      return;
     }
 
-    const ok = collected.filter((r) => r.success && !r.skipped).length;
-    const skip = collected.filter((r) => r.skipped).length;
-    const fail = collected.filter((r) => !r.success).length;
-    setStatus(
-      `Done · ${ok} sent · ${skip ? `${skip} skipped · ` : ""}${fail} failed`
-    );
-    if (fail > 0) {
-      toast.error(`Completed with ${fail} errors`);
-    } else {
-      toast.success("All emails processed successfully!");
+    try {
+      const toProcess = list.filter(r => options.force || !sentKeys.has(sentKey(r.email, r.role)));
+
+      if (toProcess.length === 0) {
+        setStatus("Nothing new to send.");
+        toast.success("All selected emails have already been sent.");
+        onSendingChange(false);
+        return;
+      }
+
+      const res = await fetch("/api/send-batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recipients: toProcess,
+          templates,
+          config,
+          delaySec,
+          userId,
+          accessToken: session.access_token
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setStatus("Failed to start batch.");
+        toast.error(data.error || "Failed to queue background batch");
+      } else {
+        setStatus("Background send started! You can safely close the tab.");
+        toast.success("Background send started! You can safely close the tab.");
+      }
+    } catch {
+      setStatus("Network error queuing batch.");
+      toast.error("Network error queuing batch.");
+    } finally {
+      onSendingChange(false);
     }
-    onSendingChange(false);
   }
 
   function clearSentHistory() {
@@ -486,45 +398,6 @@ export function SendPanel({
               )}
             </div>
           </div>
-        </div>
-
-        {results.length > 0 && (
-          <div className="send-col">
-            <div className="send-col-head">
-              <h3>This run</h3>
-            </div>
-            <div className="scroll-area send-scroll">
-              <ul className="results">
-                {results.map((r) => {
-                  const recipient = recipients.find(
-                    (x) => x.email === r.email && x.role === r.role
-                  );
-                  const title = recipient?.title;
-                  return (
-                    <li
-                      key={`${r.email}-${r.role}-${r.skipped ? "s" : "r"}`}
-                      className={
-                        r.skipped ? "skip" : r.success ? "ok" : "err"
-                      }
-                    >
-                      <span>
-                        {title ? `${title} · ` : ""}
-                        {r.email} · {ROLE_LABELS[r.role]}
-                      </span>
-                      <span>
-                        {r.skipped
-                          ? "Skipped"
-                          : r.success
-                            ? "Sent"
-                            : r.error}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          </div>
-        )}
       </div>
     </section>
   );

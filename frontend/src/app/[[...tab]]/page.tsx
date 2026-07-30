@@ -212,6 +212,38 @@ export default function Home() {
           }
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'automailsend_sent_log',
+          filter: `user_id=eq.${userId}`
+        },
+        (payload) => {
+          const newLog = payload.new;
+          setSentLog((prev) => {
+            // Avoid duplicates
+            if (prev.some(s => s.email === newLog.email && s.role === newLog.role && s.sentAt === newLog.sent_at)) {
+              return prev;
+            }
+            return [{
+              email: newLog.email,
+              role: newLog.role as Role,
+              title: newLog.title || "",
+              status: newLog.status || "sent",
+              error: newLog.error_message || undefined,
+              sentAt: newLog.sent_at,
+            }, ...prev];
+          });
+          // Also toast success/fail if it was from background job
+          if (newLog.status === 'sent') {
+            toast.success(`Sent email to ${newLog.email}`);
+          } else if (newLog.status === 'failed') {
+            toast.error(`Failed sending to ${newLog.email}`);
+          }
+        }
+      )
       .subscribe();
 
     return () => {
