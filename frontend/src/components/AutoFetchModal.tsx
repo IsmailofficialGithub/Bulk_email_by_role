@@ -547,7 +547,7 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
               onChange={(e) => handleSmartPaste(e.target.value)}
             />
             {parsedHeaders && Object.keys(parsedHeaders).length > 0 && (
-              <div style={{ marginTop: "0.5rem", fontSize: "0.75rem", background: "var(--bg-card)", padding: "0.5rem", borderRadius: "4px", border: "1px solid var(--line)", maxHeight: "150px", overflowY: "auto" }}>
+              <div style={{ marginTop: "0.5rem", fontSize: "0.75rem", background: "var(--bg-card)", padding: "0.5rem", borderRadius: "4px", border: "1px solid var(--line)", maxHeight: "250px", overflowY: "auto" }}>
                 <strong style={{ display: "block", marginBottom: "0.25rem", color: "var(--ok)" }}>✅ Extracted Headers:</strong>
                 {Object.entries(parsedHeaders).map(([key, value]) => (
                   <div key={key} style={{ display: "flex", gap: "0.5rem", marginBottom: "0.25rem" }}>
