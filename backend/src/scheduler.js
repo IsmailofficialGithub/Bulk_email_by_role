@@ -8,6 +8,12 @@ const { addBatchSendJob } = require("./queues/batchSend.queue");
 const lastQueuedMap = new Map();
 
 async function checkBatchSends() {
+  // Debugging log to see the actual state in the database
+  const { data: debugUsers } = await supabase.from("automailsend_app_state").select("user_id, batch_send_pending, batch_send_processing");
+  if (debugUsers && debugUsers.length > 0) {
+    console.log(pc.dim(`  -> DB State for debug: pending=${debugUsers[0].batch_send_pending}, processing=${debugUsers[0].batch_send_processing}`));
+  }
+
   const { data: users, error } = await supabase
     .from("automailsend_app_state")
     .select("*")
