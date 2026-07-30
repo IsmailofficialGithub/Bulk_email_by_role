@@ -40,8 +40,9 @@ export type RoleTemplate = {
 };
 
 export type SmtpConfig = {
-  email: string;
+  email: string; // The username for SMTP authentication
   appPassword: string;
+  fromEmail?: string; // The sender email address
   fromName?: string;
   provider?: string;
   host?: string;

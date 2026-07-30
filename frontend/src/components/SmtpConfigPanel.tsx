@@ -15,7 +15,7 @@ type Props = {
 };
 
 const PROVIDERS = [
-  { id: "gmail", name: "Gmail", host: "smtp.gmail.com", port: 465, userLabel: "Sender Email", passLabel: "App Password", tooltip: "Google App Password" },
+  { id: "gmail", name: "Gmail", host: "smtp.gmail.com", port: 465, userLabel: "Username / Login", passLabel: "App Password", tooltip: "Google App Password" },
   { id: "sendgrid", name: "SendGrid", host: "smtp.sendgrid.net", port: 465, userLabel: "Username (usually 'apikey')", passLabel: "API Key", tooltip: "SendGrid API Key" },
   { id: "resend", name: "Resend", host: "smtp.resend.com", port: 465, userLabel: "Username (usually 'resend')", passLabel: "API Key", tooltip: "Resend API Key" },
   { id: "custom", name: "Custom", host: "", port: 465, userLabel: "SMTP Username", passLabel: "SMTP Password", tooltip: "SMTP Credentials" },
@@ -23,6 +23,7 @@ const PROVIDERS = [
 
 export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props) {
   const [email, setEmail] = useState(config.email);
+  const [fromEmail, setFromEmail] = useState(config.fromEmail || "");
   const [fromName, setFromName] = useState(config.fromName || "");
   const [appPassword, setAppPassword] = useState(config.appPassword);
   
@@ -44,6 +45,7 @@ export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props
     setMounted(true);
     setTimeout(() => {
       setEmail(config.email);
+      setFromEmail(config.fromEmail || "");
       setFromName(config.fromName || "");
       setAppPassword(config.appPassword);
       setProvider(config.provider || "gmail");
@@ -94,9 +96,10 @@ export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props
       
       // ONLY trigger onChange (which saves) upon successful verify!
       onChange({ 
-        email, 
-        appPassword: data.encryptedPassword || appPassword, 
-        fromName, 
+        email: email.trim(),
+        appPassword: isMasked ? config.appPassword : appPassword.trim(),
+        fromEmail: fromEmail.trim(),
+        fromName: fromName.trim(),
         provider,
         host,
         port,
@@ -130,6 +133,7 @@ export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props
     }
     onResetAll();
     setEmail("");
+    setFromEmail("");
     setFromName("");
     setAppPassword("");
     setProvider("gmail");
@@ -214,6 +218,20 @@ export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props
                     </label>
                   </>
                 )}
+
+                <label className="field">
+                  <span>From / Sender Email</span>
+                  <input
+                    type="email"
+                    value={fromEmail}
+                    disabled={locked}
+                    onChange={(e) => {
+                      setFromEmail(e.target.value);
+                      setMessage(null);
+                    }}
+                    placeholder={email || "e.g. mail@example.com"}
+                  />
+                </label>
 
                 <label className="field">
                   <span>From / Sender Name</span>

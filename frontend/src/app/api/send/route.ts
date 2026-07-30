@@ -7,13 +7,13 @@ export const runtime = "nodejs";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { fromName, fromEmail, appPassword, host, port, toEmail, subject, content, attachments = [] } = body;
+    const { fromName, email, fromEmail, appPassword, host, port, toEmail, subject, content, attachments = [] } = body;
 
-    if (!fromEmail || !appPassword || !host || !port || !toEmail || !subject) {
+    if (!email || !appPassword || !host || !port || !toEmail || !subject) {
       return NextResponse.json(
         {
           success: false,
-          error: "fromEmail, appPassword, toEmail, and subject are required",
+          error: "email, appPassword, toEmail, and subject are required",
         },
         { status: 400 }
       );
@@ -34,13 +34,14 @@ export async function POST(request: NextRequest) {
       port: port,
       secure: port === 465,
       auth: {
-        user: fromEmail,
+        user: email,
         pass: decryptedPassword,
       },
     });
 
+    const senderEmail = fromEmail || email;
     const info = await transporter.sendMail({
-      from: fromName ? `"${fromName}" <${fromEmail}>` : fromEmail,
+      from: fromName ? `"${fromName}" <${senderEmail}>` : senderEmail,
       to: toEmail,
       subject,
       text: content,

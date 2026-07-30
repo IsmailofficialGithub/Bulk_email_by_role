@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
 
         const subject = applyPlaceholders(tpl.subject, recipient);
         const content = applyPlaceholders(tpl.content, recipient);
-        const fromEmail = config.email;
+        const fromEmail = config.fromEmail || config.email;
         const fromName = config.fromName;
         const toEmail = recipient.email;
 
