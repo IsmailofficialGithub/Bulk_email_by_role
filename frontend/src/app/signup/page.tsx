@@ -46,10 +46,11 @@ export default function SignUpPage() {
   }
 
   return (
-    <main className="page min-h-screen flex items-center justify-center p-4">
+    <main className="flex items-center justify-center p-4 w-full h-full my-auto flex-grow">
       <div className="w-full max-w-md p-8 bg-[var(--bg-panel)] rounded-2xl border border-[var(--line)] shadow-2xl backdrop-blur-md">
-        <div className="text-center mb-8">
-          <h1 className="brand text-3xl mb-2">AutoMailSend</h1>
+        <div className="text-center mb-8 flex flex-col items-center">
+          <img src="/logo.png" alt="Viddr Logo" className="w-12 h-12 rounded-xl mb-4 shadow-sm" />
+          <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Viddr</h1>
           <p className="text-[var(--muted)]">Create your account to get started.</p>
         </div>
 
