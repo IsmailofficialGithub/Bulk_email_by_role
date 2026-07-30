@@ -62,7 +62,7 @@ export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props
   }, [onClose]);
 
   const locked = config.configured && !editing;
-  const displayAppPassword = appPassword.startsWith("enc:") ? "••••••••••••••••" : appPassword;
+  const displayAppPassword = appPassword.startsWith("enc:") ? "ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½" : appPassword;
   
   const currentProvider = PROVIDERS.find(p => p.id === provider) || PROVIDERS[0];
 
@@ -273,7 +273,7 @@ export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props
                       onChange={(e) => {
                         let val = e.target.value;
                         if (appPassword.startsWith("enc:")) {
-                          val = val.replace(/•/g, "");
+                          val = val.replace(/ï¿½/g, "");
                         }
                         setAppPassword(val);
                         setMessage(null);
@@ -302,7 +302,7 @@ export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props
                     onClick={handleVerify}
                     disabled={loading || !email || !appPassword || !host || !port}
                   >
-                    {loading ? "…" : "Verify & Save"}
+                    {loading ? "ï¿½" : "Verify & Save"}
                   </button>
                 )}
                 {locked && (

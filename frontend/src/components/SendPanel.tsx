@@ -399,6 +399,7 @@ export function SendPanel({
             </div>
           </div>
       </div>
+      </div>
     </section>
   );
 }
