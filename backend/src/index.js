@@ -4,10 +4,8 @@ require("dotenv").config();
 require("./config/redis");
 require("./config/supabase");
 
-// Initialize Queues and Workers
-require("./queues/scraper.queue");
+// Initialize Workers
 require("./workers/scraper.worker");
-require("./queues/batchSend.queue");
 require("./workers/batchSend.worker");
 
 // Start Scheduler

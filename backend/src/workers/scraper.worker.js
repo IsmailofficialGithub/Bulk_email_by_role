@@ -1,7 +1,5 @@
-const { Worker } = require("bullmq");
 const pc = require("picocolors");
 const axios = require("axios");
-const { connection } = require("../config/redis");
 const { supabase } = require("../config/supabase");
 const { extractInitialContacts, extractPaginatedContacts } = require("../services/extraction.service");
 
@@ -335,17 +333,4 @@ async function processJob(job) {
   }
 }
 
-const worker = new Worker("scraperQueue", processJob, { 
-  connection,
-  concurrency: 5 
-});
-
-worker.on("completed", (job, returnvalue) => {
-  console.log(pc.bgGreen(pc.white(` [Job ${job.id}] Completed! Inserted: ${returnvalue.inserted} `)));
-});
-
-worker.on("failed", (job, err) => {
-  console.error(pc.bgRed(pc.white(` [Job ${job.id}] Failed: ${err.message} `)));
-});
-
-module.exports = { worker, processJob };
+module.exports = { processJob };

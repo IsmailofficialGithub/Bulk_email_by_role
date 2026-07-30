@@ -1,7 +1,5 @@
-const { Worker } = require("bullmq");
 const pc = require("picocolors");
 const nodemailer = require("nodemailer");
-const { connection } = require("../config/redis");
 const { supabase } = require("../config/supabase");
 const { decryptPassword } = require("../lib/crypto");
 
@@ -15,7 +13,7 @@ function applyPlaceholders(text, recipient) {
     .replaceAll("{{email}}", recipient.email);
 }
 
-const batchSendWorker = new Worker("batchSendQueue", async (job) => {
+async function processBatchSendJob(job) {
   const { user_id } = job.data;
   console.log(pc.blue(`[BatchSend Worker] Starting batch send for user ${user_id}`));
 
@@ -191,14 +189,11 @@ const batchSendWorker = new Worker("batchSendQueue", async (job) => {
     console.error(pc.red(`[BatchSend Worker] Error: ${error.message}`));
   } finally {
     // Release the flags
-    await supabase.from("automailsend_app_state")
+    await supabase
+      .from("automailsend_app_state")
       .update({ batch_send_pending: false, batch_send_processing: false })
       .eq("user_id", user_id);
   }
-}, { connection, concurrency: 5 });
+}
 
-batchSendWorker.on("failed", (job, err) => {
-  console.error(pc.red(`[BatchSend Worker] Job ${job.id} failed: ${err.message}`));
-});
-
-module.exports = batchSendWorker;
+module.exports = { processBatchSendJob };

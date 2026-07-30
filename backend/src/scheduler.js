@@ -3,7 +3,7 @@ const { supabase } = require("./config/supabase");
 const { processJob } = require("./workers/scraper.worker");
 const { runAutomailJobs } = require("./workers/automail.worker");
 
-const { addBatchSendJob } = require("./queues/batchSend.queue");
+const { processBatchSendJob } = require("./workers/batchSend.worker");
 
 const lastQueuedMap = new Map();
 
@@ -35,7 +35,10 @@ async function checkBatchSends() {
       .update({ batch_send_processing: true })
       .eq("user_id", user.user_id);
     
-    await addBatchSendJob(user);
+    // Bypass Redis completely to prevent infinite hangs
+    processBatchSendJob({ data: user }).catch(err => {
+       console.error(pc.red(`[Scheduler/Worker] Batch send failed: ${err.message}`));
+    });
   }
 }
 
