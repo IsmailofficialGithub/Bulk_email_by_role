@@ -32,18 +32,18 @@ import {
 export default function Home() {
   const router = useRouter();
   
-  const [activeTab, setActiveTab] = useState<"contacts" | "templates" | "sending" | "settings">("contacts");
+  const [activeTab, setActiveTab] = useState<"contacts" | "templates" | "sending" | "settings" | "logs">("contacts");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const currentTab = window.location.pathname.replace('/', '') || 'contacts';
-      if (["contacts", "templates", "sending", "settings"].includes(currentTab)) {
+      if (["contacts", "templates", "sending", "settings", "logs"].includes(currentTab)) {
         setActiveTab(currentTab as any);
       }
 
       const handlePopState = () => {
         const popTab = window.location.pathname.replace('/', '') || 'contacts';
-        if (["contacts", "templates", "sending", "settings"].includes(popTab)) {
+        if (["contacts", "templates", "sending", "settings", "logs"].includes(popTab)) {
           setActiveTab(popTab as any);
         }
       };
@@ -53,7 +53,7 @@ export default function Home() {
     }
   }, []);
 
-  const handleTabChange = (tab: "contacts" | "templates" | "sending" | "settings") => {
+  const handleTabChange = (tab: "contacts" | "templates" | "sending" | "settings" | "logs") => {
     setActiveTab(tab);
     if (typeof window !== "undefined") {
       window.history.pushState(null, '', `/${tab}`);
@@ -82,6 +82,7 @@ export default function Home() {
   const [showAutomailModal, setShowAutomailModal] = useState(false);
   const [showSmtpModal, setShowSmtpModal] = useState(false);
   
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [passwordLoading, setPasswordLoading] = useState(false);
   
@@ -354,9 +355,28 @@ export default function Home() {
 
   if (!hydrated || !userId) {
     return (
-      <main className="page min-h-screen flex items-center justify-center bg-[var(--bg)]">
-        <p className="status-line animate-pulse">Loading…</p>
-      </main>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', width: '100vw', background: 'var(--bg)', position: 'fixed', top: 0, left: 0, zIndex: 9999 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem', opacity: 0, animation: 'fadeIn 0.5s ease-out forwards' }}>
+          <div style={{ position: 'relative' }}>
+            <img src="/logo.png" alt="Viddr Logo" style={{ width: '4.5rem', height: '4.5rem', borderRadius: '14px', boxShadow: '0 12px 30px rgba(0,0,0,0.1)' }} />
+            <div style={{ position: 'absolute', inset: 0, borderRadius: '14px', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.05)' }} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem' }}>
+            <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 650, color: 'var(--ink)', letterSpacing: '-0.02em', fontFamily: 'var(--font-display), Georgia, serif' }}>Viddr</h2>
+            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--muted)' }}>Preparing your workspace...</p>
+          </div>
+          <div style={{ width: '12rem', height: '4px', background: 'var(--line)', borderRadius: '999px', overflow: 'hidden', marginTop: '0.5rem' }}>
+            <div style={{ height: '100%', background: 'var(--accent)', borderRadius: '999px', animation: 'indeterminate-progress 1.5s ease-in-out infinite' }} />
+          </div>
+        </div>
+        <style>{`
+          @keyframes indeterminate-progress {
+            0% { transform: translateX(-100%); width: 40%; }
+            50% { transform: translateX(30%); width: 80%; }
+            100% { transform: translateX(250%); width: 40%; }
+          }
+        `}</style>
+      </div>
     );
   }
 
@@ -385,6 +405,12 @@ export default function Home() {
             onClick={() => handleTabChange('sending')}
           >
             Sending & Automail
+          </button>
+          <button 
+            className={`sidebar-tab ${activeTab === 'logs' ? 'active' : ''}`}
+            onClick={() => handleTabChange('logs')}
+          >
+            Logs
           </button>
           <button 
             className={`sidebar-tab ${activeTab === 'settings' ? 'active' : ''}`}
@@ -441,10 +467,13 @@ export default function Home() {
                 automail={automail}
                 onAutomailChange={setAutomail}
               />
-              <div className="mt-8">
-                <ExecutionLogsPanel userId={userId} />
-              </div>
             </>
+          )}
+
+          {activeTab === 'logs' && (
+            <div className="panel flex-col gap-4">
+              <ExecutionLogsPanel userId={userId} />
+            </div>
           )}
 
           {activeTab === 'settings' && (
@@ -492,29 +521,40 @@ export default function Home() {
               </div>
 
               <div className="smtp-bar" style={{ marginTop: '0.5rem', display: 'block' }}>
-                <div style={{ marginBottom: '1rem' }}>
-                  <span className="smtp-bar-title" style={{ display: 'block', marginBottom: '0.5rem' }}>Change Login Password</span>
-                  <p className="hint compact" style={{ margin: 0 }}>Update the password you use to log into Viddr.</p>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div className="smtp-bar-left">
+                    <span className="smtp-bar-title">Login Password</span>
+                  </div>
+                  <div className="smtp-bar-actions">
+                    <button type="button" className="btn primary" onClick={() => setShowPasswordChange(!showPasswordChange)}>
+                      {showPasswordChange ? "Collapse" : "Expand"}
+                    </button>
+                  </div>
                 </div>
-                <form onSubmit={handlePasswordChange} className="grid-2" style={{ alignItems: "flex-end" }}>
-                  <label className="field">
-                    <span>New Password</span>
-                    <input
-                      type="password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="Min 6 characters"
-                      disabled={passwordLoading}
-                    />
-                  </label>
-                  <button
-                    type="submit"
-                    className="btn primary"
-                    disabled={passwordLoading || !newPassword}
-                  >
-                    {passwordLoading ? "Updating..." : "Update Password"}
-                  </button>
-                </form>
+                {showPasswordChange && (
+                  <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--line)' }}>
+                    <p className="hint compact" style={{ marginBottom: '0.75rem' }}>Update the password you use to log into Viddr.</p>
+                    <form onSubmit={handlePasswordChange} className="grid-2" style={{ alignItems: "flex-end" }}>
+                      <label className="field">
+                        <span>New Password</span>
+                        <input
+                          type="password"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          placeholder="Min 6 characters"
+                          disabled={passwordLoading}
+                        />
+                      </label>
+                      <button
+                        type="submit"
+                        className="btn primary"
+                        disabled={passwordLoading || !newPassword}
+                      >
+                        {passwordLoading ? "Updating..." : "Update Password"}
+                      </button>
+                    </form>
+                  </div>
+                )}
               </div>
             </div>
           )}

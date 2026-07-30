@@ -43,6 +43,24 @@ function sentKey(email: string, role: Role) {
   return `${email.toLowerCase()}::${role}`;
 }
 
+function formatFriendlyError(errorMsg?: string) {
+  if (!errorMsg) return "Unknown error occurred.";
+  const msg = errorMsg.toLowerCase();
+  if (msg.includes("auth") || msg.includes("credentials") || msg.includes("password") || msg.includes("535")) {
+    return "Invalid email password or app password.";
+  }
+  if (msg.includes("network") || msg.includes("timeout") || msg.includes("econnrefused")) {
+    return "Could not connect to the email server. Please check your internet connection.";
+  }
+  if (msg.includes("rejected") || msg.includes("spam") || msg.includes("bounce")) {
+    return "The recipient's server rejected the email (possibly marked as spam or invalid address).";
+  }
+  if (msg.includes("limit") || msg.includes("quota")) {
+    return "You have reached your email provider's sending limit.";
+  }
+  return "Something went wrong while sending this email.";
+}
+
 export function SendPanel({
   userId,
   config,
@@ -62,6 +80,16 @@ export function SendPanel({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOrder, setSortOrder] = useState<"none" | "asc" | "desc">("none");
+  const [expandedErrors, setExpandedErrors] = useState<Set<string>>(new Set());
+
+  const toggleError = (key: string) => {
+    setExpandedErrors(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   const sentKeys = useMemo(
     () => new Set(sentLog.filter(s => s.status === "sent" || s.status === "skipped").map((s) => sentKey(s.email, s.role))),
@@ -223,6 +251,21 @@ export function SendPanel({
     setSelectedIds(next);
   }
 
+  async function deleteSelectedPending() {
+    if (selectedIds.size === 0) return;
+    if (!window.confirm(`Delete ${selectedIds.size} selected pending email(s)?`)) return;
+    
+    const idsToDelete = Array.from(selectedIds);
+    const { error } = await supabase.from('automailsend_recipients').delete().in('id', idsToDelete);
+    if (error) {
+      toast.error("Failed to delete selected items");
+      console.error(error);
+    } else {
+      toast.success(`Deleted ${idsToDelete.length} pending emails`);
+      setSelectedIds(new Set());
+    }
+  }
+
   return (
     <section className="panel">
       <div className="panel-head">
@@ -327,6 +370,11 @@ export function SendPanel({
               <h3>Pending</h3>
               <div className="send-col-actions">
                 <span className="chip">{pending.length}</span>
+                {selectedIds.size > 0 && (
+                  <button type="button" className="btn ghost danger" onClick={deleteSelectedPending} disabled={sending}>
+                    Delete
+                  </button>
+                )}
                 {pending.length > 0 && (
                   <button type="button" className="btn ghost" onClick={toggleSelectAllPending} disabled={sending}>
                     {selectedIds.size === pending.length ? "Deselect All" : "Select All"}
@@ -361,7 +409,44 @@ export function SendPanel({
 
           <div className="send-col">
             <div className="send-col-head">
-              <h3>History & Skipped</h3>
+              <h3>Skipped</h3>
+              <div className="send-col-actions">
+                <span className="chip">
+                  {activeSent.length} skipped
+                </span>
+              </div>
+            </div>
+            <div className="scroll-area send-scroll">
+              {activeSent.length === 0 ? (
+                <p className="hint">None skipped</p>
+              ) : (
+                <ul className="results">
+                  {activeSent.map((r) => (
+                    <li key={r.id} className="ok sent-row" style={{ background: "var(--bg-elevated)", border: "1px solid var(--line)" }}>
+                      <span>
+                        {r.title ? `${r.title} · ` : ""}
+                        {r.email} · {ROLE_LABELS[r.role]}
+                      </span>
+                      <button
+                        type="button"
+                        className="btn ghost"
+                        disabled={sending}
+                        onClick={() =>
+                          sendList([r], { force: true, label: "Resending one" })
+                        }
+                      >
+                        Resend
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+
+          <div className="send-col">
+            <div className="send-col-head">
+              <h3>All History</h3>
               <div className="send-col-actions">
                 <span className="chip">
                   {displayedSentLog.length} logs
@@ -379,67 +464,60 @@ export function SendPanel({
               </div>
             </div>
             <div className="scroll-area send-scroll">
-              
-              {activeSent.length > 0 && (
-                <div style={{ marginBottom: "1rem" }}>
-                  <h4 style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--muted)", margin: "0.5rem 0", padding: "0 0.5rem" }}>
-                    Currently Skipped ({activeSent.length})
-                  </h4>
-                  <ul className="results">
-                    {activeSent.map((r) => (
-                      <li key={r.id} className="ok sent-row" style={{ background: "var(--bg-elevated)", border: "1px solid var(--line)" }}>
-                        <span>
-                          {r.title ? `${r.title} · ` : ""}
-                          {r.email} · {ROLE_LABELS[r.role]}
-                        </span>
-                        <button
-                          type="button"
-                          className="btn ghost"
-                          disabled={sending}
-                          onClick={() =>
-                            sendList([r], { force: true, label: "Resending one" })
-                          }
-                        >
-                          Resend
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              <h4 style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--muted)", margin: "0.5rem 0", padding: "0 0.5rem" }}>
-                All History
-              </h4>
               {displayedSentLog.length === 0 ? (
                 <p className="hint">No history yet</p>
               ) : (
                 <ul className="results">
-                  {displayedSentLog.map((s, idx) => (
+                  {displayedSentLog.map((s, idx) => {
+                    const itemKey = `${s.email}-${s.role}-${s.sentAt}-${idx}`;
+                    const isExpanded = expandedErrors.has(itemKey);
+                    return (
                     <li
-                      key={`${s.email}-${s.role}-${s.sentAt}-${idx}`}
+                      key={itemKey}
                       className={s.status === "failed" ? "err sent-row" : "ok sent-row"}
-                      title={s.error || s.status}
+                      title={s.status !== "failed" ? s.status : undefined}
+                      style={s.status === "failed" ? { flexDirection: 'column', alignItems: 'flex-start', padding: '0.5rem' } : {}}
                     >
-                      <span>
-                        {s.title ? `${s.title} · ` : ""}
-                        {s.email} · {ROLE_LABELS[s.role]}
-                      </span>
-                      <span className="sent-actions">
-                        <span className={`badge ${s.status === "failed" ? "danger" : "ok"}`} style={{ marginRight: '0.5rem' }}>
-                          {s.status}
+                      <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span>
+                          {s.title ? `${s.title} · ` : ""}
+                          {s.email} · {ROLE_LABELS[s.role]}
                         </span>
-                        <button
-                          type="button"
-                          className="btn ghost danger"
-                          disabled={sending}
-                          onClick={() => removeSentRecord(s.email, s.role)}
-                        >
-                          ×
-                        </button>
-                      </span>
+                        <span className="sent-actions">
+                          <span className={`badge ${s.status === "failed" ? "danger" : "ok"}`} style={{ marginRight: '0.5rem' }}>
+                            {s.status}
+                          </span>
+                          {s.status === "failed" && (
+                            <button
+                              type="button"
+                              className="btn ghost"
+                              style={{ padding: '0', width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '0.2rem', borderRadius: '50%' }}
+                              onClick={() => toggleError(itemKey)}
+                              title={isExpanded ? "Hide details" : "View details"}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }}>
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                              </svg>
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="btn ghost danger"
+                            disabled={sending}
+                            onClick={() => removeSentRecord(s.email, s.role)}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      </div>
+                      {s.status === "failed" && isExpanded && (
+                        <div style={{ fontSize: '0.75rem', color: 'var(--danger)', marginTop: '0.35rem', background: 'color-mix(in srgb, var(--danger) 10%, transparent)', padding: '0.4rem', borderRadius: '4px', width: '100%' }}>
+                          <strong>Reason:</strong> {formatFriendlyError(s.error)}
+                          {s.error && <div style={{ fontSize: '0.65rem', opacity: 0.7, marginTop: '0.2rem', wordBreak: 'break-all' }}>Technical info: {s.error}</div>}
+                        </div>
+                      )}
                     </li>
-                  ))}
+                  )})}
                 </ul>
               )}
             </div>

@@ -536,7 +536,7 @@ body::before {
 .scroll-area {
   flex: 0 0 auto;
   width: 100%;
-  max-height: min(42vh, 420px);
+  max-height: min(65vh, 650px);
   height: auto;
   overflow-x: hidden;
   overflow-y: auto;
@@ -562,7 +562,7 @@ body::before {
 
 .send-scroll {
   min-height: 4rem;
-  max-height: min(36vh, 320px);
+  max-height: min(65vh, 650px);
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 0.35rem;
@@ -577,7 +577,7 @@ body::before {
 
 .send-columns {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 0.55rem;
 }
 
