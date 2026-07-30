@@ -69,7 +69,8 @@ async function runAutomailJobs(supabase) {
       const email = user.smtp_email;
       const appPassword = user.smtp_password;
       const limit = user.daily_mail_limit || 50;
-      const delaySec = user.send_delay_sec || 3;
+      const defaultInterval = process.env.AUTOMAIL_WORKER_INTERVAL_SEC ? parseInt(process.env.AUTOMAIL_WORKER_INTERVAL_SEC, 10) : 3;
+      const delaySec = user.send_delay_sec || defaultInterval;
       
       const aiProvider = user.ai_provider || "none";
       const aiApiKey = user.ai_api_key;

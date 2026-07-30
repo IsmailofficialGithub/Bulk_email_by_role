@@ -176,7 +176,8 @@ async function processJobLogic(job) {
       let clusterStartPosition = Number((raw.match(/"clusterStartPosition"\s*:\s*(\d+)/) || [])[1] || 9);
       
       const maxPages = auto_fetch_pagination_limit || 1;
-      const delayMs = (auto_fetch_pagination_delay_sec || 10) * 1000;
+      const defaultInterval = process.env.SCRAPER_INTERVAL_SEC ? parseInt(process.env.SCRAPER_INTERVAL_SEC, 10) : 10;
+      const delayMs = (auto_fetch_pagination_delay_sec || defaultInterval) * 1000;
 
       log(pc.bgBlue(pc.white(` [WORKER] Pagination details found for "${currentKeyword}". Max Pages: ${maxPages}, Delay: ${delayMs/1000}s `)));
 

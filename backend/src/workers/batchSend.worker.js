@@ -30,7 +30,8 @@ const batchSendWorker = new Worker("batchSendQueue", async (job) => {
     if (userErr || !userState) throw new Error("Could not fetch user state");
 
     const config = userState.config || {};
-    const delaySec = userState.delay_sec || 3;
+    const defaultInterval = process.env.BATCH_INTERVAL_SEC ? parseInt(process.env.BATCH_INTERVAL_SEC, 10) : 3;
+    const delaySec = userState.delay_sec || defaultInterval;
 
     if (!config.email || !config.appPassword) {
       throw new Error("SMTP config missing");
