@@ -6,6 +6,7 @@ import { RecipientManager } from "@/components/RecipientManager";
 import { RoleTemplates } from "@/components/RoleTemplates";
 import { SendPanel } from "@/components/SendPanel";
 import { SmtpConfigPanel } from "@/components/SmtpConfigPanel";
+import { ExecutionLogsPanel } from "@/components/ExecutionLogsPanel";
 import { supabase } from "@/lib/supabase";
 import {
   defaultState,
@@ -234,6 +235,10 @@ export default function Home() {
           sentLog={sentLog}
           onSentLogChange={setSentLog}
         />
+      </div>
+
+      <div className="mt-8">
+        <ExecutionLogsPanel userId={userId} />
       </div>
     </main>
   );

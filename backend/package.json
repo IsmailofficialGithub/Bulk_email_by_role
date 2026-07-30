@@ -1,0 +1,29 @@
+{
+  "name": "backend_auto_apply",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon src/index.js",
+    "trigger": "node trigger.js",
+    "dev:all": "concurrently \"npm run dev\" \"npm run dev --prefix ../frontend\"",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.111.0",
+    "axios": "^1.19.0",
+    "bullmq": "^5.81.2",
+    "dotenv": "^17.4.2",
+    "ioredis": "^5.11.1",
+    "node-cron": "^4.6.0",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.4",
+    "nodemon": "^3.1.14"
+  }
+}
