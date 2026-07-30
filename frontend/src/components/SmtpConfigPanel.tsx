@@ -95,6 +95,7 @@ export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props
       }
       
       // ONLY trigger onChange (which saves) upon successful verify!
+      const isMasked = appPassword.startsWith("enc:");
       onChange({ 
         email: email.trim(),
         appPassword: isMasked ? config.appPassword : appPassword.trim(),
