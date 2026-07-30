@@ -216,7 +216,7 @@ export function SendPanel({
 
       const { error } = await supabase
         .from("automailsend_app_state")
-        .update({ batch_send_pending: true })
+        .update({ batch_send_pending: true, batch_send_processing: false })
         .eq("user_id", userId);
 
       if (error) {
@@ -241,7 +241,7 @@ export function SendPanel({
     try {
       const { error } = await supabase
         .from("automailsend_app_state")
-        .update({ batch_send_pending: false })
+        .update({ batch_send_pending: false, batch_send_processing: false })
         .eq("user_id", userId);
 
       if (error) throw error;
