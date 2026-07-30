@@ -14,11 +14,18 @@ export function EmailsTab({ recipients }: Props) {
   const [searchQuery, setSearchQuery] = useState("");
   const [visibleCount, setVisibleCount] = useState(50);
 
+  const [filterContactType, setFilterContactType] = useState<string>("all");
+
   const filteredRecipients = useMemo(() => {
     return recipients.filter((r) => {
       if (filterStatus !== "all" && (r.status || "pending") !== filterStatus) return false;
       if (filterSource !== "all" && (r.source || "auto_fetch") !== filterSource) return false;
       if (filterRole !== "all" && r.role !== filterRole) return false;
+      
+      if (filterContactType === "has_phone" && !r.phone) return false;
+      if (filterContactType === "has_email" && !r.email) return false;
+      if (filterContactType === "phone_only" && (!r.phone || r.email)) return false;
+
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         const em = (r.email || "").toLowerCase();
@@ -28,7 +35,7 @@ export function EmailsTab({ recipients }: Props) {
       }
       return true;
     });
-  }, [recipients, filterStatus, filterSource, filterRole, searchQuery]);
+  }, [recipients, filterStatus, filterSource, filterRole, filterContactType, searchQuery]);
 
   const visibleRecipients = filteredRecipients.slice(0, visibleCount);
 
@@ -63,6 +70,12 @@ export function EmailsTab({ recipients }: Props) {
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{ minWidth: "250px", flex: 1 }}
           />
+          <select value={filterContactType} onChange={(e) => setFilterContactType(e.target.value)}>
+            <option value="all">All Contacts</option>
+            <option value="has_email">Has Email</option>
+            <option value="has_phone">Has Phone</option>
+            <option value="phone_only">Phone Only (No Email)</option>
+          </select>
           <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
             <option value="all">All Statuses</option>
             <option value="pending">Pending</option>
