@@ -229,13 +229,23 @@ async function runAutomailJobs(supabase) {
         let status = "failed";
         let errorMsg = null;
 
+        const mailOptions = {
+          from: email,
+          to: recipient.email,
+          subject,
+          text,
+        };
+
+        if (template.files && template.files.length > 0) {
+          mailOptions.attachments = template.files.map(a => ({
+            filename: a.name,
+            href: a.url,
+            contentType: a.type,
+          }));
+        }
+
         try {
-          await transporter.sendMail({
-            from: email,
-            to: recipient.email,
-            subject,
-            text,
-          });
+          await transporter.sendMail(mailOptions);
           status = "sent";
           sentCount++;
           console.log(pc.green(`  ✔ Sent email to ${recipient.email}`));
