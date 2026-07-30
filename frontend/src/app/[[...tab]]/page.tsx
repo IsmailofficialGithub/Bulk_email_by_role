@@ -10,6 +10,7 @@ import { SmtpConfigPanel } from "@/components/SmtpConfigPanel";
 import { ExecutionLogsPanel } from "@/components/ExecutionLogsPanel";
 import { AutoFetchModal } from "@/components/AutoFetchModal";
 import { AutomailModal } from "@/components/AutomailModal";
+import { LandingPage } from "@/components/LandingPage";
 import { supabase } from "@/lib/supabase";
 import {
   defaultState,
@@ -60,6 +61,7 @@ export default function Home() {
   };
   
   const [userId, setUserId] = useState<string | null>(null);
+  const [showLanding, setShowLanding] = useState(false);
   
   const [hydrated, setHydrated] = useState(false);
   const [config, setConfig] = useState<SmtpConfig>(defaultState().config);
@@ -95,7 +97,12 @@ export default function Home() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
-        router.push("/login");
+        if (typeof window !== 'undefined' && window.location.pathname === '/') {
+          setShowLanding(true);
+          setHydrated(true);
+        } else {
+          router.push("/login");
+        }
       } else {
         setUserId(session.user.id);
       }
@@ -105,8 +112,15 @@ export default function Home() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) {
-        router.push("/login");
+        if (typeof window !== 'undefined' && window.location.pathname === '/') {
+          setShowLanding(true);
+          setHydrated(true);
+          setUserId(null);
+        } else {
+          router.push("/login");
+        }
       } else {
+        setShowLanding(false);
         setUserId(session.user.id);
       }
     });
@@ -280,6 +294,10 @@ export default function Home() {
 
   async function handleLogout() {
     await supabase.auth.signOut();
+  }
+
+  if (showLanding) {
+    return <LandingPage />;
   }
 
   if (!hydrated || !userId) {
