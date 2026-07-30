@@ -78,6 +78,9 @@ export function SendPanel({
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [status, setStatus] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortOrder, setSortOrder] = useState<"none" | "asc" | "desc">("none");
+  const [expandedErrors, setExpandedErrors] = useState<Set<string>>(new Set());
   const abortRef = useRef(false);
   const initialSentCount = useRef(0);
   const expectedTotal = useRef(0);
