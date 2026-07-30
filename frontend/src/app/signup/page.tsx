@@ -4,7 +4,7 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, ArrowLeft } from "lucide-react";
 
 export default function SignUpPage() {
   const [email, setEmail] = useState("");
@@ -46,7 +46,10 @@ export default function SignUpPage() {
   }
 
   return (
-    <main className="flex items-center justify-center p-4 w-full h-full my-auto flex-grow">
+    <main className="flex items-center justify-center p-4 w-full h-full my-auto flex-grow relative">
+      <Link href="/" className="absolute top-6 left-6 md:top-10 md:left-10 flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">
+        <ArrowLeft size={16} /> Back to Home
+      </Link>
       <div className="w-full max-w-md p-8 bg-[var(--bg-panel)] rounded-2xl border border-[var(--line)] shadow-2xl backdrop-blur-md">
         <Link href="/" className="text-center mb-8 flex flex-col items-center hover:opacity-80 transition-opacity block">
           <img src="/logo.png" alt="Viddr Logo" className="w-12 h-12 rounded-xl mb-4 shadow-sm" />

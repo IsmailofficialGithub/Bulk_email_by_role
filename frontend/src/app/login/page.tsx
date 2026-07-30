@@ -89,4 +89,13 @@ export default function LoginPage() {
           </div>
         </form>
 
-        <p className="mt-6 text-cent
+        <p className="mt-6 text-center text-sm text-[var(--muted)]">
+          Don&apos;t have an account?{" "}
+          <Link href="/signup" className="text-[var(--accent)] hover:underline font-medium">
+            Sign Up
+          </Link>
+        </p>
+      </div>
+    </main>
+  );
+}
