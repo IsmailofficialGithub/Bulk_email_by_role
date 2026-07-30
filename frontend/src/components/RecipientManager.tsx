@@ -213,7 +213,7 @@ export function RecipientManager({
           <button 
             type="button" 
             className="btn" 
-            style={{ marginLeft: "auto", background: "var(--bg-error)", color: "white", padding: "0.25rem 0.75rem", fontSize: "0.85rem", height: "auto" }}
+            style={{ marginLeft: "auto", background: "var(--bg-error)", color: "black", padding: "0.25rem 0.75rem", fontSize: "0.85rem", height: "auto" }}
             onClick={() => {
               if (confirm("Are you sure you want to delete all pending recipients?")) {
                 onChange(recipients.filter(r => (r.status || 'pending') !== 'pending'));

@@ -263,7 +263,7 @@ export async function syncRecipients(userId: string, recipients: Recipient[]) {
     { onConflict: 'id' }
   );
   if (error) {
-    console.error("Failed to sync recipients:", error);
+    console.error("Failed to sync recipients:", error.message, error.details, error.hint, error.code, error);
   }
 }
 
