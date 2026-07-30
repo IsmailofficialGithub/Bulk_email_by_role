@@ -366,18 +366,23 @@ export function SendPanel({
 
         <div className="send-columns">
           <div className="send-col">
-            <div className="send-col-head">
-              <h3>Pending</h3>
+            <div className="send-col-head" style={{ alignItems: 'center', gap: '0.75rem', justifyContent: 'flex-start' }}>
+              <input 
+                type="checkbox"
+                checked={pending.length > 0 && selectedIds.size === pending.length}
+                onChange={toggleSelectAllPending}
+                disabled={sending || pending.length === 0}
+                style={{ cursor: 'pointer' }}
+                title="Select all pending emails"
+              />
+              <h3 style={{ margin: 0, flex: 1, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                Pending 
+                <span className="chip" style={{ fontWeight: 'normal' }}>{pending.length}</span>
+              </h3>
               <div className="send-col-actions">
-                <span className="chip">{pending.length}</span>
                 {selectedIds.size > 0 && (
-                  <button type="button" className="btn ghost danger" onClick={deleteSelectedPending} disabled={sending}>
+                  <button type="button" className="btn ghost danger" onClick={deleteSelectedPending} disabled={sending} style={{ padding: '0.1rem 0.5rem' }}>
                     Delete
-                  </button>
-                )}
-                {pending.length > 0 && (
-                  <button type="button" className="btn ghost" onClick={toggleSelectAllPending} disabled={sending}>
-                    {selectedIds.size === pending.length ? "Deselect All" : "Select All"}
                   </button>
                 )}
               </div>
