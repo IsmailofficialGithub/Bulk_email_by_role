@@ -124,9 +124,9 @@ export function AutomailModal({ config, smtpConfig, templates, onSave, onClose }
             <>
               <label className="field">
                 <span>
-                  Daily Mail Limit
+                  Set limit/send
                   <HelpTooltip 
-                    title="Daily Mail Limit" 
+                    title="Set limit/send" 
                     content={
                       <>
                         <p>The maximum number of emails the system is allowed to send automatically in a single day.</p>
