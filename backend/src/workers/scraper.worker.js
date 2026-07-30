@@ -134,7 +134,8 @@ async function processJobLogic(job) {
     log(pc.bgBlue(pc.white(`\n[WORKER] Searching for keyword: "${currentKeyword}" (Role: ${currentRole})`)));
 
     const keywordsQuery = encodeURIComponent(currentKeyword);
-    let searchUrl = `https://www.linkedin.com/search/results/content/?keywords=${keywordsQuery}&origin=SWITCH_SEARCH_VERTICAL`;
+    const searchBase = process.env.LINKEDIN_SEARCH_BASE_URL || "https://www.linkedin.com/search/results/content/";
+    let searchUrl = `${searchBase}?keywords=${keywordsQuery}&origin=SWITCH_SEARCH_VERTICAL`;
     
     if (post_age_filter && post_age_filter !== 'any') {
       searchUrl += `&datePosted=%22${encodeURIComponent(post_age_filter)}%22`;
@@ -240,7 +241,8 @@ async function processJobLogic(job) {
 
         log(pc.magenta(` ➜ Executing POST /rsc-action/actions/pagination for page ${page}`));
         try {
-          const paginatedRes = await axios.post("https://www.linkedin.com/flagship-web/rsc-action/actions/pagination?sduiid=com.linkedin.sdui.search.contentSearchResults", body, {
+          const paginationUrl = process.env.LINKEDIN_PAGINATION_URL || "https://www.linkedin.com/flagship-web/rsc-action/actions/pagination";
+          const paginatedRes = await axios.post(`${paginationUrl}?sduiid=com.linkedin.sdui.search.contentSearchResults`, body, {
             headers: {
               ...headers,
               "Content-Type": "application/json"

@@ -11,8 +11,8 @@ async function generateAiPersonalizedEmail(provider, apiKey, promptTemplate, rec
   
   if (provider === "openai" || provider === "groq") {
     const url = provider === "openai" 
-      ? "https://api.openai.com/v1/chat/completions" 
-      : "https://api.groq.com/openai/v1/chat/completions";
+      ? (process.env.OPENAI_API_URL || "https://api.openai.com/v1/chat/completions")
+      : (process.env.GROQ_API_URL || "https://api.groq.com/openai/v1/chat/completions");
     const model = provider === "openai" ? "gpt-4o-mini" : "llama-3.1-8b-instant";
     
     const res = await axios.post(url, {
@@ -25,7 +25,8 @@ async function generateAiPersonalizedEmail(provider, apiKey, promptTemplate, rec
     
     return JSON.parse(res.data.choices[0].message.content);
   } else if (provider === "gemini") {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const baseUrl = process.env.GEMINI_API_URL || "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+    const url = `${baseUrl}?key=${apiKey}`;
     const res = await axios.post(url, {
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: { responseMimeType: "application/json" }

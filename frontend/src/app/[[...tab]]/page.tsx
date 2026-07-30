@@ -8,6 +8,7 @@ import { RoleTemplates } from "@/components/RoleTemplates";
 import { SendPanel } from "@/components/SendPanel";
 import { SmtpConfigPanel } from "@/components/SmtpConfigPanel";
 import { ExecutionLogsPanel } from "@/components/ExecutionLogsPanel";
+import { EmailsTab } from "@/components/EmailsTab";
 import { AutoFetchModal } from "@/components/AutoFetchModal";
 import { AutomailModal } from "@/components/AutomailModal";
 import { LandingPage } from "@/components/LandingPage";
@@ -32,18 +33,18 @@ import {
 export default function Home() {
   const router = useRouter();
   
-  const [activeTab, setActiveTab] = useState<"contacts" | "templates" | "sending" | "settings" | "logs">("contacts");
+  const [activeTab, setActiveTab] = useState<"contacts" | "templates" | "sending" | "settings" | "logs" | "emails">("contacts");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const currentTab = window.location.pathname.replace('/', '') || 'contacts';
-      if (["contacts", "templates", "sending", "settings", "logs"].includes(currentTab)) {
+      if (["contacts", "templates", "sending", "settings", "logs", "emails"].includes(currentTab)) {
         setActiveTab(currentTab as any);
       }
 
       const handlePopState = () => {
         const popTab = window.location.pathname.replace('/', '') || 'contacts';
-        if (["contacts", "templates", "sending", "settings", "logs"].includes(popTab)) {
+        if (["contacts", "templates", "sending", "settings", "logs", "emails"].includes(popTab)) {
           setActiveTab(popTab as any);
         }
       };
@@ -53,7 +54,7 @@ export default function Home() {
     }
   }, []);
 
-  const handleTabChange = (tab: "contacts" | "templates" | "sending" | "settings" | "logs") => {
+  const handleTabChange = (tab: "contacts" | "templates" | "sending" | "settings" | "logs" | "emails") => {
     setActiveTab(tab);
     if (typeof window !== "undefined") {
       window.history.pushState(null, '', `/${tab}`);
@@ -413,6 +414,12 @@ export default function Home() {
             Logs
           </button>
           <button 
+            className={`sidebar-tab ${activeTab === 'emails' ? 'active' : ''}`}
+            onClick={() => handleTabChange('emails')}
+          >
+            Emails CRM
+          </button>
+          <button 
             className={`sidebar-tab ${activeTab === 'settings' ? 'active' : ''}`}
             onClick={() => handleTabChange('settings')}
           >
@@ -438,6 +445,10 @@ export default function Home() {
               autoFetch={autoFetch}
               onAutoFetchChange={setAutoFetch}
             />
+          )}
+
+          {activeTab === 'emails' && (
+            <EmailsTab recipients={recipients} />
           )}
 
           {activeTab === 'templates' && (
