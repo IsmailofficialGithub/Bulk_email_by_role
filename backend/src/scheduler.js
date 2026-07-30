@@ -35,18 +35,23 @@ function startScheduler() {
   const tickSec = process.env.SCHEDULER_INTERVAL_SEC ? parseInt(process.env.SCHEDULER_INTERVAL_SEC, 10) : 10;
   console.log(pc.green(`🚀 Starting Auto-Apply Scheduler (checking every ${tickSec} seconds)...`));
 
+  const automailTickSec = process.env.AUTOMAIL_WORKER_INTERVAL_SEC ? parseInt(process.env.AUTOMAIL_WORKER_INTERVAL_SEC, 10) : 10;
+  console.log(pc.green(`🚀 Starting Automail Worker (checking every ${automailTickSec} seconds)...`));
   setInterval(async () => {
-    // Run Automail jobs first
     runAutomailJobs(supabase).catch(err => {
       console.error(pc.red(`[Scheduler] Automail worker error: ${err.message}`));
     });
+  }, automailTickSec * 1000);
 
-    // Run Batch Send checks
+  const batchTickSec = process.env.BATCH_INTERVAL_SEC ? parseInt(process.env.BATCH_INTERVAL_SEC, 10) : 10;
+  console.log(pc.green(`🚀 Starting Batch Send Worker (checking every ${batchTickSec} seconds)...`));
+  setInterval(async () => {
     checkBatchSends().catch(err => {
       console.error(pc.red(`[Scheduler] Batch Send error: ${err.message}`));
     });
+  }, batchTickSec * 1000);
 
-    // Only log every tick if interval is >= 10s to prevent aggressive terminal spam, 
+  setInterval(async () => {
     // or just log it so the user knows it's checking.
     console.log(pc.dim(`[Scheduler] Checking for users due for scraping...`));
 
