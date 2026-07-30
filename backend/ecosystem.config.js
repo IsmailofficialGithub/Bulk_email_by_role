@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: "backend",
+      name: "auto_apply_linkedin_backend",
       script: "./src/index.js",
       instances: "max",
       exec_mode: "cluster",
