@@ -10,11 +10,12 @@ type Props = {
   config: AutomailConfig;
   smtpConfig: SmtpConfig;
   templates: Record<Role, RoleTemplate>;
+  sentTodayCount: number;
   onSave: (config: AutomailConfig) => void;
   onClose: () => void;
 };
 
-export function AutomailModal({ config, smtpConfig, templates, onSave, onClose }: Props) {
+export function AutomailModal({ config, smtpConfig, templates, sentTodayCount, onSave, onClose }: Props) {
   const [enabled, setEnabled] = useState(config.enabled);
   const [dailyLimit, setDailyLimit] = useState(config.dailyLimit);
   const [aiProvider, setAiProvider] = useState<"none" | "groq" | "openai" | "gemini">(config.aiProvider || "none");
@@ -124,9 +125,9 @@ export function AutomailModal({ config, smtpConfig, templates, onSave, onClose }
             <>
               <label className="field">
                 <span>
-                  Set limit/send
+                  Daily Mail Limit
                   <HelpTooltip 
-                    title="Set limit/send" 
+                    title="Daily Mail Limit" 
                     content={
                       <>
                         <p>The maximum number of emails the system is allowed to send automatically in a single day.</p>
@@ -135,13 +136,19 @@ export function AutomailModal({ config, smtpConfig, templates, onSave, onClose }
                     } 
                   />
                 </span>
-                <input
-                  type="number"
-                  min={1}
-                  max={500}
-                  value={dailyLimit}
-                  onChange={(e) => setDailyLimit(Number(e.target.value) || 1)}
-                />
+                <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                  <input
+                    type="number"
+                    min={1}
+                    max={500}
+                    value={dailyLimit}
+                    onChange={(e) => setDailyLimit(Number(e.target.value) || 1)}
+                    style={{ width: "100px" }}
+                  />
+                  <span style={{ fontSize: "1.05rem", fontWeight: "500", color: "var(--muted)" }}>
+                    / {sentTodayCount} sent today
+                  </span>
+                </div>
                 <span className="hint compact">Maximum emails to send automatically per day.</span>
               </label>
 

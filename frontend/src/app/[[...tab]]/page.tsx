@@ -433,6 +433,7 @@ export default function Home() {
               config={automail}
               smtpConfig={config}
               templates={templates}
+              sentTodayCount={sentLog.filter(s => s.status === 'sent' && new Date(s.sentAt).toDateString() === new Date().toDateString()).length}
               onSave={setAutomail}
               onClose={() => setShowAutomailModal(false)}
             />
