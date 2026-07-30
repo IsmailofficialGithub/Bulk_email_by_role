@@ -176,7 +176,10 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
       window.removeEventListener("AUTOMAILEXT_RECEIVE_COOKIE", handleResponse);
       const data = e.detail;
       if (data && data.success && data.jsessionid && data.li_at) {
-        setJsessionid(`ajax:${data.jsessionid}`);
+        // Ensure we don't double up on 'ajax:'
+        const cleanJsession = data.jsessionid.startsWith('ajax:') ? data.jsessionid : `ajax:${data.jsessionid}`;
+        
+        setJsessionid(cleanJsession);
         setLiAt(data.li_at);
         
         // Construct the full perfect rawHeaders payload automatically!
@@ -187,8 +190,8 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
           "Referer": "https://www.linkedin.com/preload/?_bprMode=vanilla",
           "User-Agent": navigator.userAgent,
           "x-restli-protocol-version": "2.0.0",
-          "csrf-token": `ajax:${data.jsessionid}`,
-          "Cookie": `li_at=${data.li_at}; JSESSIONID="ajax:${data.jsessionid}";`
+          "csrf-token": cleanJsession,
+          "Cookie": `li_at=${data.li_at}; JSESSIONID="${cleanJsession}";`
         };
         
         setRawHeaders(JSON.stringify(perfectHeaders, null, 2));
