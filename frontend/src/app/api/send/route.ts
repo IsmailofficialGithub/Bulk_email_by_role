@@ -7,9 +7,9 @@ export const runtime = "nodejs";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { fromName, fromEmail, appPassword, toEmail, subject, content, attachments = [] } = body;
+    const { fromName, fromEmail, appPassword, host, port, toEmail, subject, content, attachments = [] } = body;
 
-    if (!fromEmail || !appPassword || !toEmail || !subject) {
+    if (!fromEmail || !appPassword || !host || !port || !toEmail || !subject) {
       return NextResponse.json(
         {
           success: false,
@@ -30,9 +30,9 @@ export async function POST(request: NextRequest) {
     }
 
     const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
+      host: host,
+      port: port,
+      secure: port === 465,
       auth: {
         user: fromEmail,
         pass: decryptedPassword,

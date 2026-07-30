@@ -5,11 +5,11 @@ import { encryptPassword, decryptPassword } from "@/lib/crypto";
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, appPassword } = await request.json();
+    const { email, appPassword, host, port } = await request.json();
 
-    if (!email || !appPassword) {
+    if (!email || !appPassword || !host || !port) {
       return NextResponse.json(
-        { success: false, error: "Email and app password are required" },
+        { success: false, error: "Email, password, host, and port are required" },
         { status: 400 }
       );
     }
@@ -32,9 +32,9 @@ export async function POST(request: NextRequest) {
     // If the user clicks Verify without changing, it sends the masked or encrypted string. We should handle that in UI.
 
     const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
+      host: host,
+      port: port,
+      secure: port === 465,
       auth: {
         user: email,
         pass: passwordToVerify,

@@ -14,10 +14,22 @@ type Props = {
   onClose: () => void;
 };
 
+const PROVIDERS = [
+  { id: "gmail", name: "Gmail", host: "smtp.gmail.com", port: 465, userLabel: "Sender Email", passLabel: "App Password", tooltip: "Google App Password" },
+  { id: "sendgrid", name: "SendGrid", host: "smtp.sendgrid.net", port: 465, userLabel: "Username (usually 'apikey')", passLabel: "API Key", tooltip: "SendGrid API Key" },
+  { id: "resend", name: "Resend", host: "smtp.resend.com", port: 465, userLabel: "Username (usually 'resend')", passLabel: "API Key", tooltip: "Resend API Key" },
+  { id: "custom", name: "Custom", host: "", port: 465, userLabel: "SMTP Username", passLabel: "SMTP Password", tooltip: "SMTP Credentials" },
+];
+
 export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props) {
   const [email, setEmail] = useState(config.email);
   const [fromName, setFromName] = useState(config.fromName || "");
   const [appPassword, setAppPassword] = useState(config.appPassword);
+  
+  const [provider, setProvider] = useState(config.provider || "gmail");
+  const [host, setHost] = useState(config.host || "smtp.gmail.com");
+  const [port, setPort] = useState(config.port || 465);
+
   const [showPassword, setShowPassword] = useState(false);
   const [editing, setEditing] = useState(!config.configured);
   const [loading, setLoading] = useState(false);
@@ -25,8 +37,6 @@ export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props
     type: "ok" | "err";
     text: string;
   } | null>(null);
-  const [newPassword, setNewPassword] = useState("");
-  const [passwordLoading, setPasswordLoading] = useState(false);
 
   const [mounted, setMounted] = useState(false);
 
@@ -36,9 +46,12 @@ export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props
       setEmail(config.email);
       setFromName(config.fromName || "");
       setAppPassword(config.appPassword);
+      setProvider(config.provider || "gmail");
+      setHost(config.host || "smtp.gmail.com");
+      setPort(config.port || 465);
       setEditing(!config.configured);
     }, 0);
-  }, [config.email, config.appPassword, config.configured]);
+  }, [config]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -49,7 +62,19 @@ export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props
   }, [onClose]);
 
   const locked = config.configured && !editing;
-  const displayAppPassword = appPassword.startsWith("enc:") ? "â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" : appPassword;
+  const displayAppPassword = appPassword.startsWith("enc:") ? "••••••••••••••••" : appPassword;
+  
+  const currentProvider = PROVIDERS.find(p => p.id === provider) || PROVIDERS[0];
+
+  function handleProviderChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const val = e.target.value;
+    setProvider(val);
+    const p = PROVIDERS.find(x => x.id === val);
+    if (p && p.id !== "custom") {
+      setHost(p.host);
+      setPort(p.port);
+    }
+  }
 
   async function handleVerify() {
     setLoading(true);
@@ -58,22 +83,30 @@ export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props
       const res = await fetch("/api/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, appPassword }),
+        body: JSON.stringify({ email, appPassword, host, port }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
-        onChange({ email, appPassword, fromName, configured: false });
         setMessage({ type: "err", text: data.error || "Verification failed" });
         toast.error(data.error || "Verification failed");
         return;
       }
-      onChange({ email, appPassword: data.encryptedPassword || appPassword, fromName, configured: true });
+      
+      // ONLY trigger onChange (which saves) upon successful verify!
+      onChange({ 
+        email, 
+        appPassword: data.encryptedPassword || appPassword, 
+        fromName, 
+        provider,
+        host,
+        port,
+        configured: true 
+      });
       setEditing(false);
       setMessage({ type: "ok", text: "Verified" });
       toast.success("SMTP config verified!");
       onClose();
     } catch {
-      onChange({ email, appPassword, fromName, configured: false });
       setMessage({ type: "err", text: "Network error" });
       toast.error("Network error during verification");
     } finally {
@@ -83,7 +116,7 @@ export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props
 
   function handleChangeSettings() {
     setEditing(true);
-    onChange({ email, appPassword, fromName, configured: false });
+    // Don't call onChange here so we don't clear the DB credentials until verified
     setMessage({ type: "ok", text: "Edit then verify" });
   }
 
@@ -99,13 +132,14 @@ export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props
     setEmail("");
     setFromName("");
     setAppPassword("");
+    setProvider("gmail");
+    setHost("smtp.gmail.com");
+    setPort(465);
     setEditing(true);
     setShowPassword(false);
     setMessage({ type: "ok", text: "Reset done" });
     toast.success("All settings have been reset.");
   }
-
-
 
   if (!mounted) return null;
 
@@ -127,7 +161,7 @@ export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props
               <div>
                 <h2 id="smtp-modal-title">SMTP settings</h2>
                 <p className="hint compact">
-                  Gmail + App Password Â· saved in browser
+                  Connect your email provider to send emails
                 </p>
               </div>
               <button
@@ -141,6 +175,46 @@ export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props
 
             <div className="modal-body">
               <div className="grid-2">
+                <label className="field" style={{ gridColumn: "1 / -1" }}>
+                  <span>Provider</span>
+                  <select value={provider} onChange={handleProviderChange} disabled={locked}>
+                    {PROVIDERS.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </label>
+
+                {provider === "custom" && (
+                  <>
+                    <label className="field">
+                      <span>SMTP Host</span>
+                      <input
+                        type="text"
+                        value={host}
+                        disabled={locked}
+                        onChange={(e) => {
+                          setHost(e.target.value);
+                          setMessage(null);
+                        }}
+                        placeholder="smtp.example.com"
+                      />
+                    </label>
+                    <label className="field">
+                      <span>Port</span>
+                      <input
+                        type="number"
+                        value={port}
+                        disabled={locked}
+                        onChange={(e) => {
+                          setPort(parseInt(e.target.value, 10));
+                          setMessage(null);
+                        }}
+                        placeholder="465"
+                      />
+                    </label>
+                  </>
+                )}
+
                 <label className="field">
                   <span>From / Sender Name</span>
                   <input
@@ -149,12 +223,6 @@ export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props
                     disabled={locked}
                     onChange={(e) => {
                       setFromName(e.target.value);
-                      onChange({
-                        email,
-                        fromName: e.target.value,
-                        appPassword,
-                        configured: false,
-                      });
                       setMessage(null);
                     }}
                     placeholder="e.g. John Doe"
@@ -162,43 +230,40 @@ export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props
                 </label>
 
                 <label className="field">
-                  <span>Sender Email (Gmail)</span>
+                  <span>{currentProvider.userLabel}</span>
                   <input
-                    type="email"
+                    type="text"
                     value={email}
                     disabled={locked}
                     onChange={(e) => {
                       setEmail(e.target.value);
-                      onChange({
-                        email: e.target.value,
-                        fromName,
-                        appPassword,
-                        configured: false,
-                      });
                       setMessage(null);
                     }}
-                    placeholder="you@gmail.com"
+                    placeholder={provider === 'gmail' ? "you@gmail.com" : ""}
                   />
                 </label>
+
                 <label className="field">
                   <span>
-                    App Password
-                    <HelpTooltip 
-                      title="Google App Password" 
-                      content={
-                        <>
-                          <p>To let this app send emails on your behalf, you need a <strong>Google App Password</strong>.</p>
-                          <p><strong>Steps to generate one:</strong></p>
-                          <ol style={{ paddingLeft: "1.5rem", margin: "0.5rem 0" }}>
-                            <li>Go to your Google Account Settings.</li>
-                            <li>Turn on <strong>2-Step Verification</strong> if it isn't already.</li>
-                            <li>Search for "App Passwords" in your account settings.</li>
-                            <li>Create a new app password (name it "AutoMailSend") and copy the 16-character code.</li>
-                          </ol>
-                          <p>Paste that 16-character code here (spaces don't matter).</p>
-                        </>
-                      } 
-                    />
+                    {currentProvider.passLabel}
+                    {provider === 'gmail' && (
+                      <HelpTooltip 
+                        title="Google App Password" 
+                        content={
+                          <>
+                            <p>To let this app send emails on your behalf, you need a <strong>Google App Password</strong>.</p>
+                            <p><strong>Steps to generate one:</strong></p>
+                            <ol style={{ paddingLeft: "1.5rem", margin: "0.5rem 0" }}>
+                              <li>Go to your Google Account Settings.</li>
+                              <li>Turn on <strong>2-Step Verification</strong> if it isn't already.</li>
+                              <li>Search for "App Passwords" in your account settings.</li>
+                              <li>Create a new app password (name it "AutoMailSend") and copy the 16-character code.</li>
+                            </ol>
+                            <p>Paste that 16-character code here (spaces don't matter).</p>
+                          </>
+                        } 
+                      />
+                    )}
                   </span>
                   <div className="password-wrap">
                     <input
@@ -208,15 +273,9 @@ export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props
                       onChange={(e) => {
                         let val = e.target.value;
                         if (appPassword.startsWith("enc:")) {
-                          val = val.replace(/â€¢/g, "");
+                          val = val.replace(/•/g, "");
                         }
                         setAppPassword(val);
-                        onChange({
-                          email,
-                          fromName,
-                          appPassword: val,
-                          configured: false,
-                        });
                         setMessage(null);
                       }}
                       placeholder="xxxx xxxx xxxx xxxx"
@@ -241,9 +300,9 @@ export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props
                     type="button"
                     className="btn primary"
                     onClick={handleVerify}
-                    disabled={loading || !email || !appPassword}
+                    disabled={loading || !email || !appPassword || !host || !port}
                   >
-                    {loading ? "â€¦" : "Verify"}
+                    {loading ? "…" : "Verify & Save"}
                   </button>
                 )}
                 {locked && (
@@ -252,7 +311,7 @@ export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props
                     className="btn"
                     onClick={handleChangeSettings}
                   >
-                    Change
+                    Edit
                   </button>
                 )}
                 <button
@@ -270,8 +329,6 @@ export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props
                   </span>
                 )}
               </div>
-
-
             </div>
           </div>
         </div>,

@@ -156,6 +156,8 @@ export function SendPanel({
         fromName: config.fromName,
         fromEmail: config.email,
         appPassword: config.appPassword,
+        host: config.host || "smtp.gmail.com",
+        port: config.port || 465,
         toEmail: recipient.email,
         subject,
         content,

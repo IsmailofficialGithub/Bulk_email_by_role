@@ -43,6 +43,9 @@ export type SmtpConfig = {
   email: string;
   appPassword: string;
   fromName?: string;
+  provider?: string;
+  host?: string;
+  port?: number;
   configured: boolean;
 };
 

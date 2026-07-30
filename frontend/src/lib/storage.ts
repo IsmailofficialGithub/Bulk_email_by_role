@@ -114,6 +114,9 @@ export async function loadState(userId: string): Promise<PersistedState> {
       email: appState.smtp_email || "",
       appPassword: appState.smtp_password || "",
       fromName: (typeof window !== "undefined" ? localStorage.getItem("viddr_fromName") : "") || "",
+      provider: (typeof window !== "undefined" ? localStorage.getItem("viddr_provider") : "gmail") || "gmail",
+      host: (typeof window !== "undefined" ? localStorage.getItem("viddr_host") : "smtp.gmail.com") || "smtp.gmail.com",
+      port: parseInt((typeof window !== "undefined" ? localStorage.getItem("viddr_port") : "465") || "465", 10),
       configured: !!appState.smtp_password,
     };
     state.delaySec = appState.send_delay_sec || 3;
@@ -224,6 +227,9 @@ export async function saveAppState(userId: string, state: PersistedState) {
 
   if (typeof window !== "undefined") {
     localStorage.setItem("viddr_fromName", state.config.fromName || "");
+    localStorage.setItem("viddr_provider", state.config.provider || "gmail");
+    localStorage.setItem("viddr_host", state.config.host || "smtp.gmail.com");
+    localStorage.setItem("viddr_port", (state.config.port || 465).toString());
   }
 }
 
