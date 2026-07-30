@@ -2,7 +2,7 @@ const { Worker } = require("bullmq");
 const pc = require("picocolors");
 const nodemailer = require("nodemailer");
 const { connection } = require("../config/redis");
-const supabase = require("../config/supabase");
+const { supabase } = require("../config/supabase");
 const { decryptPassword } = require("../lib/crypto");
 
 function sleep(ms) {
