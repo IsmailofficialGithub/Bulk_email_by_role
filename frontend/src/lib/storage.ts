@@ -33,7 +33,7 @@ export function emptyTemplates(): Record<Role, RoleTemplate> {
 
 export function defaultState(): PersistedState {
   return {
-    config: { email: "", appPassword: "", configured: false },
+    config: { email: "", appPassword: "", fromName: "", configured: false },
     recipients: [],
     templates: emptyTemplates(),
     delaySec: 3,
@@ -113,6 +113,7 @@ export async function loadState(userId: string): Promise<PersistedState> {
     state.config = {
       email: appState.smtp_email || "",
       appPassword: appState.smtp_password || "",
+      fromName: (typeof window !== "undefined" ? localStorage.getItem("viddr_fromName") : "") || "",
       configured: !!appState.smtp_password,
     };
     state.delaySec = appState.send_delay_sec || 3;
@@ -220,6 +221,10 @@ export async function saveAppState(userId: string, state: PersistedState) {
     },
     { onConflict: "user_id" }
   );
+
+  if (typeof window !== "undefined") {
+    localStorage.setItem("viddr_fromName", state.config.fromName || "");
+  }
 }
 
 export async function saveTemplates(

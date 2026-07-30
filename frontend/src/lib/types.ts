@@ -42,6 +42,7 @@ export type RoleTemplate = {
 export type SmtpConfig = {
   email: string;
   appPassword: string;
+  fromName?: string;
   configured: boolean;
 };
 

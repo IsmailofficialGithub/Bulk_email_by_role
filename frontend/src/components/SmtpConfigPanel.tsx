@@ -16,6 +16,7 @@ type Props = {
 
 export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props) {
   const [email, setEmail] = useState(config.email);
+  const [fromName, setFromName] = useState(config.fromName || "");
   const [appPassword, setAppPassword] = useState(config.appPassword);
   const [showPassword, setShowPassword] = useState(false);
   const [editing, setEditing] = useState(!config.configured);
@@ -33,6 +34,7 @@ export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props
     setMounted(true);
     setTimeout(() => {
       setEmail(config.email);
+      setFromName(config.fromName || "");
       setAppPassword(config.appPassword);
       setEditing(!config.configured);
     }, 0);
@@ -60,18 +62,18 @@ export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
-        onChange({ email, appPassword, configured: false });
+        onChange({ email, appPassword, fromName, configured: false });
         setMessage({ type: "err", text: data.error || "Verification failed" });
         toast.error(data.error || "Verification failed");
         return;
       }
-      onChange({ email, appPassword: data.encryptedPassword || appPassword, configured: true });
+      onChange({ email, appPassword: data.encryptedPassword || appPassword, fromName, configured: true });
       setEditing(false);
       setMessage({ type: "ok", text: "Verified" });
       toast.success("SMTP config verified!");
       onClose();
     } catch {
-      onChange({ email, appPassword, configured: false });
+      onChange({ email, appPassword, fromName, configured: false });
       setMessage({ type: "err", text: "Network error" });
       toast.error("Network error during verification");
     } finally {
@@ -81,7 +83,7 @@ export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props
 
   function handleChangeSettings() {
     setEditing(true);
-    onChange({ email, appPassword, configured: false });
+    onChange({ email, appPassword, fromName, configured: false });
     setMessage({ type: "ok", text: "Edit then verify" });
   }
 
@@ -95,6 +97,7 @@ export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props
     }
     onResetAll();
     setEmail("");
+    setFromName("");
     setAppPassword("");
     setEditing(true);
     setShowPassword(false);
@@ -102,22 +105,7 @@ export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props
     toast.success("All settings have been reset.");
   }
 
-  async function handlePasswordChange(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newPassword || newPassword.length < 6) {
-      toast.error("Password must be at least 6 characters");
-      return;
-    }
-    setPasswordLoading(true);
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
-    setPasswordLoading(false);
-    if (error) {
-      toast.error(error.message || "Failed to update password");
-    } else {
-      toast.success("Login password updated successfully!");
-      setNewPassword("");
-    }
-  }
+
 
   if (!mounted) return null;
 
@@ -154,7 +142,27 @@ export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props
             <div className="modal-body">
               <div className="grid-2">
                 <label className="field">
-                  <span>Email</span>
+                  <span>From / Sender Name</span>
+                  <input
+                    type="text"
+                    value={fromName}
+                    disabled={locked}
+                    onChange={(e) => {
+                      setFromName(e.target.value);
+                      onChange({
+                        email,
+                        fromName: e.target.value,
+                        appPassword,
+                        configured: false,
+                      });
+                      setMessage(null);
+                    }}
+                    placeholder="e.g. John Doe"
+                  />
+                </label>
+
+                <label className="field">
+                  <span>Sender Email (Gmail)</span>
                   <input
                     type="email"
                     value={email}
@@ -163,6 +171,7 @@ export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props
                       setEmail(e.target.value);
                       onChange({
                         email: e.target.value,
+                        fromName,
                         appPassword,
                         configured: false,
                       });
@@ -204,6 +213,7 @@ export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props
                         setAppPassword(val);
                         onChange({
                           email,
+                          fromName,
                           appPassword: val,
                           configured: false,
                         });
@@ -261,30 +271,6 @@ export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props
                 )}
               </div>
 
-              <div style={{ height: "1px", background: "var(--line)", margin: "0.5rem 0" }} />
-              
-              <div>
-                <h3 style={{ fontSize: "0.85rem", fontWeight: 600, marginBottom: "0.5rem", fontFamily: "var(--font-display)" }}>Account Settings</h3>
-                <form onSubmit={handlePasswordChange} className="grid-2" style={{ alignItems: "flex-end" }}>
-                  <label className="field">
-                    <span>New Login Password</span>
-                    <input
-                      type="password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="Min 6 characters"
-                      disabled={passwordLoading}
-                    />
-                  </label>
-                  <button
-                    type="submit"
-                    className="btn"
-                    disabled={passwordLoading || !newPassword}
-                  >
-                    {passwordLoading ? "Updating..." : "Update Password"}
-                  </button>
-                </form>
-              </div>
 
             </div>
           </div>

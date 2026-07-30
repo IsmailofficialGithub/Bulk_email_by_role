@@ -82,6 +82,9 @@ export default function Home() {
   const [showAutomailModal, setShowAutomailModal] = useState(false);
   const [showSmtpModal, setShowSmtpModal] = useState(false);
   
+  const [newPassword, setNewPassword] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  
   // Track previous state for targeted saving
   const lastState = useRef({
     config: defaultState().config,
@@ -296,6 +299,23 @@ export default function Home() {
     await supabase.auth.signOut();
   }
 
+  async function handlePasswordChange(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newPassword || newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    setPasswordLoading(true);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setPasswordLoading(false);
+    if (error) {
+      toast.error(error.message || "Failed to update password");
+    } else {
+      toast.success("Login password updated successfully!");
+      setNewPassword("");
+    }
+  }
+
   if (showLanding) {
     return <LandingPage />;
   }
@@ -437,6 +457,32 @@ export default function Home() {
                     Expand
                   </button>
                 </div>
+              </div>
+
+              <div className="smtp-bar" style={{ marginTop: '0.5rem', display: 'block' }}>
+                <div style={{ marginBottom: '1rem' }}>
+                  <span className="smtp-bar-title" style={{ display: 'block', marginBottom: '0.5rem' }}>Change Login Password</span>
+                  <p className="hint compact" style={{ margin: 0 }}>Update the password you use to log into Viddr.</p>
+                </div>
+                <form onSubmit={handlePasswordChange} className="grid-2" style={{ alignItems: "flex-end" }}>
+                  <label className="field">
+                    <span>New Password</span>
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Min 6 characters"
+                      disabled={passwordLoading}
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    className="btn primary"
+                    disabled={passwordLoading || !newPassword}
+                  >
+                    {passwordLoading ? "Updating..." : "Update Password"}
+                  </button>
+                </form>
               </div>
             </div>
           )}

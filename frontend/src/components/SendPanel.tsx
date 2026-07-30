@@ -59,6 +59,7 @@ export function SendPanel({
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [status, setStatus] = useState("");
   const [results, setResults] = useState<SendResult[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const sentKeys = useMemo(
     () => new Set(sentLog.filter(s => s.status === "sent" || s.status === "skipped").map((s) => sentKey(s.email, s.role))),
@@ -69,6 +70,11 @@ export function SendPanel({
     () =>
       recipients.filter((r) => !sentKeys.has(sentKey(r.email, r.role))),
     [recipients, sentKeys]
+  );
+  
+  const selectedPending = useMemo(
+    () => pending.filter(r => selectedIds.has(r.id)),
+    [pending, selectedIds]
   );
 
   const activeSent = useMemo(() => {
@@ -147,6 +153,7 @@ export function SendPanel({
       setStatus(`Sending ${name}…`);
 
       const payload = {
+        fromName: config.fromName,
         fromEmail: config.email,
         appPassword: config.appPassword,
         toEmail: recipient.email,
@@ -259,6 +266,21 @@ export function SendPanel({
       sentLog.filter((s) => sentKey(s.email, s.role) !== sentKey(email, role))
     );
   }
+  
+  function toggleSelectAllPending() {
+    if (selectedIds.size === pending.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(pending.map(r => r.id)));
+    }
+  }
+
+  function toggleSelected(id: string) {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+  }
 
   return (
     <section className="panel">
@@ -291,13 +313,25 @@ export function SendPanel({
             type="button"
             className="btn primary large"
             onClick={() =>
-              sendList(pending, { force: false, label: "Sending pending" })
+              sendList(pending, { force: false, label: "Sending all pending" })
             }
             disabled={sending || pending.length === 0}
           >
             {sending
               ? `${progress.current}/${progress.total}`
-              : `Send pending (${pending.length})`}
+              : `Send All Pending (${pending.length})`}
+          </button>
+          
+          <button
+            type="button"
+            className="btn large"
+            onClick={() =>
+              sendList(selectedPending, { force: false, label: "Sending selected" })
+            }
+            disabled={sending || selectedPending.length === 0}
+            style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}
+          >
+            Send Selected ({selectedPending.length})
           </button>
           <button
             type="button"
@@ -331,7 +365,14 @@ export function SendPanel({
           <div className="send-col">
             <div className="send-col-head">
               <h3>Pending</h3>
-              <span className="chip">{pending.length}</span>
+              <div className="send-col-actions">
+                <span className="chip">{pending.length}</span>
+                {pending.length > 0 && (
+                  <button type="button" className="btn ghost" onClick={toggleSelectAllPending} disabled={sending}>
+                    {selectedIds.size === pending.length ? "Deselect All" : "Select All"}
+                  </button>
+                )}
+              </div>
             </div>
             <div className="scroll-area send-scroll">
               {pending.length === 0 ? (
@@ -339,7 +380,14 @@ export function SendPanel({
               ) : (
                 <ul className="results">
                   {pending.map((r) => (
-                    <li key={r.id} className="pending">
+                    <li key={r.id} className="pending" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }} onClick={() => toggleSelected(r.id)}>
+                      <input 
+                        type="checkbox" 
+                        checked={selectedIds.has(r.id)} 
+                        onChange={() => {}} 
+                        disabled={sending} 
+                        style={{ cursor: 'pointer' }}
+                      />
                       <span>
                         {r.title ? `${r.title} · ` : ""}
                         {r.email} · {ROLE_LABELS[r.role]}

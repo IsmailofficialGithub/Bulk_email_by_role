@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { fromEmail, appPassword, toEmail, subject, content, attachments = [] } = body;
+    const { fromName, fromEmail, appPassword, toEmail, subject, content, attachments = [] } = body;
 
     if (!fromEmail || !appPassword || !toEmail || !subject) {
       return NextResponse.json(
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     });
 
     const info = await transporter.sendMail({
-      from: fromEmail,
+      from: fromName ? `"${fromName}" <${fromEmail}>` : fromEmail,
       to: toEmail,
       subject,
       text: content,
