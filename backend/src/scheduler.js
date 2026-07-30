@@ -38,6 +38,7 @@ function startScheduler() {
   const automailTickSec = process.env.AUTOMAIL_WORKER_INTERVAL_SEC ? parseInt(process.env.AUTOMAIL_WORKER_INTERVAL_SEC, 10) : 10;
   console.log(pc.green(`🚀 Starting Automail Worker (checking every ${automailTickSec} seconds)...`));
   setInterval(async () => {
+    console.log(pc.dim(`[Automail Worker] Checking for pending background emails...`));
     runAutomailJobs(supabase).catch(err => {
       console.error(pc.red(`[Scheduler] Automail worker error: ${err.message}`));
     });
@@ -46,6 +47,7 @@ function startScheduler() {
   const batchTickSec = process.env.BATCH_INTERVAL_SEC ? parseInt(process.env.BATCH_INTERVAL_SEC, 10) : 10;
   console.log(pc.green(`🚀 Starting Batch Send Worker (checking every ${batchTickSec} seconds)...`));
   setInterval(async () => {
+    console.log(pc.dim(`[BatchSend Worker] Checking for pending manual batches...`));
     checkBatchSends().catch(err => {
       console.error(pc.red(`[Scheduler] Batch Send error: ${err.message}`));
     });
