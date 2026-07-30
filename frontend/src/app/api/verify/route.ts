@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 
-import { encryptPassword } from "@/lib/crypto";
+import { encryptPassword, decryptPassword } from "@/lib/crypto";
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,7 +14,20 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // If it's already encrypted (e.g. re-verifying), we should probably fail because nodemailer needs plain text.
+    let passwordToVerify = appPassword;
+    if (passwordToVerify.startsWith("enc:")) {
+      try {
+        passwordToVerify = decryptPassword(passwordToVerify);
+      } catch (err) {
+        return NextResponse.json(
+          { success: false, error: "Failed to decrypt existing password" },
+          { status: 400 }
+        );
+      }
+    }
+    
+    // Remove any spaces just in case the user pasted them
+    passwordToVerify = passwordToVerify.replace(/\s+/g, "");
     // However, the verify flow from UI always sends plain text if the user types it.
     // If the user clicks Verify without changing, it sends the masked or encrypted string. We should handle that in UI.
 
@@ -24,13 +37,15 @@ export async function POST(request: NextRequest) {
       secure: true,
       auth: {
         user: email,
-        pass: appPassword,
+        pass: passwordToVerify,
       },
     });
 
     await transporter.verify();
     
-    const encryptedPassword = encryptPassword(appPassword);
+    const encryptedPassword = appPassword.startsWith("enc:") 
+      ? appPassword 
+      : encryptPassword(passwordToVerify);
 
     return NextResponse.json({ success: true, message: "SMTP config verified", encryptedPassword });
   } catch (error) {

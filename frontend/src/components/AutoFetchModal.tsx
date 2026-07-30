@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
-import type { AutoFetchConfig } from "@/lib/types";
+import type { AutoFetchConfig, Role } from "@/lib/types";
+import { ROLE_LABELS, ROLES } from "@/lib/types";
 import { HelpTooltip } from "./HelpTooltip";
 
 type Props = {
@@ -15,6 +16,7 @@ type Props = {
 export function AutoFetchModal({ config, onSave, onClose }: Props) {
   const [enabled, setEnabled] = useState(config.enabled);
   const [keywords, setKeywords] = useState(config.keywords);
+  const [targetRole, setTargetRole] = useState<Role>(config.targetRole || "fullstack");
   const [intervalMin, setIntervalMin] = useState(config.intervalMin);
   const [paginationLimit, setPaginationLimit] = useState(config.paginationLimit || 3);
   const [paginationDelaySec, setPaginationDelaySec] = useState(config.paginationDelaySec || 10);
@@ -140,6 +142,7 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
       onSave({
         enabled: finalEnabled,
         keywords: keywords.trim(),
+        targetRole,
         intervalMin: finalInterval,
         paginationLimit: Math.max(1, paginationLimit || 3),
         paginationDelaySec: Math.max(1, paginationDelaySec || 10),
@@ -316,6 +319,26 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
             </label>
             <label className="field">
               <span>
+                Target Email Template
+                <HelpTooltip title="Template Mapping" content="Scraped leads will be assigned this role, and the AI will use this template to personalize the email." />
+              </span>
+              <select
+                value={targetRole}
+                onChange={(e) => setTargetRole(e.target.value as Role)}
+                style={{ width: "100%", padding: "0.5rem", borderRadius: "4px", border: "1px solid var(--line)", background: "var(--bg-panel)", color: "var(--fg)" }}
+              >
+                {ROLES.map((role) => (
+                  <option key={role} value={role}>
+                    {ROLE_LABELS[role]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="grid-2">
+            <label className="field">
+              <span>
                 Fetch Interval (Minutes)
                 <HelpTooltip 
                   title="Fetch Interval" 
@@ -335,9 +358,7 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
                 onChange={(e) => setIntervalMin(Number(e.target.value) || 5)}
               />
             </label>
-          </div>
 
-          <div className="grid-2">
             <label className="field">
               <span>
                 Pagination Limit
@@ -359,7 +380,9 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
                 onChange={(e) => setPaginationLimit(Number(e.target.value) || 3)}
               />
             </label>
+          </div>
 
+          <div className="grid-2">
             <label className="field">
               <span>
                 Pagination Delay (Sec)

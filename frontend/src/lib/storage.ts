@@ -43,6 +43,7 @@ export function defaultState(): PersistedState {
     autoFetch: {
       enabled: false,
       keywords: "",
+      targetRole: "fullstack",
       intervalMin: 5,
       paginationLimit: 5,
       paginationDelaySec: 10,
@@ -120,6 +121,7 @@ export async function loadState(userId: string): Promise<PersistedState> {
     state.autoFetch = {
       enabled: appState.auto_fetch_enabled || false,
       keywords: appState.auto_fetch_keywords || "",
+      targetRole: (appState.auto_fetch_template_role as any) || "fullstack",
       intervalMin: appState.auto_fetch_interval_min || 5,
       paginationLimit: appState.auto_fetch_pagination_limit || 5,
       paginationDelaySec: appState.auto_fetch_pagination_delay_sec || 10,
@@ -202,6 +204,7 @@ export async function saveAppState(userId: string, state: PersistedState) {
       default_title: state.defaultTitle,
       auto_fetch_enabled: state.autoFetch.enabled,
       auto_fetch_keywords: state.autoFetch.keywords,
+      auto_fetch_template_role: state.autoFetch.targetRole,
       auto_fetch_interval_min: state.autoFetch.intervalMin,
       auto_fetch_pagination_limit: state.autoFetch.paginationLimit,
       auto_fetch_pagination_delay_sec: state.autoFetch.paginationDelaySec,

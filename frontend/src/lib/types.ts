@@ -65,6 +65,7 @@ export type SentRecord = {
 export type AutoFetchConfig = {
   enabled: boolean;
   keywords: string;
+  targetRole: Role;
   intervalMin: number;
   paginationLimit: number;
   paginationDelaySec: number;

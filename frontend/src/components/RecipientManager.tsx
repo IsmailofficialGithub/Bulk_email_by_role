@@ -177,31 +177,51 @@ export function RecipientManager({
           ))}
         </div>
 
-        <div className="grid-3" style={{ marginBottom: "1rem", background: "var(--bg-elevated)", padding: "0.5rem", borderRadius: "6px" }}>
-          <label className="field">
-            <span style={{ fontSize: "0.75rem" }}>Filter by Role</span>
-            <select value={filterRole} onChange={(e) => { setFilterRole(e.target.value); setVisibleCount(50); }}>
-              <option value="all">All Roles</option>
-              {ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
-            </select>
-          </label>
-          <label className="field">
-            <span style={{ fontSize: "0.75rem" }}>Filter by Status</span>
-            <select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setVisibleCount(50); }}>
-              <option value="all">All Statuses</option>
-              <option value="pending">Pending</option>
-              <option value="sent">Sent</option>
-              <option value="failed">Failed</option>
-            </select>
-          </label>
-          <label className="field">
-            <span style={{ fontSize: "0.75rem" }}>Filter by Source</span>
-            <select value={filterSource} onChange={(e) => { setFilterSource(e.target.value); setVisibleCount(50); }}>
-              <option value="all">All Sources</option>
-              <option value="auto_fetch">Auto-Fetch</option>
-              <option value="manual">Manual Add</option>
-            </select>
-          </label>
+        <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem", background: "var(--bg-elevated)", padding: "0.5rem", borderRadius: "6px", alignItems: "center", flexWrap: "wrap" }}>
+          <span style={{ fontSize: "0.8rem", color: "var(--fg-dim)", fontWeight: 500 }}>Filters:</span>
+          
+          <select 
+            value={filterRole} 
+            onChange={(e) => { setFilterRole(e.target.value); setVisibleCount(50); }}
+            style={{ padding: "0.25rem 0.5rem", fontSize: "0.85rem", borderRadius: "4px", border: "1px solid var(--line)", background: "var(--bg)" }}
+          >
+            <option value="all">All Roles</option>
+            {ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+          </select>
+          
+          <select 
+            value={filterStatus} 
+            onChange={(e) => { setFilterStatus(e.target.value); setVisibleCount(50); }}
+            style={{ padding: "0.25rem 0.5rem", fontSize: "0.85rem", borderRadius: "4px", border: "1px solid var(--line)", background: "var(--bg)" }}
+          >
+            <option value="all">All Statuses</option>
+            <option value="pending">Pending</option>
+            <option value="sent">Sent</option>
+            <option value="failed">Failed</option>
+          </select>
+          
+          <select 
+            value={filterSource} 
+            onChange={(e) => { setFilterSource(e.target.value); setVisibleCount(50); }}
+            style={{ padding: "0.25rem 0.5rem", fontSize: "0.85rem", borderRadius: "4px", border: "1px solid var(--line)", background: "var(--bg)" }}
+          >
+            <option value="all">All Sources</option>
+            <option value="auto_fetch">Auto-Fetch</option>
+            <option value="manual">Manual Add</option>
+          </select>
+          
+          <button 
+            type="button" 
+            className="btn" 
+            style={{ marginLeft: "auto", background: "var(--bg-error)", color: "white", padding: "0.25rem 0.75rem", fontSize: "0.85rem", height: "auto" }}
+            onClick={() => {
+              if (confirm("Are you sure you want to delete all pending recipients?")) {
+                onChange(recipients.filter(r => (r.status || 'pending') !== 'pending'));
+              }
+            }}
+          >
+            Clear All Pending
+          </button>
         </div>
 
         <div className="add-row">

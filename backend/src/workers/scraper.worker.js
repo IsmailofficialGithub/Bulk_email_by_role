@@ -14,7 +14,8 @@ async function processJobLogic(job) {
     auto_fetch_raw_headers, 
     auto_fetch_pagination_limit, 
     auto_fetch_pagination_delay_sec,
-    post_age_filter
+    post_age_filter,
+    auto_fetch_template_role
   } = job.data;
 
   const log = (msg) => {
@@ -69,8 +70,20 @@ async function processJobLogic(job) {
       if (row.email) allEmails.add(row.email.toLowerCase());
       if (row.phone) allPhones.add(row.phone);
     });
-    log(pc.green(` ✔ Loaded ${allEmails.size} emails and ${allPhones.size} phones to skip.`));
   }
+
+  const { data: sentLogData } = await supabase
+    .from('automailsend_sent_log')
+    .select('email')
+    .eq('user_id', user_id);
+    
+  if (sentLogData) {
+    sentLogData.forEach(row => {
+      if (row.email) allEmails.add(row.email.toLowerCase());
+    });
+  }
+  
+  log(pc.green(` ✔ Loaded ${allEmails.size} emails and ${allPhones.size} phones to skip (including sent log).`));
 
   const saveContacts = async (contacts) => {
     const newEmails = contacts.emails.filter(e => !allEmails.has(e.toLowerCase()));
@@ -92,7 +105,7 @@ async function processJobLogic(job) {
         user_id,
         email: emailToInsert,
         phone: phoneToInsert,
-        role: auto_fetch_keywords, 
+        role: auto_fetch_template_role || auto_fetch_keywords, 
         title: "",
         source: "auto_fetch",
         context_text: contacts.contextText || null,

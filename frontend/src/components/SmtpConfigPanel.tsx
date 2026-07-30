@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import type { SmtpConfig } from "@/lib/types";
 import toast from "react-hot-toast";
 import { supabase } from "@/lib/supabase";
@@ -10,10 +11,10 @@ type Props = {
   config: SmtpConfig;
   onChange: (config: SmtpConfig) => void;
   onResetAll: () => void;
+  onClose: () => void;
 };
 
-export function SmtpConfigPanel({ config, onChange, onResetAll }: Props) {
-  const [open, setOpen] = useState(!config.configured);
+export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props) {
   const [email, setEmail] = useState(config.email);
   const [appPassword, setAppPassword] = useState(config.appPassword);
   const [showPassword, setShowPassword] = useState(false);
@@ -26,23 +27,24 @@ export function SmtpConfigPanel({ config, onChange, onResetAll }: Props) {
   const [newPassword, setNewPassword] = useState("");
   const [passwordLoading, setPasswordLoading] = useState(false);
 
+  const [mounted, setMounted] = useState(false);
+
   useEffect(() => {
+    setMounted(true);
     setTimeout(() => {
       setEmail(config.email);
       setAppPassword(config.appPassword);
       setEditing(!config.configured);
-      setOpen(!config.configured);
     }, 0);
   }, [config.email, config.appPassword, config.configured]);
 
   useEffect(() => {
-    if (!open) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") onClose();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
+  }, [onClose]);
 
   const locked = config.configured && !editing;
   const displayAppPassword = appPassword.startsWith("enc:") ? "••••••••••••••••" : appPassword;
@@ -67,7 +69,7 @@ export function SmtpConfigPanel({ config, onChange, onResetAll }: Props) {
       setEditing(false);
       setMessage({ type: "ok", text: "Verified" });
       toast.success("SMTP config verified!");
-      setOpen(false);
+      onClose();
     } catch {
       onChange({ email, appPassword, configured: false });
       setMessage({ type: "err", text: "Network error" });
@@ -98,7 +100,6 @@ export function SmtpConfigPanel({ config, onChange, onResetAll }: Props) {
     setShowPassword(false);
     setMessage({ type: "ok", text: "Reset done" });
     toast.success("All settings have been reset.");
-    setOpen(true);
   }
 
   async function handlePasswordChange(e: React.FormEvent) {
@@ -118,46 +119,14 @@ export function SmtpConfigPanel({ config, onChange, onResetAll }: Props) {
     }
   }
 
-  function openModal() {
-    setMessage(null);
-    setOpen(true);
-  }
+  if (!mounted) return null;
 
-  return (
-    <>
-      <div className="smtp-bar">
-        <div className="smtp-bar-left">
-          <span className="smtp-bar-title">SMTP</span>
-          <span className={config.configured ? "badge ok" : "badge warn"}>
-            {config.configured ? "Ready" : "Setup needed"}
-          </span>
-          {config.email && (
-            <span className="smtp-bar-email" title={config.email}>
-              {config.email}
-            </span>
-          )}
-        </div>
-        <div className="smtp-bar-actions">
-          <button type="button" className="btn primary" onClick={openModal}>
-            Expand
-          </button>
-          {config.configured && (
-            <button
-              type="button"
-              className="btn ghost danger"
-              onClick={handleReset}
-            >
-              Reset
-            </button>
-          )}
-        </div>
-      </div>
-
-      {open && (
+  return createPortal(
         <div
           className="modal-backdrop"
           role="presentation"
-          onClick={() => config.configured && setOpen(false)}
+          onClick={() => config.configured && onClose()}
+          style={{ zIndex: 99999 }}
         >
           <div
             className="modal-card"
@@ -176,7 +145,7 @@ export function SmtpConfigPanel({ config, onChange, onResetAll }: Props) {
               <button
                 type="button"
                 className="btn ghost"
-                onClick={() => setOpen(false)}
+                onClick={onClose}
               >
                 Close
               </button>
@@ -319,8 +288,7 @@ export function SmtpConfigPanel({ config, onChange, onResetAll }: Props) {
 
             </div>
           </div>
-        </div>
-      )}
-    </>
+        </div>,
+    document.body
   );
 }

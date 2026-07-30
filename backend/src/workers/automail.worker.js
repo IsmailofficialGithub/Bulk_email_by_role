@@ -1,15 +1,19 @@
 const pc = require("picocolors");
 const nodemailer = require("nodemailer");
 const axios = require("axios");
+const { decryptPassword } = require("../lib/crypto");
 
-async function generateAiPersonalizedEmail(provider, apiKey, promptTemplate, recipient, contextText) {
-  const prompt = applyPlaceholders(promptTemplate, recipient) + "\n\n--- POST TEXT ---\n" + (contextText || "No context provided.");
+async function generateAiPersonalizedEmail(provider, apiKey, promptTemplate, recipient, contextText, baseTemplate) {
+  const prompt = applyPlaceholders(promptTemplate, recipient) 
+    + "\n\n--- BASE TEMPLATE SUBJECT ---\n" + baseTemplate.subject
+    + "\n\n--- BASE TEMPLATE BODY ---\n" + baseTemplate.content
+    + "\n\n--- POST TEXT ---\n" + (contextText || "No context provided.");
   
   if (provider === "openai" || provider === "groq") {
     const url = provider === "openai" 
       ? "https://api.openai.com/v1/chat/completions" 
       : "https://api.groq.com/openai/v1/chat/completions";
-    const model = provider === "openai" ? "gpt-4o-mini" : "llama3-8b-8192";
+    const model = provider === "openai" ? "gpt-4o-mini" : "llama-3.1-8b-instant";
     
     const res = await axios.post(url, {
       model,
@@ -68,7 +72,7 @@ async function runAutomailJobs(supabase) {
       
       const aiProvider = user.ai_provider || "none";
       const aiApiKey = user.ai_api_key;
-      const aiPrompt = user.ai_prompt || "You are an expert recruiter. Analyze the following LinkedIn post text. The author's email is {{email}}. Write a highly personalized, friendly, and concise email subject and body offering our services. Output ONLY valid JSON with 'subject' and 'body' keys.";
+      const aiPrompt = user.ai_prompt || "You are an expert recruiter. Analyze the POST TEXT. If it's completely irrelevant or doesn't look like a job/hiring post, return {\"skip\": true, \"reason\": \"Irrelevant post\"}. Otherwise, adapt the BASE TEMPLATE to perfectly match the role/requirements described in the POST TEXT (e.g. changing 'DevOps' to the role they are hiring for). Output ONLY valid JSON with 'subject' and 'body' keys (or 'skip' and 'reason').";
 
       if (!email || !appPassword) {
         console.log(pc.yellow(`[Automail] User ${userId.substring(0, 8)} enabled automail but missing SMTP creds. Skipping.`));
@@ -136,13 +140,24 @@ async function runAutomailJobs(supabase) {
         secure = false;
       }
   
+      let passwordToUse = appPassword;
+      if (passwordToUse.startsWith("enc:")) {
+        try {
+          passwordToUse = decryptPassword(passwordToUse);
+        } catch (err) {
+          console.error(pc.red(`[Automail] Failed to decrypt password for ${userId}. Skipping.`));
+          continue;
+        }
+      }
+      passwordToUse = passwordToUse.replace(/\s+/g, "");
+
       const transporter = nodemailer.createTransport({
         host,
         port,
         secure,
         auth: {
           user: email,
-          pass: appPassword,
+          pass: passwordToUse,
         },
       });
 
@@ -155,14 +170,35 @@ async function runAutomailJobs(supabase) {
           continue;
         }
 
+        if (!recipient.email) {
+          console.log(pc.yellow(`[Automail] Recipient ${recipient.id} has no email address. Skipping.`));
+          await supabase.from("automailsend_recipients").update({ status: "failed" }).eq("id", recipient.id);
+          await supabase.from("automailsend_sent_log").insert({
+            user_id: userId,
+            email: recipient.phone || "No Email",
+            role: recipient.role,
+            title: recipient.title,
+            status: "failed",
+            error_message: "No email address found",
+          });
+          continue;
+        }
+
         let subject = applyPlaceholders(template.subject, recipient);
         let text = applyPlaceholders(template.content, recipient);
+        let shouldSkip = false;
+        let skipReason = null;
 
         if (aiProvider !== "none" && aiApiKey) {
           try {
             console.log(pc.cyan(`  [Automail] Generating AI personalization for ${recipient.email}...`));
-            const aiContent = await generateAiPersonalizedEmail(aiProvider, aiApiKey, aiPrompt, recipient, recipient.context_text);
-            if (aiContent && aiContent.subject && aiContent.body) {
+            const aiContent = await generateAiPersonalizedEmail(aiProvider, aiApiKey, aiPrompt, recipient, recipient.context_text, template);
+            
+            if (aiContent && aiContent.skip) {
+              shouldSkip = true;
+              skipReason = aiContent.reason || "AI decided to skip based on context.";
+              console.log(pc.yellow(`  ⚠️ AI Skip: ${skipReason}`));
+            } else if (aiContent && aiContent.subject && aiContent.body) {
               subject = aiContent.subject;
               text = aiContent.body;
               console.log(pc.green(`  ✔ AI personalization successful!`));
@@ -171,7 +207,23 @@ async function runAutomailJobs(supabase) {
             }
           } catch (aiErr) {
             console.error(pc.yellow(`  ⚠️ AI generation failed: ${aiErr.message}. Falling back to template.`));
+            if (aiErr.response && aiErr.response.data) {
+              console.error(pc.yellow(`  ⚠️ AI Error details: ${JSON.stringify(aiErr.response.data)}`));
+            }
           }
+        }
+
+        if (shouldSkip) {
+          await supabase.from("automailsend_recipients").update({ status: "failed" }).eq("id", recipient.id);
+          await supabase.from("automailsend_sent_log").insert({
+            user_id: userId,
+            email: recipient.email,
+            role: recipient.role,
+            title: recipient.title,
+            status: "skipped",
+            error_message: skipReason,
+          });
+          continue;
         }
 
         let status = "failed";

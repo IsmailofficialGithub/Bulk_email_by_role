@@ -30,8 +30,36 @@ import {
 
 export default function Home() {
   const router = useRouter();
-  const [userId, setUserId] = useState<string | null>(null);
+  
   const [activeTab, setActiveTab] = useState<"contacts" | "templates" | "sending" | "settings">("contacts");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const currentTab = window.location.pathname.replace('/', '') || 'contacts';
+      if (["contacts", "templates", "sending", "settings"].includes(currentTab)) {
+        setActiveTab(currentTab as any);
+      }
+
+      const handlePopState = () => {
+        const popTab = window.location.pathname.replace('/', '') || 'contacts';
+        if (["contacts", "templates", "sending", "settings"].includes(popTab)) {
+          setActiveTab(popTab as any);
+        }
+      };
+      
+      window.addEventListener('popstate', handlePopState);
+      return () => window.removeEventListener('popstate', handlePopState);
+    }
+  }, []);
+
+  const handleTabChange = (tab: "contacts" | "templates" | "sending" | "settings") => {
+    setActiveTab(tab);
+    if (typeof window !== "undefined") {
+      window.history.pushState(null, '', `/${tab}`);
+    }
+  };
+  
+  const [userId, setUserId] = useState<string | null>(null);
   
   const [hydrated, setHydrated] = useState(false);
   const [config, setConfig] = useState<SmtpConfig>(defaultState().config);
@@ -50,6 +78,7 @@ export default function Home() {
   
   const [showAutoFetch, setShowAutoFetch] = useState(false);
   const [showAutomailModal, setShowAutomailModal] = useState(false);
+  const [showSmtpModal, setShowSmtpModal] = useState(false);
   
   // Track previous state for targeted saving
   const lastState = useRef({
@@ -268,25 +297,25 @@ export default function Home() {
         <nav className="sidebar-nav">
           <button 
             className={`sidebar-tab ${activeTab === 'contacts' ? 'active' : ''}`}
-            onClick={() => setActiveTab('contacts')}
+            onClick={() => handleTabChange('contacts')}
           >
             Scraper & Contacts
           </button>
           <button 
             className={`sidebar-tab ${activeTab === 'templates' ? 'active' : ''}`}
-            onClick={() => setActiveTab('templates')}
+            onClick={() => handleTabChange('templates')}
           >
             Templates & AI
           </button>
           <button 
             className={`sidebar-tab ${activeTab === 'sending' ? 'active' : ''}`}
-            onClick={() => setActiveTab('sending')}
+            onClick={() => handleTabChange('sending')}
           >
             Sending & Automail
           </button>
           <button 
             className={`sidebar-tab ${activeTab === 'settings' ? 'active' : ''}`}
-            onClick={() => setActiveTab('settings')}
+            onClick={() => handleTabChange('settings')}
           >
             Settings
           </button>
@@ -348,13 +377,19 @@ export default function Home() {
           {activeTab === 'settings' && (
             <div className="panel flex-col gap-4">
               <h2 className="panel-title">Application Settings</h2>
-              
-              <SmtpConfigPanel
-                config={config}
-                onChange={setConfig}
-                onResetAll={resetAll}
-              />
-
+              <div className="smtp-bar" style={{ marginTop: '0.5rem' }}>
+                <div className="smtp-bar-left">
+                  <span className="smtp-bar-title">Account & SMTP Settings</span>
+                  <span className={config.configured ? "badge ok" : "badge warn"}>
+                    {config.configured ? "Ready" : "Setup needed"}
+                  </span>
+                </div>
+                <div className="smtp-bar-actions">
+                  <button type="button" className="btn primary" onClick={() => setShowSmtpModal(true)}>
+                    Expand
+                  </button>
+                </div>
+              </div>
               <div className="smtp-bar" style={{ marginTop: '0.5rem' }}>
                 <div className="smtp-bar-left">
                   <span className="smtp-bar-title">LinkedIn Scraper Settings</span>
@@ -400,6 +435,15 @@ export default function Home() {
               templates={templates}
               onSave={setAutomail}
               onClose={() => setShowAutomailModal(false)}
+            />
+          )}
+
+          {showSmtpModal && (
+            <SmtpConfigPanel
+              config={config}
+              onChange={setConfig}
+              onResetAll={resetAll}
+              onClose={() => setShowSmtpModal(false)}
             />
           )}
         </div>
