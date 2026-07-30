@@ -391,7 +391,7 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
                   value={newKeyword}
                   onChange={(e) => setNewKeyword(e.target.value)}
                   placeholder="e.g. software engineer"
-                  style={{ width: "100%" }}
+                  style={{ width: "100%", padding: "0.5rem", borderRadius: "4px", border: "1px solid var(--line)", background: "var(--bg-panel)", color: "var(--fg)" }}
                 />
               </div>
               <div style={{ flex: 1 }}>
