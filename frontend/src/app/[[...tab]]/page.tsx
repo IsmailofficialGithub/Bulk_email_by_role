@@ -311,7 +311,10 @@ export default function Home() {
   return (
     <div className="app-container">
       <aside className="sidebar">
-        <div className="sidebar-title">AutoMailSend</div>
+        <div className="sidebar-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <img src="/logo.png" alt="Viddr Logo" className="w-6 h-6 rounded shadow-sm" />
+          <span>Viddr</span>
+        </div>
         <nav className="sidebar-nav">
           <button 
             className={`sidebar-tab ${activeTab === 'contacts' ? 'active' : ''}`}
