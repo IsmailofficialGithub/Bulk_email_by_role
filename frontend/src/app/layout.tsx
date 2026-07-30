@@ -28,7 +28,7 @@ export default function RootLayout({
     <html lang="en" className={`${sans.variable} ${display.variable}`}>
       <body className="antialiased">
         {children}
-        <Toaster position="bottom-right" />
+        <Toaster position="bottom-right" containerStyle={{ zIndex: 999999 }} />
       </body>
     </html>
   );

@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Automail LinkedIn Cookie Extractor",
+  "version": "1.0",
+  "description": "Automatically extracts your LinkedIn JSESSIONID for the Automail application.",
+  "permissions": [
+    "cookies"
+  ],
+  "host_permissions": [
+    "*://*.linkedin.com/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://localhost/*", "http://127.0.0.1/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

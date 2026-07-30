@@ -31,7 +31,16 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
   const [manualValue, setManualValue] = useState<string>("");
 
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const [extensionInstalled, setExtensionInstalled] = useState(false);
+  
+  useEffect(() => {
+    setMounted(true);
+    // Check if extension injected the marker
+    const hasMarker = document.querySelector('meta[name="automail-extension-installed"]');
+    if (hasMarker) {
+      setExtensionInstalled(true);
+    }
+  }, []);
 
   // Regex validation
   const isJsessionValid = jsessionid === "" || /^ajax:\d+$/.test(jsessionid);
@@ -154,6 +163,48 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
     
     toast.success("Auto-fetch configuration saved!");
     onClose();
+  }
+  
+  function handleAutoDetect() {
+    if (!extensionInstalled) {
+      toast.error("Extension not detected. Please install the Automail LinkedIn Cookie Extractor first.");
+      return;
+    }
+    
+    // Listen for the response once
+    const handleResponse = (e: any) => {
+      window.removeEventListener("AUTOMAILEXT_RECEIVE_COOKIE", handleResponse);
+      const data = e.detail;
+      if (data && data.success && data.jsessionid && data.li_at) {
+        setJsessionid(`ajax:${data.jsessionid}`);
+        setLiAt(data.li_at);
+        
+        // Construct the full perfect rawHeaders payload automatically!
+        const perfectHeaders = {
+          "Accept": "application/json",
+          "Content-Type": "application/json",
+          "Origin": "https://www.linkedin.com",
+          "Referer": "https://www.linkedin.com/preload/?_bprMode=vanilla",
+          "User-Agent": navigator.userAgent,
+          "x-restli-protocol-version": "2.0.0",
+          "csrf-token": `ajax:${data.jsessionid}`,
+          "Cookie": `li_at=${data.li_at}; JSESSIONID="ajax:${data.jsessionid}";`
+        };
+        
+        setRawHeaders(JSON.stringify(perfectHeaders, null, 2));
+        
+        if (data.username && data.username !== "LinkedIn User") {
+          toast.success(`Welcome, ${data.username}! Tokens extracted.`);
+        } else {
+          toast.success("Successfully extracted ALL LinkedIn tokens!");
+        }
+      } else {
+        toast.error(data?.error || "Failed to detect cookies. Make sure you are logged into LinkedIn.");
+      }
+    };
+    
+    window.addEventListener("AUTOMAILEXT_RECEIVE_COOKIE", handleResponse);
+    window.dispatchEvent(new CustomEvent("AUTOMAILEXT_REQUEST_COOKIE"));
   }
 
   function handleSmartPaste(val: string) {
@@ -454,6 +505,33 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
               style={{ fontSize: "0.7rem", padding: "0.2rem 0.5rem" }}
             >
               {showTokens ? "Hide" : "Show"} Values
+            </button>
+          </div>
+          
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "0.5rem", gap: "0.5rem" }}>
+            {!extensionInstalled && (
+              <a 
+                href="/automail-extension.zip" 
+                download
+                className="btn small ghost"
+                style={{ display: "flex", gap: "0.5rem", alignItems: "center", border: "1px solid var(--line)" }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                </svg>
+                Download Extension (.zip)
+              </a>
+            )}
+            <button
+              type="button"
+              className="btn small"
+              style={{ background: extensionInstalled ? "var(--bg-accent)" : "var(--bg-elevated)", display: "flex", gap: "0.5rem", alignItems: "center" }}
+              onClick={handleAutoDetect}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+              </svg>
+              Auto-Detect JSESSIONID
             </button>
           </div>
 
