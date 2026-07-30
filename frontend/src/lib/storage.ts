@@ -42,9 +42,12 @@ export function defaultState(): PersistedState {
       enabled: false,
       keywords: "",
       intervalMin: 5,
+      paginationLimit: 5,
+      paginationDelaySec: 10,
       liAt: "",
       jsessionid: "",
       rawHeaders: "{}",
+      postAgeFilter: "any",
     },
   };
 }
@@ -58,33 +61,38 @@ export async function uploadAttachment(
   const filePath = `${userId}/${fileName}`;
 
   const { error } = await supabase.storage
-    .from("attachments")
+    .from("automailsend_attachments")
     .upload(filePath, file);
 
   if (error) {
     throw error;
   }
 
-  const { data } = supabase.storage.from("attachments").getPublicUrl(filePath);
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("automailsend_attachments").getPublicUrl(filePath);
 
   return {
-    id: filePath,
+    id: fileName,
     name: file.name,
-    type: file.type || "application/octet-stream",
-    url: data.publicUrl,
+    type: file.type,
+    url: publicUrl,
     storagePath: filePath,
     size: file.size,
   };
 }
 
-export async function deleteAttachment(storagePath: string) {
-  await supabase.storage.from("attachments").remove([storagePath]);
+export async function deleteAttachment(filePath: string) {
+  const { error } = await supabase.storage
+    .from("automailsend_attachments")
+    .remove([filePath]);
+  if (error) throw error;
 }
 
 export async function loadState(userId: string): Promise<PersistedState> {
   const state = defaultState();
 
-  // Load app_state
+  // Load app state
   const { data: appState } = await supabase
     .from("automailsend_app_state")
     .select("*")
@@ -92,21 +100,24 @@ export async function loadState(userId: string): Promise<PersistedState> {
     .single();
 
   if (appState) {
-    state.config = appState.config;
-    state.delaySec = appState.delay_sec;
-    state.activeTemplateRole = appState.active_template_role as Role;
-    state.defaultTitle = appState.default_title;
+    state.config = {
+      email: appState.smtp_email || "",
+      appPassword: appState.smtp_password || "",
+      configured: !!appState.smtp_password,
+    };
+    state.delaySec = appState.send_delay_sec || 3;
+    state.defaultTitle = appState.default_title || "";
+    
     state.autoFetch = {
       enabled: appState.auto_fetch_enabled || false,
       keywords: appState.auto_fetch_keywords || "",
       intervalMin: appState.auto_fetch_interval_min || 5,
-      paginationLimit: appState.auto_fetch_pagination_limit || 3,
+      paginationLimit: appState.auto_fetch_pagination_limit || 5,
       paginationDelaySec: appState.auto_fetch_pagination_delay_sec || 10,
-      liAt: appState.auto_fetch_li_at || "",
-      jsessionid: appState.auto_fetch_jsessionid || "",
-      rawHeaders: typeof appState.auto_fetch_raw_headers === 'string'
-        ? appState.auto_fetch_raw_headers
-        : JSON.stringify(appState.auto_fetch_raw_headers || {}),
+      liAt: appState.cookie_li_at || "",
+      jsessionid: appState.cookie_jsessionid || "",
+      rawHeaders: appState.auto_fetch_raw_headers || "{}",
+      postAgeFilter: (appState.post_age_filter as any) || "any",
     };
   }
 
@@ -121,6 +132,9 @@ export async function loadState(userId: string): Promise<PersistedState> {
       email: r.email,
       role: r.role as Role,
       title: r.title,
+      phone: r.phone,
+      status: r.status || "pending",
+      source: r.source || "auto_fetch",
     }));
   }
 
@@ -164,8 +178,9 @@ export async function saveAppState(userId: string, state: PersistedState) {
   await supabase.from("automailsend_app_state").upsert(
     {
       user_id: userId,
-      config: state.config,
-      delay_sec: state.delaySec,
+      smtp_email: state.config.email,
+      smtp_password: state.config.appPassword,
+      send_delay_sec: state.delaySec,
       active_template_role: state.activeTemplateRole,
       default_title: state.defaultTitle,
       auto_fetch_enabled: state.autoFetch.enabled,
@@ -173,9 +188,10 @@ export async function saveAppState(userId: string, state: PersistedState) {
       auto_fetch_interval_min: state.autoFetch.intervalMin,
       auto_fetch_pagination_limit: state.autoFetch.paginationLimit,
       auto_fetch_pagination_delay_sec: state.autoFetch.paginationDelaySec,
-      auto_fetch_li_at: state.autoFetch.liAt,
-      auto_fetch_jsessionid: state.autoFetch.jsessionid,
+      cookie_li_at: state.autoFetch.liAt,
+      cookie_jsessionid: state.autoFetch.jsessionid,
       auto_fetch_raw_headers: state.autoFetch.rawHeaders,
+      post_age_filter: state.autoFetch.postAgeFilter,
     },
     { onConflict: "user_id" }
   );
@@ -196,21 +212,28 @@ export async function saveTemplates(
 }
 
 export async function syncRecipients(userId: string, recipients: Recipient[]) {
-  // Simple sync: delete all and insert. For production, you might want to diff.
-  await supabase.from("automailsend_recipients").delete().eq("user_id", userId);
-  if (recipients.length > 0) {
-    const { error } = await supabase.from("automailsend_recipients").insert(
-      recipients.map((r) => ({
-        user_id: userId,
-        email: r.email,
-        role: r.role,
-        title: r.title,
-      }))
-    );
-    if (error) {
-      console.error("Failed to sync recipients:", error);
-    }
+  if (recipients.length === 0) return;
+  const { error } = await supabase.from("automailsend_recipients").upsert(
+    recipients.map((r) => ({
+      id: r.id,
+      user_id: userId,
+      email: r.email,
+      role: r.role,
+      title: r.title,
+      phone: r.phone || null,
+      status: r.status || 'pending',
+      source: r.source || 'manual',
+    })),
+    { onConflict: 'id' }
+  );
+  if (error) {
+    console.error("Failed to sync recipients:", error);
   }
+}
+
+export async function deleteRecipient(id: string) {
+  const { error } = await supabase.from("automailsend_recipients").delete().eq("id", id);
+  if (error) throw error;
 }
 
 export async function addSentLog(
@@ -226,4 +249,10 @@ export async function addSentLog(
     error_message: record.error || null,
     sent_at: record.sentAt,
   });
+
+  // Also update the recipient's status so the UI reflects it immediately
+  await supabase.from("automailsend_recipients")
+    .update({ status: record.status })
+    .eq("user_id", userId)
+    .eq("email", record.email);
 }

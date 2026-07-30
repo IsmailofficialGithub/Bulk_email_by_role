@@ -19,6 +19,9 @@ export type Recipient = {
   email: string;
   role: Role;
   title: string;
+  phone?: string;
+  status?: "pending" | "sent" | "failed";
+  source?: "auto_fetch" | "manual";
 };
 
 export type Attachment = {
@@ -68,4 +71,5 @@ export type AutoFetchConfig = {
   liAt: string;
   jsessionid: string;
   rawHeaders: string;
+  postAgeFilter: "any" | "past-24h" | "past-week" | "past-month";
 };

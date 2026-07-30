@@ -100,6 +100,67 @@ export default function Home() {
     });
   }, [userId]);
 
+  // Realtime updates from background worker
+  useEffect(() => {
+    if (!userId || !hydrated) return;
+
+    const channel = supabase.channel('table-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'automailsend_recipients',
+          filter: `user_id=eq.${userId}`
+        },
+        (payload) => {
+          if (payload.eventType === 'DELETE') {
+             setRecipients(prev => prev.filter(r => r.id !== payload.old.id));
+             return;
+          }
+          const newRow = payload.new;
+          setRecipients((prev) => {
+            const exists = prev.some(r => r.id === newRow.id);
+            const rowData = {
+              id: newRow.id,
+              email: newRow.email,
+              role: newRow.role as Role,
+              title: newRow.title,
+              phone: newRow.phone,
+              status: newRow.status || 'pending',
+              source: newRow.source || 'auto_fetch'
+            };
+            if (exists) {
+              return prev.map(r => r.id === newRow.id ? rowData : r);
+            }
+            return [...prev, rowData];
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'automailsend_execution_logs',
+          filter: `user_id=eq.${userId}`
+        },
+        (payload) => {
+          const log = payload.new;
+          if (log.details && (log.details.new_emails?.length > 0 || log.details.new_phones?.length > 0)) {
+            const eCount = log.details.new_emails?.length || 0;
+            const pCount = log.details.new_phones?.length || 0;
+            toast.success(`Auto-Fetch found ${eCount} emails & ${pCount} phones!`);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId, hydrated]);
+
   // Debounced auto-save for app_state
   useEffect(() => {
     if (!hydrated || !userId) return;

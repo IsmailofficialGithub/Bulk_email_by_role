@@ -13,7 +13,8 @@ async function processJobLogic(job) {
     auto_fetch_keywords, 
     auto_fetch_raw_headers, 
     auto_fetch_pagination_limit, 
-    auto_fetch_pagination_delay_sec 
+    auto_fetch_pagination_delay_sec,
+    post_age_filter
   } = job.data;
 
   const log = (msg) => {
@@ -33,7 +34,11 @@ async function processJobLogic(job) {
   }
 
   const keywords = encodeURIComponent(auto_fetch_keywords);
-  const searchUrl = `https://www.linkedin.com/search/results/content/?keywords=${keywords}&origin=SWITCH_SEARCH_VERTICAL`;
+  let searchUrl = `https://www.linkedin.com/search/results/content/?keywords=${keywords}&origin=SWITCH_SEARCH_VERTICAL`;
+  
+  if (post_age_filter && post_age_filter !== 'any') {
+    searchUrl += `&datePosted=%22${encodeURIComponent(post_age_filter)}%22`;
+  }
 
   log(pc.magenta(` ➜ Fetching Initial Search Page: ${searchUrl}`));
   let response;
@@ -73,30 +78,36 @@ async function processJobLogic(job) {
     
     if (newEmails.length === 0 && newPhones.length === 0) return;
 
-    const payloads = [];
-    newEmails.forEach((e, i) => {
-      payloads.push({ user_id, email: e.toLowerCase(), phone: newPhones[i] || newPhones[0] || null });
-    });
-    
-    if (payloads.length === 0 && newPhones.length > 0) {
-      newPhones.forEach(p => payloads.push({ user_id, email: null, phone: p }));
+    const newContactsToInsert = [];
+    const maxLength = Math.max(newEmails.length, newPhones.length);
+    for (let i = 0; i < maxLength; i++) {
+      newContactsToInsert.push({ email: newEmails[i] || null, phone: newPhones[i] || null });
     }
 
-    if (payloads.length > 0) {
-      log(pc.magenta(` ➜ Inserting ${payloads.length} new records into Supabase...`));
-      const { error } = await supabase.from('automailsend_recipients').insert(payloads);
+    log(pc.magenta(` ➜ Inserting ${newContactsToInsert.length} new records into Supabase...`));
+    for (const entry of newContactsToInsert) {
+      const emailToInsert = entry.email ? entry.email.toLowerCase() : "";
+      const phoneToInsert = entry.phone || "";
+      const { error } = await supabase.from("automailsend_recipients").insert({
+        user_id,
+        email: emailToInsert,
+        phone: phoneToInsert,
+        role: auto_fetch_keywords, 
+        title: "",
+        source: "auto_fetch",
+      });
       if (error) {
          log(pc.bgRed(pc.white(` ✖ Supabase insert error: ${error.message} `)));
       } else {
-         totalInserted += payloads.length;
-         newEmails.forEach(e => {
-            allEmails.add(e.toLowerCase());
-            successfullyInsertedEmails.push(e.toLowerCase());
-         });
-         newPhones.forEach(p => {
-            allPhones.add(p);
-            successfullyInsertedPhones.push(p);
-         });
+         totalInserted++;
+         if (emailToInsert) {
+           allEmails.add(emailToInsert);
+           successfullyInsertedEmails.push(emailToInsert);
+         }
+         if (phoneToInsert) {
+           allPhones.add(phoneToInsert);
+           successfullyInsertedPhones.push(phoneToInsert);
+         }
       }
     }
   };
@@ -235,18 +246,31 @@ async function processJob(job) {
   const dbLog = async (status, message, details = {}) => {
     try {
       if (!logId) {
-        const { data, error } = await supabase
+        let res = await supabase
           .from("automailsend_execution_logs")
           .insert([{ user_id, status, message, details }])
           .select("id")
           .single();
-        if (error) throw error;
-        if (data) logId = data.id;
+        if (res.error) {
+          res = await supabase
+            .from("automailsend_execution_logs")
+            .insert([{ user_id, status, message }])
+            .select("id")
+            .single();
+        }
+        if (res.error) throw res.error;
+        if (res.data) logId = res.data.id;
       } else {
-        await supabase
+        let res = await supabase
           .from("automailsend_execution_logs")
           .update({ status, message, details })
           .eq("id", logId);
+        if (res.error) {
+          res = await supabase
+            .from("automailsend_execution_logs")
+            .update({ status, message })
+            .eq("id", logId);
+        }
       }
     } catch (err) {
       console.error(pc.bgRed(pc.white(` [DB LOG ERROR] Failed to save log: ${err.message} `)));

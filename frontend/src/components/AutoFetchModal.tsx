@@ -20,6 +20,7 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
   const [liAt, setLiAt] = useState(config.liAt);
   const [jsessionid, setJsessionid] = useState(config.jsessionid || "ajax:");
   const [rawHeaders, setRawHeaders] = useState(config.rawHeaders || "{}");
+  const [postAgeFilter, setPostAgeFilter] = useState<AutoFetchConfig["postAgeFilter"]>(config.postAgeFilter || "any");
   const [showTokens, setShowTokens] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   
@@ -144,6 +145,7 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
         liAt: liAt.trim(),
         jsessionid: jsessionid.trim(),
         rawHeaders: finalRawHeaders,
+        postAgeFilter,
       });
     
     toast.success("Auto-fetch configuration saved!");
@@ -309,6 +311,19 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
                 onChange={(e) => setIntervalMin(Number(e.target.value))}
                 placeholder="Minimum 5"
               />
+            </label>
+            <label className="field">
+              <span>Post Age Filter</span>
+              <select
+                value={postAgeFilter}
+                onChange={(e) => setPostAgeFilter(e.target.value as AutoFetchConfig["postAgeFilter"])}
+                style={{ width: "100%", padding: "0.5rem", borderRadius: "4px", border: "1px solid var(--line)", background: "var(--bg-body)" }}
+              >
+                <option value="any">Any Time</option>
+                <option value="past-24h">Past 24 Hours</option>
+                <option value="past-week">Past Week</option>
+                <option value="past-month">Past Month</option>
+              </select>
             </label>
             <label className="field">
               <span>Pages per loop</span>

@@ -1,33 +1,36 @@
 const pc = require("picocolors");
 const { supabase } = require("./config/supabase");
-const { addScrapeJob } = require("./queues/scraper.queue");
+const { processJob } = require("./workers/scraper.worker");
 
 const lastQueuedMap = new Map();
 
 function startScheduler() {
-  const tickSec = 10; // Check every 10 seconds
-  console.log(pc.bgGreen(pc.white(` Starting Auto-Apply Scheduler (checking every ${tickSec} seconds)... `)));
+  const tickSec = process.env.SCHEDULER_INTERVAL_SEC ? parseInt(process.env.SCHEDULER_INTERVAL_SEC, 10) : 10;
+  console.log(pc.green(`🚀 Starting Auto-Apply Scheduler (checking every ${tickSec} seconds)...`));
 
   setInterval(async () => {
+    // Only log every tick if interval is >= 10s to prevent aggressive terminal spam, 
+    // or just log it so the user knows it's checking.
+    console.log(pc.dim(`[Scheduler] Checking for users due for scraping...`));
 
-    
     const { data: users, error } = await supabase
       .from("automailsend_app_state")
       .select("*")
       .eq("auto_fetch_enabled", true);
 
     if (error) {
-      console.error(pc.bgRed(pc.white(` [Scheduler] Error fetching users: ${error.message} `)));
+      console.error(pc.red(`[Scheduler] Error fetching users: ${error.message}`));
       return;
     }
 
     if (!users || users.length === 0) {
+      console.log(pc.dim(`[Scheduler] No active users with auto_fetch_enabled=true found.`));
       return;
     }
 
     for (const user of users) {
       try {
-        const intervalMin = user.auto_fetch_interval_min || 60;
+        const intervalMin = user.auto_fetch_interval_min || 5;
         
         // Fetch last execution for this user
         const { data: logs } = await supabase
@@ -46,23 +49,33 @@ function startScheduler() {
           
           if (diffMin < intervalMin) {
             shouldRun = false;
+            const remaining = intervalMin - diffMin;
+            // Only log if we are close to running or just checking to avoid too much spam, but the user requested it.
+            console.log(pc.yellow(`[Scheduler] User ${user.user_id.split('-')[0]}... skipping. ${remaining.toFixed(1)}m remaining.`));
           }
         }
 
         // Check local memory throttle (prevent infinite loop while waiting for DB insert)
         const lastQueued = lastQueuedMap.get(user.user_id) || 0;
-        const now = new Date().getTime();
-        if (now - lastQueued < 60000) {
-          shouldRun = false; // Don't queue more than once a minute
+        const nowMs = new Date().getTime();
+        // Prevent queuing the exact same user more than once every 60 seconds locally
+        if (nowMs - lastQueued < 60000) {
+          shouldRun = false; 
         }
 
         if (shouldRun) {
-          lastQueuedMap.set(user.user_id, now);
-          await addScrapeJob(user);
-          console.log(pc.bgCyan(pc.black(` [Scheduler] Queued job for user ${user.user_id} (interval ${intervalMin}m reached) `)));
+          lastQueuedMap.set(user.user_id, nowMs);
+          
+          // IMPORTANT: Bypass Redis/BullMQ entirely by executing the worker directly in the Node process.
+          // This prevents infinite hangs on Windows machines that do not have a local Redis server running.
+          console.log(pc.cyan(`✨ [Scheduler] Triggering job for user ${user.user_id.split('-')[0]}... (interval reached)`));
+          
+          processJob({ data: user }).catch(err => {
+             console.error(pc.red(`[Scheduler/Worker] Job failed: ${err.message}`));
+          });
         }
       } catch (err) {
-        console.error(pc.bgRed(pc.white(` [Scheduler] Failed to process user ${user.user_id}: ${err.message} `)));
+        console.error(pc.red(`[Scheduler] Failed to process user ${user.user_id}: ${err.message}`));
       }
     }
   }, tickSec * 1000);
