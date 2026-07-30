@@ -14,10 +14,29 @@ type Props = {
   onClose: () => void;
 };
 
+type KeywordMapping = { keyword: string, role: Role };
+
 export function AutoFetchModal({ config, onSave, onClose }: Props) {
   const [enabled, setEnabled] = useState(config.enabled);
-  const [keywords, setKeywords] = useState(config.keywords);
-  const [targetRole, setTargetRole] = useState<Role>(config.targetRole || "fullstack");
+  
+  const [keywordMappings, setKeywordMappings] = useState<KeywordMapping[]>(() => {
+    try {
+      const parsed = JSON.parse(config.keywords);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {}
+    // Fallback to old format
+    if (config.keywords.trim()) {
+      return config.keywords.split(",").map(k => ({
+        keyword: k.trim(),
+        role: config.targetRole || "fullstack"
+      }));
+    }
+    return [];
+  });
+
+  const [newKeyword, setNewKeyword] = useState("");
+  const [newRole, setNewRole] = useState<Role>("fullstack");
+
   const [intervalMin, setIntervalMin] = useState(config.intervalMin);
   const [paginationLimit, setPaginationLimit] = useState(config.paginationLimit || 3);
   const [paginationDelaySec, setPaginationDelaySec] = useState(config.paginationDelaySec || 10);
@@ -48,7 +67,7 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
   const isJsessionValid = jsessionid === "" || /^ajax:\d+$/.test(jsessionid);
   const isLiAtValid = liAt === "" || /^[a-zA-Z0-9_-]{20,}$/.test(liAt);
 
-  const hasKeywords = keywords.trim().length > 0;
+  const hasKeywords = keywordMappings.length > 0;
 
   // Attempt to parse rawHeaders to display what was found
   let parsedHeaders: Record<string, string> | null = null;
@@ -152,8 +171,8 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
 
       onSave({
         enabled: finalEnabled,
-        keywords: keywords.trim(),
-        targetRole,
+        keywords: JSON.stringify(keywordMappings),
+        targetRole: keywordMappings.length > 0 ? keywordMappings[0].role : "fullstack", // Fallback for types
         intervalMin: finalInterval,
         paginationLimit: Math.max(1, paginationLimit || 3),
         paginationDelaySec: Math.max(1, paginationDelaySec || 10),
@@ -349,48 +368,81 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
             </div>
           </label>
 
-          <div className="grid-2">
-            <label className="field">
+          <div className="grid-2" style={{ border: "1px solid var(--line)", padding: "1rem", borderRadius: "8px", background: "var(--bg)" }}>
+            <label className="field" style={{ gridColumn: "1 / -1" }}>
               <span>
-                Keywords (comma separated)
+                Keyword to Role Mappings
                 <HelpTooltip 
                   title="Search Keywords" 
                   content={
                     <>
-                      <p>These are the job titles or keywords the scraper will search for on LinkedIn.</p>
-                      <p><strong>Example:</strong> <code>React Developer, Python Engineer, HR Manager</code></p>
-                      <p>The system will automatically search for posts containing these keywords and extract any emails or phone numbers found within them.</p>
+                      <p>Add search keywords and map them to a specific email template category.</p>
+                      <p>The scraper will search LinkedIn for each keyword individually, and automatically assign the selected Role to the extracted leads!</p>
                     </>
                   } 
                 />
               </span>
-              <input
-                type="text"
-                value={keywords}
-                onChange={(e) => {
-                  setKeywords(e.target.value);
-                  if (!e.target.value.trim() && enabled) setEnabled(false);
+            </label>
+            
+            <div style={{ display: "flex", gap: "0.5rem", gridColumn: "1 / -1", alignItems: "flex-end" }}>
+              <div style={{ flex: 2 }}>
+                <input
+                  type="text"
+                  value={newKeyword}
+                  onChange={(e) => setNewKeyword(e.target.value)}
+                  placeholder="e.g. software engineer"
+                  style={{ width: "100%" }}
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <select
+                  value={newRole}
+                  onChange={(e) => setNewRole(e.target.value as Role)}
+                  style={{ width: "100%", padding: "0.5rem", borderRadius: "4px", border: "1px solid var(--line)", background: "var(--bg-panel)", color: "var(--fg)" }}
+                >
+                  {ROLES.map((role) => (
+                    <option key={role} value={role}>{ROLE_LABELS[role]}</option>
+                  ))}
+                </select>
+              </div>
+              <button 
+                className="btn filled" 
+                type="button"
+                onClick={() => {
+                  if (newKeyword.trim()) {
+                    setKeywordMappings([...keywordMappings, { keyword: newKeyword.trim(), role: newRole }]);
+                    setNewKeyword("");
+                  }
                 }}
-                placeholder="e.g. software engineer, founder"
-              />
-            </label>
-            <label className="field">
-              <span>
-                Target Email Template
-                <HelpTooltip title="Template Mapping" content="Scraped leads will be assigned this role, and the AI will use this template to personalize the email." />
-              </span>
-              <select
-                value={targetRole}
-                onChange={(e) => setTargetRole(e.target.value as Role)}
-                style={{ width: "100%", padding: "0.5rem", borderRadius: "4px", border: "1px solid var(--line)", background: "var(--bg-panel)", color: "var(--fg)" }}
               >
-                {ROLES.map((role) => (
-                  <option key={role} value={role}>
-                    {ROLE_LABELS[role]}
-                  </option>
-                ))}
-              </select>
-            </label>
+                Add
+              </button>
+            </div>
+
+            <div style={{ gridColumn: "1 / -1", display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.5rem" }}>
+              {keywordMappings.length === 0 ? (
+                <div style={{ padding: "0.5rem", textAlign: "center", color: "var(--muted)", fontStyle: "italic", fontSize: "0.9rem" }}>
+                  No keywords added. Add at least one to enable auto-fetch.
+                </div>
+              ) : (
+                keywordMappings.map((map, idx) => (
+                  <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.5rem 0.75rem", background: "var(--bg-panel)", borderRadius: "6px", border: "1px solid var(--line)", fontSize: "0.9rem" }}>
+                    <div>
+                      <strong>{map.keyword}</strong>
+                      <span style={{ margin: "0 0.5rem", color: "var(--muted)" }}>→</span>
+                      <span style={{ color: "var(--accent)" }}>{ROLE_LABELS[map.role]} Template</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setKeywordMappings(keywordMappings.filter((_, i) => i !== idx))}
+                      style={{ background: "transparent", border: "none", color: "var(--err)", cursor: "pointer", fontSize: "0.85rem", padding: "0.25rem" }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
 
           <div className="grid-2">

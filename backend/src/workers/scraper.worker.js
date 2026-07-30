@@ -20,9 +20,29 @@ async function processJobLogic(job) {
 
   const log = (msg) => {
     if (job.log) job.log(msg);
-    console.log(msg); // Also print to console for visibility
+    console.log(msg); 
   };
-  log(pc.bgBlue(pc.white(` [WORKER] Starting auto-apply fetch for keywords: "${auto_fetch_keywords}" `)));
+  
+  let mappings = [];
+  try {
+    const parsed = JSON.parse(auto_fetch_keywords);
+    if (Array.isArray(parsed)) mappings = parsed;
+    else throw new Error("not array");
+  } catch {
+    if (auto_fetch_keywords && auto_fetch_keywords.trim()) {
+      mappings = auto_fetch_keywords.split(",").map(k => ({
+        keyword: k.trim(),
+        role: auto_fetch_template_role || "fullstack"
+      }));
+    }
+  }
+
+  if (mappings.length === 0) {
+    log(pc.bgYellow(pc.black(` ⚠️ No keywords provided. Skipping scrape. `)));
+    return { inserted: 0, emails: [], phones: [] };
+  }
+
+  log(pc.bgBlue(pc.white(` [WORKER] Starting auto-apply fetch for ${mappings.length} keywords `)));
 
   let headers;
   try {
@@ -34,25 +54,6 @@ async function processJobLogic(job) {
     throw new Error(`Failed to parse raw headers: ${err.message}`);
   }
 
-  const keywords = encodeURIComponent(auto_fetch_keywords);
-  let searchUrl = `https://www.linkedin.com/search/results/content/?keywords=${keywords}&origin=SWITCH_SEARCH_VERTICAL`;
-  
-  if (post_age_filter && post_age_filter !== 'any') {
-    searchUrl += `&datePosted=%22${encodeURIComponent(post_age_filter)}%22`;
-  }
-
-  log(pc.magenta(` ➜ Fetching Initial Search Page: ${searchUrl}`));
-  let response;
-  try {
-    // We use responseType: 'text' because we want to parse the HTML string
-    response = await axios.get(searchUrl, { headers, responseType: 'text' });
-  } catch (err) {
-    const errorDetails = err.response ? `HTTP ${err.response.status}` : err.message;
-    throw new Error(`Search request failed: ${errorDetails}`);
-  }
-
-  const rawText = response.data;
-  log(pc.green(` ✔ Initial Search Page Loaded (HTTP ${response.status}) [${rawText.length} bytes]`));
   const allEmails = new Set();
   const allPhones = new Set();
   let totalInserted = 0;
@@ -85,7 +86,7 @@ async function processJobLogic(job) {
   
   log(pc.green(` ✔ Loaded ${allEmails.size} emails and ${allPhones.size} phones to skip (including sent log).`));
 
-  const saveContacts = async (contacts) => {
+  const saveContacts = async (contacts, roleToAssign) => {
     const newEmails = contacts.emails.filter(e => !allEmails.has(e.toLowerCase()));
     const newPhones = contacts.phones.filter(p => !allPhones.has(p));
     
@@ -97,7 +98,7 @@ async function processJobLogic(job) {
       newContactsToInsert.push({ email: newEmails[i] || null, phone: newPhones[i] || null });
     }
 
-    log(pc.magenta(` ➜ Inserting ${newContactsToInsert.length} new records into Supabase...`));
+    log(pc.magenta(` ➜ Inserting ${newContactsToInsert.length} new records into Supabase for role '${roleToAssign}'...`));
     for (const entry of newContactsToInsert) {
       const emailToInsert = entry.email ? entry.email.toLowerCase() : "";
       const phoneToInsert = entry.phone || "";
@@ -105,7 +106,7 @@ async function processJobLogic(job) {
         user_id,
         email: emailToInsert,
         phone: phoneToInsert,
-        role: auto_fetch_template_role || auto_fetch_keywords, 
+        role: roleToAssign, 
         title: "",
         source: "auto_fetch",
         context_text: contacts.contextText || null,
@@ -126,119 +127,146 @@ async function processJobLogic(job) {
     }
   };
 
-  log(pc.magenta(` ➜ Extracting Contacts from Initial Page...`));
-  const initialContacts = extractInitialContacts(rawText);
-  let initialDetails = "";
-  if (initialContacts.emails.length > 0) initialDetails += ` [Emails: ${initialContacts.emails.join(", ")}]`;
-  if (initialContacts.phones.length > 0) initialDetails += ` [Phones: ${initialContacts.phones.join(", ")}]`;
-  log(pc.green(` ✔ Initial Page Found: ${initialContacts.emails.length} emails, ${initialContacts.phones.length} phones${initialDetails}`));
+  for (const mapping of mappings) {
+    const currentKeyword = mapping.keyword;
+    const currentRole = mapping.role;
 
-  await saveContacts(initialContacts);
+    log(pc.bgBlue(pc.white(`\n[WORKER] Searching for keyword: "${currentKeyword}" (Role: ${currentRole})`)));
 
-  // Extract Pagination info
-  let raw = rawText.replace(/\\+"/g, '"').replace(/&quot;/g, '"');
-  const searchId = (raw.match(/"searchId"\s*:\s*"([0-9a-fA-F-]{36})"/) || [])[1];
-  
-  if (!searchId) {
-    log(pc.bgYellow(pc.black(` ⚠️ No searchId found, cannot paginate. `)));
-  } else {
-    const rawKeywords = ((raw.match(/"keywords"\s*:\s*"((?:\\.|[^"\\])*)"/) || [])[1] || auto_fetch_keywords).replace(/\\"/g, '"');
-    let startIndex = Number((raw.match(/"startIndex"\s*:\s*(\d+)/) || [])[1] || 12);
-    const count = Number((raw.match(/"count"\s*:\s*(\d+)/) || [])[1] || 3);
-    let clusterStartPosition = Number((raw.match(/"clusterStartPosition"\s*:\s*(\d+)/) || [])[1] || 9);
+    const keywordsQuery = encodeURIComponent(currentKeyword);
+    let searchUrl = `https://www.linkedin.com/search/results/content/?keywords=${keywordsQuery}&origin=SWITCH_SEARCH_VERTICAL`;
     
-    const maxPages = auto_fetch_pagination_limit || 1;
-    const delayMs = (auto_fetch_pagination_delay_sec || 10) * 1000;
+    if (post_age_filter && post_age_filter !== 'any') {
+      searchUrl += `&datePosted=%22${encodeURIComponent(post_age_filter)}%22`;
+    }
 
-    log(pc.bgBlue(pc.white(` [WORKER] Pagination details found. Max Pages: ${maxPages}, Delay: ${delayMs/1000}s `)));
+    log(pc.magenta(` ➜ Fetching Initial Search Page: ${searchUrl}`));
+    let response;
+    try {
+      response = await axios.get(searchUrl, { headers, responseType: 'text' });
+    } catch (err) {
+      const errorDetails = err.response ? `HTTP ${err.response.status}` : err.message;
+      log(pc.bgRed(pc.white(` ✖ Search request failed for "${currentKeyword}": ${errorDetails} `)));
+      continue; // Skip to next keyword
+    }
 
-    for (let page = 1; page <= maxPages; page++) {
-      log(pc.cyan(` ⏳ Fetching page ${page} of ${maxPages}... (waiting ${delayMs/1000}s)`));
-      await sleep(delayMs);
+    const rawText = response.data;
+    log(pc.green(` ✔ Initial Search Page Loaded (HTTP ${response.status}) [${rawText.length} bytes]`));
 
-      const payload = {
-        startIndex,
-        keywords: rawKeywords,
-        count,
-        sortBy: [],
-        postedBy: [],
-        datePosted: ['past-24h'],
-        contentType: [],
-        fromMember: [],
-        mentionsOrganization: [],
-        mentionsMember: [],
-        fromOrganization: [],
-        authorCompany: [],
-        authorIndustry: [],
-        authorJobTitle: [],
-        spellCheckEnabled: true,
-        clusterStartPosition,
-        searchId,
-      };
+    log(pc.magenta(` ➜ Extracting Contacts from Initial Page...`));
+    const initialContacts = extractInitialContacts(rawText);
+    let initialDetails = "";
+    if (initialContacts.emails.length > 0) initialDetails += ` [Emails: ${initialContacts.emails.join(", ")}]`;
+    if (initialContacts.phones.length > 0) initialDetails += ` [Phones: ${initialContacts.phones.join(", ")}]`;
+    log(pc.green(` ✔ Initial Page Found: ${initialContacts.emails.length} emails, ${initialContacts.phones.length} phones${initialDetails}`));
 
-      const body = {
-        pagerId: 'com.linkedin.sdui.search.contentSearchResults',
-        clientArguments: {
-          $type: 'proto.sdui.actions.requests.RequestedArguments',
-          requestedStateKeys: [],
-          payload,
-          requestMetadata: { $type: 'proto.sdui.common.RequestMetadata' },
-          states: [],
-          screenId: 'com.linkedin.sdui.flagshipnav.search.SearchResultsContent',
-        },
-        paginationRequest: {
-          $type: 'proto.sdui.actions.requests.PaginationRequest',
+    await saveContacts(initialContacts, currentRole);
+
+    // Extract Pagination info
+    let raw = rawText.replace(/\\+"/g, '"').replace(/&quot;/g, '"');
+    const searchId = (raw.match(/"searchId"\s*:\s*"([0-9a-fA-F-]{36})"/) || [])[1];
+    
+    if (!searchId) {
+      log(pc.bgYellow(pc.black(` ⚠️ No searchId found, cannot paginate for "${currentKeyword}". `)));
+    } else {
+      const rawKeywords = ((raw.match(/"keywords"\s*:\s*"((?:\\.|[^"\\])*)"/) || [])[1] || currentKeyword).replace(/\\"/g, '"');
+      let startIndex = Number((raw.match(/"startIndex"\s*:\s*(\d+)/) || [])[1] || 12);
+      const count = Number((raw.match(/"count"\s*:\s*(\d+)/) || [])[1] || 3);
+      let clusterStartPosition = Number((raw.match(/"clusterStartPosition"\s*:\s*(\d+)/) || [])[1] || 9);
+      
+      const maxPages = auto_fetch_pagination_limit || 1;
+      const delayMs = (auto_fetch_pagination_delay_sec || 10) * 1000;
+
+      log(pc.bgBlue(pc.white(` [WORKER] Pagination details found for "${currentKeyword}". Max Pages: ${maxPages}, Delay: ${delayMs/1000}s `)));
+
+      for (let page = 1; page <= maxPages; page++) {
+        log(pc.cyan(` ⏳ Fetching page ${page} of ${maxPages}... (waiting ${delayMs/1000}s)`));
+        await sleep(delayMs);
+
+        const payload = {
+          startIndex,
+          keywords: rawKeywords,
+          count,
+          sortBy: [],
+          postedBy: [],
+          datePosted: post_age_filter && post_age_filter !== 'any' ? [post_age_filter] : [],
+          contentType: [],
+          fromMember: [],
+          mentionsOrganization: [],
+          mentionsMember: [],
+          fromOrganization: [],
+          authorCompany: [],
+          authorIndustry: [],
+          authorJobTitle: [],
+          spellCheckEnabled: true,
+          clusterStartPosition,
+          searchId,
+        };
+
+        const body = {
           pagerId: 'com.linkedin.sdui.search.contentSearchResults',
-          trigger: {
-            $case: 'itemDistanceTrigger',
-            itemDistanceTrigger: {
-              $type: 'proto.sdui.actions.requests.ItemDistanceTrigger',
-              preloadDistance: 3,
-              preloadLength: 1500,
-            },
-          },
-          retryCount: 2,
-          requestedArguments: {
+          clientArguments: {
             $type: 'proto.sdui.actions.requests.RequestedArguments',
             requestedStateKeys: [],
-            payload: {
-              ...payload,
-              startIndex: startIndex + count,
-              clusterStartPosition: clusterStartPosition + 2,
-            },
+            payload,
             requestMetadata: { $type: 'proto.sdui.common.RequestMetadata' },
+            states: [],
+            screenId: 'com.linkedin.sdui.flagshipnav.search.SearchResultsContent',
           },
-        },
-      };
-
-      log(pc.magenta(` ➜ Executing POST /rsc-action/actions/pagination for page ${page}`));
-      try {
-        const paginatedRes = await axios.post("https://www.linkedin.com/flagship-web/rsc-action/actions/pagination?sduiid=com.linkedin.sdui.search.contentSearchResults", body, {
-          headers: {
-            ...headers,
-            "Content-Type": "application/json"
+          paginationRequest: {
+            $type: 'proto.sdui.actions.requests.PaginationRequest',
+            pagerId: 'com.linkedin.sdui.search.contentSearchResults',
+            trigger: {
+              $case: 'itemDistanceTrigger',
+              itemDistanceTrigger: {
+                $type: 'proto.sdui.actions.requests.ItemDistanceTrigger',
+                preloadDistance: 3,
+                preloadLength: 1500,
+              },
+            },
+            retryCount: 2,
+            requestedArguments: {
+              $type: 'proto.sdui.actions.requests.RequestedArguments',
+              requestedStateKeys: [],
+              payload: {
+                ...payload,
+                startIndex: startIndex + count,
+                clusterStartPosition: clusterStartPosition + 2,
+              },
+              requestMetadata: { $type: 'proto.sdui.common.RequestMetadata' },
+            },
           },
-          responseType: 'text'
-        });
+        };
 
-        const paginatedText = paginatedRes.data;
-        
-        const paginatedContacts = extractPaginatedContacts(paginatedText);
-        
-        let paginatedDetails = "";
-        if (paginatedContacts.emails.length > 0) paginatedDetails += ` [Emails: ${paginatedContacts.emails.join(", ")}]`;
-        if (paginatedContacts.phones.length > 0) paginatedDetails += ` [Phones: ${paginatedContacts.phones.join(", ")}]`;
-        log(pc.green(` ✔ Page ${page} Found: ${paginatedContacts.emails.length} emails, ${paginatedContacts.phones.length} phones${paginatedDetails}`));
+        log(pc.magenta(` ➜ Executing POST /rsc-action/actions/pagination for page ${page}`));
+        try {
+          const paginatedRes = await axios.post("https://www.linkedin.com/flagship-web/rsc-action/actions/pagination?sduiid=com.linkedin.sdui.search.contentSearchResults", body, {
+            headers: {
+              ...headers,
+              "Content-Type": "application/json"
+            },
+            responseType: 'text'
+          });
 
-        await saveContacts(paginatedContacts);
+          const paginatedText = paginatedRes.data;
+          
+          const paginatedContacts = extractPaginatedContacts(paginatedText);
+          
+          let paginatedDetails = "";
+          if (paginatedContacts.emails.length > 0) paginatedDetails += ` [Emails: ${paginatedContacts.emails.join(", ")}]`;
+          if (paginatedContacts.phones.length > 0) paginatedDetails += ` [Phones: ${paginatedContacts.phones.join(", ")}]`;
+          log(pc.green(` ✔ Page ${page} Found: ${paginatedContacts.emails.length} emails, ${paginatedContacts.phones.length} phones${paginatedDetails}`));
 
-      } catch (err) {
-        const errorDetails = err.response ? `HTTP ${err.response.status}` : err.message;
-        log(pc.bgRed(pc.white(` ✖ Paginated request error: ${errorDetails} `)));
+          await saveContacts(paginatedContacts, currentRole);
+
+        } catch (err) {
+          const errorDetails = err.response ? `HTTP ${err.response.status}` : err.message;
+          log(pc.bgRed(pc.white(` ✖ Paginated request error: ${errorDetails} `)));
+        }
+
+        startIndex += count;
+        clusterStartPosition += 2;
       }
-
-      startIndex += count;
-      clusterStartPosition += 2;
     }
   }
 
