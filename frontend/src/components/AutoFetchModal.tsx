@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import type { AutoFetchConfig, Role } from "@/lib/types";
 import { ROLE_LABELS, ROLES } from "@/lib/types";
 import { HelpTooltip } from "./HelpTooltip";
+import { CookieHelpModal } from "./CookieHelpModal";
 
 type Props = {
   config: AutoFetchConfig;
@@ -26,6 +27,7 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
   const [postAgeFilter, setPostAgeFilter] = useState<AutoFetchConfig["postAgeFilter"]>(config.postAgeFilter || "any");
   const [showTokens, setShowTokens] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
   
   const [manualKey, setManualKey] = useState<string>("");
   const [manualValue, setManualValue] = useState<string>("");
@@ -488,19 +490,31 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
           <hr style={{ border: "0", borderTop: "1px solid var(--line)", margin: "0.5rem 0" }} />
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-            <h3 style={{ fontSize: "0.85rem", margin: "0 0 0.5rem 0", display: "flex", alignItems: "center" }}>
-              LinkedIn Cookies
-              <HelpTooltip 
-                title="LinkedIn Cookies" 
-                content={
-                  <>
-                    <p>To search LinkedIn automatically, the background worker needs your temporary session credentials (called "Cookies").</p>
-                    <p><strong>How to get them:</strong> Log in to LinkedIn on your browser. Use a browser extension (like "EditThisCookie") to copy your <code>li_at</code> and <code>JSESSIONID</code> cookies, and paste them here.</p>
-                    <p>We do not store your LinkedIn password.</p>
-                  </>
-                } 
-              />
-            </h3>
+            <div style={{ display: "flex", alignItems: "center", gap: "1rem", margin: "0 0 0.5rem 0" }}>
+              <h3 style={{ fontSize: "0.85rem", margin: 0, display: "flex", alignItems: "center" }}>
+                LinkedIn Cookies
+                <HelpTooltip 
+                  title="LinkedIn Cookies" 
+                  content={
+                    <>
+                      <p>To search LinkedIn automatically, the background worker needs your temporary session credentials (called "Cookies").</p>
+                      <p>We do not store your LinkedIn password.</p>
+                    </>
+                  } 
+                />
+              </h3>
+              <button 
+                type="button" 
+                onClick={() => setShowHelpModal(true)}
+                className="btn small ghost" 
+                style={{ padding: "0.1rem 0.5rem", fontSize: "0.75rem", display: "flex", alignItems: "center", gap: "0.25rem", color: "var(--ok)", borderColor: "var(--ok)" }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                How to set cookies?
+              </button>
+            </div>
             <button
               type="button"
               className="btn ghost small"
@@ -697,6 +711,7 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
           </button>
         </div>
       </div>
+      {showHelpModal && <CookieHelpModal onClose={() => setShowHelpModal(false)} />}
     </div>,
     document.body
   );
