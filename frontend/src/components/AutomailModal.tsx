@@ -40,10 +40,22 @@ export function AutomailModal({ config, smtpConfig, templates, sentTodayCount, o
       // 2. Verify SMTP credentials work
       setLoading(true);
       try {
+        let defaultHost = 'smtp.gmail.com';
+        let defaultPort = 465;
+        if (smtpConfig.email.includes('@outlook.com') || smtpConfig.email.includes('@hotmail.com')) {
+          defaultHost = 'smtp-mail.outlook.com';
+          defaultPort = 587;
+        }
+
         const res = await fetch("/api/verify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: smtpConfig.email, appPassword: smtpConfig.appPassword }),
+          body: JSON.stringify({ 
+            email: smtpConfig.email, 
+            appPassword: smtpConfig.appPassword,
+            host: smtpConfig.host || defaultHost,
+            port: smtpConfig.port || defaultPort
+          }),
         });
         const data = await res.json();
         if (!res.ok || !data.success) {
