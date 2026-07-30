@@ -60,16 +60,41 @@ export function SendPanel({
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [status, setStatus] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortOrder, setSortOrder] = useState<"none" | "asc" | "desc">("none");
 
   const sentKeys = useMemo(
     () => new Set(sentLog.filter(s => s.status === "sent" || s.status === "skipped").map((s) => sentKey(s.email, s.role))),
     [sentLog]
   );
 
+  function filterAndSort<T extends { email: string; title?: string }>(list: T[]) {
+    let result = list;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(item => 
+        item.email.toLowerCase().includes(q) || 
+        (item.title && item.title.toLowerCase().includes(q))
+      );
+    }
+    if (sortOrder !== "none") {
+      result = [...result].sort((a, b) => {
+        const aVal = (a.title || a.email).toLowerCase();
+        const bVal = (b.title || b.email).toLowerCase();
+        if (sortOrder === "asc") {
+          return aVal.localeCompare(bVal);
+        } else {
+          return bVal.localeCompare(aVal);
+        }
+      });
+    }
+    return result;
+  }
+
   const pending = useMemo(
     () =>
-      recipients.filter((r) => !sentKeys.has(sentKey(r.email, r.role))),
-    [recipients, sentKeys]
+      filterAndSort(recipients.filter((r) => !sentKeys.has(sentKey(r.email, r.role)))),
+    [recipients, sentKeys, searchQuery, sortOrder]
   );
   
   const selectedPending = useMemo(
@@ -78,8 +103,10 @@ export function SendPanel({
   );
 
   const activeSent = useMemo(() => {
-    return recipients.filter((r) => sentKeys.has(sentKey(r.email, r.role)));
-  }, [recipients, sentKeys]);
+    return filterAndSort(recipients.filter((r) => sentKeys.has(sentKey(r.email, r.role))));
+  }, [recipients, sentKeys, searchQuery, sortOrder]);
+
+  const displayedSentLog = useMemo(() => filterAndSort(sentLog), [sentLog, searchQuery, sortOrder]);
 
   function markRecord(recipient: Recipient, log: SentRecord[], status: "sent" | "failed" | "skipped", error?: string) {
     const next = [...log];
@@ -275,6 +302,25 @@ export function SendPanel({
           </div>
         )}
 
+        <div style={{ display: 'flex', gap: '1rem', margin: '1rem 0' }}>
+          <input 
+            type="text" 
+            placeholder="Search by name or email..." 
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            style={{ flex: 1, padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--line)', background: 'var(--bg-elevated)', color: 'var(--fg)' }}
+          />
+          <select 
+            value={sortOrder} 
+            onChange={e => setSortOrder(e.target.value as any)}
+            style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--line)', background: 'var(--bg-elevated)', color: 'var(--fg)', minWidth: '150px' }}
+          >
+            <option value="none">No Sort</option>
+            <option value="asc">A to Z</option>
+            <option value="desc">Z to A</option>
+          </select>
+        </div>
+
         <div className="send-columns">
           <div className="send-col">
             <div className="send-col-head">
@@ -318,9 +364,9 @@ export function SendPanel({
               <h3>History & Skipped</h3>
               <div className="send-col-actions">
                 <span className="chip">
-                  {sentLog.length} logs
+                  {displayedSentLog.length} logs
                 </span>
-                {sentLog.length > 0 && (
+                {displayedSentLog.length > 0 && (
                   <button
                     type="button"
                     className="btn ghost danger"
@@ -365,11 +411,11 @@ export function SendPanel({
               <h4 style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--muted)", margin: "0.5rem 0", padding: "0 0.5rem" }}>
                 All History
               </h4>
-              {sentLog.length === 0 ? (
+              {displayedSentLog.length === 0 ? (
                 <p className="hint">No history yet</p>
               ) : (
                 <ul className="results">
-                  {sentLog.map((s, idx) => (
+                  {displayedSentLog.map((s, idx) => (
                     <li
                       key={`${s.email}-${s.role}-${s.sentAt}-${idx}`}
                       className={s.status === "failed" ? "err sent-row" : "ok sent-row"}
