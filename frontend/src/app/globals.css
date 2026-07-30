@@ -1088,7 +1088,7 @@ body::before {
   display: flex;
   height: 100vh;
   overflow: hidden;
-  max-width: 1400px;
+  max-width: 100%;
   margin: 0 auto;
 }
 
@@ -1148,6 +1148,6 @@ body::before {
 
 .main-content .board {
   display: block; /* override board-three */
-  max-width: 900px;
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
 }

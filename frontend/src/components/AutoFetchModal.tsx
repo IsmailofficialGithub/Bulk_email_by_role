@@ -304,7 +304,8 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
   if (!mounted) return null;
 
   return createPortal(
-    <div className="modal-backdrop" role="presentation" onClick={onClose} style={{ zIndex: 99999 }}>
+    <>
+      <div className="modal-backdrop" role="presentation" onClick={onClose} style={{ zIndex: 99999 }}>
       <div
         className="modal-card"
         role="dialog"
@@ -711,8 +712,9 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
           </button>
         </div>
       </div>
-      {showHelpModal && <CookieHelpModal onClose={() => setShowHelpModal(false)} />}
-    </div>,
-    document.body
-  );
+    </div>
+    {showHelpModal && <CookieHelpModal onClose={() => setShowHelpModal(false)} />}
+  </>,
+  document.body
+);
 }

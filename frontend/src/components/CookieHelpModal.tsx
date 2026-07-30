@@ -6,9 +6,9 @@ type Props = {
 };
 
 export function CookieHelpModal({ onClose }: Props) {
-  return createPortal(
-    <div className="modal-overlay">
-      <div className="modal-content" style={{ maxWidth: "600px", zIndex: 10000 }}>
+  return (
+    <div className="modal-backdrop" style={{ zIndex: 999999 }}>
+      <div className="modal-card" style={{ maxWidth: "600px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
           <h2 style={{ margin: 0, fontSize: "1.25rem", color: "var(--fg)" }}>How to Install the Cookie Extractor</h2>
           <button className="btn ghost icon" onClick={onClose}>
@@ -19,9 +19,9 @@ export function CookieHelpModal({ onClose }: Props) {
         <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
           
           <div className="step" style={{ background: "var(--bg-panel)", padding: "1rem", borderRadius: "8px", border: "1px solid var(--line)" }}>
-            <h3 style={{ margin: "0 0 0.5rem 0", color: "var(--ok)", fontSize: "1rem" }}>Step 1: Download</h3>
+            <h3 style={{ margin: "0 0 0.5rem 0", color: "var(--ok)", fontSize: "1rem" }}>Step 1: Download & Extract</h3>
             <p style={{ margin: "0 0 0.75rem 0", color: "var(--muted)", fontSize: "0.85rem", lineHeight: "1.5" }}>
-              First, download the extension file to your computer and unzip it.
+              First, download the extension file below. <strong>CRITICAL: You must extract/unzip the file</strong> to a normal folder on your computer before proceeding!
             </p>
             <a 
               href="/automail-extension.zip" 
@@ -49,7 +49,7 @@ export function CookieHelpModal({ onClose }: Props) {
           <div className="step" style={{ background: "var(--bg-panel)", padding: "1rem", borderRadius: "8px", border: "1px solid var(--line)" }}>
             <h3 style={{ margin: "0 0 0.5rem 0", color: "var(--ok)", fontSize: "1rem" }}>Step 3: Load Unpacked</h3>
             <p style={{ margin: "0 0 0.75rem 0", color: "var(--muted)", fontSize: "0.85rem", lineHeight: "1.5" }}>
-              In the top left corner, click <strong>Load unpacked</strong>. A file browser will open. Navigate to where you unzipped the extension folder and click "Select Folder".
+              In the top left corner, click <strong>Load unpacked</strong>. A file browser will open. Navigate to the folder where you <strong>extracted</strong> the extension and click "Select Folder".
             </p>
             <div style={{ position: "relative", width: "100%", height: "200px", borderRadius: "6px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)" }}>
               <Image src="/assets/load_unpacked.png" alt="Load unpacked button" fill style={{ objectFit: "cover", objectPosition: "top left" }} />
@@ -64,7 +64,6 @@ export function CookieHelpModal({ onClose }: Props) {
           </button>
         </div>
       </div>
-    </div>,
-    document.body
+    </div>
   );
 }
