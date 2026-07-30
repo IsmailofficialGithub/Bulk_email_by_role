@@ -3,7 +3,33 @@ const { supabase } = require("./config/supabase");
 const { processJob } = require("./workers/scraper.worker");
 const { runAutomailJobs } = require("./workers/automail.worker");
 
+const { addBatchSendJob } = require("./queues/batchSend.queue");
+
 const lastQueuedMap = new Map();
+
+async function checkBatchSends() {
+  const { data: users, error } = await supabase
+    .from("automailsend_app_state")
+    .select("*")
+    .eq("batch_send_pending", true)
+    .eq("batch_send_processing", false);
+
+  if (error) {
+    console.error(pc.red(`[Scheduler] Error fetching batch send users: ${error.message}`));
+    return;
+  }
+
+  for (const user of users || []) {
+    console.log(pc.cyan(`✨ [Scheduler] Triggering manual batch send for user ${user.user_id.split('-')[0]}...`));
+    
+    // Mark as processing
+    await supabase.from("automailsend_app_state")
+      .update({ batch_send_processing: true })
+      .eq("user_id", user.user_id);
+    
+    await addBatchSendJob(user);
+  }
+}
 
 function startScheduler() {
   const tickSec = process.env.SCHEDULER_INTERVAL_SEC ? parseInt(process.env.SCHEDULER_INTERVAL_SEC, 10) : 10;
@@ -13,6 +39,11 @@ function startScheduler() {
     // Run Automail jobs first
     runAutomailJobs(supabase).catch(err => {
       console.error(pc.red(`[Scheduler] Automail worker error: ${err.message}`));
+    });
+
+    // Run Batch Send checks
+    checkBatchSends().catch(err => {
+      console.error(pc.red(`[Scheduler] Batch Send error: ${err.message}`));
     });
 
     // Only log every tick if interval is >= 10s to prevent aggressive terminal spam, 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import {
   ROLE_LABELS,
   type Recipient,
@@ -78,9 +78,23 @@ export function SendPanel({
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [status, setStatus] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [searchQuery, setSearchQuery] = useState("");
-  const [sortOrder, setSortOrder] = useState<"none" | "asc" | "desc">("none");
-  const [expandedErrors, setExpandedErrors] = useState<Set<string>>(new Set());
+  const abortRef = useRef(false);
+  const initialSentCount = useRef(0);
+  const expectedTotal = useRef(0);
+
+  useEffect(() => {
+    if (sending && expectedTotal.current > 0) {
+      const processed = Math.max(0, sentLog.length - initialSentCount.current);
+      setProgress({ current: processed, total: expectedTotal.current });
+      
+      if (processed >= expectedTotal.current) {
+        onSendingChange(false);
+        setStatus("All emails processed.");
+        toast.success("Finished sending batch.");
+        expectedTotal.current = 0;
+      }
+    }
+  }, [sentLog.length, sending]);
 
   const toggleError = (key: string) => {
     setExpandedErrors(prev => {
@@ -172,9 +186,10 @@ export function SendPanel({
       }
     }
 
+    abortRef.current = false;
     onSendingChange(true);
     setProgress({ current: 0, total: list.length });
-    setStatus(`Queuing ${list.length} emails…`);
+    setStatus(`Preparing to send ${list.length} emails…`);
 
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
@@ -193,31 +208,46 @@ export function SendPanel({
         return;
       }
 
-      const res = await fetch("/api/send-batch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          recipients: toProcess,
-          templates,
-          config,
-          delaySec,
-          userId,
-          accessToken: session.access_token
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
+      initialSentCount.current = sentLog.length;
+      expectedTotal.current = toProcess.length;
+
+      const { error } = await supabase
+        .from("automailsend_app_state")
+        .update({ batch_send_pending: true })
+        .eq("user_id", userId);
+
+      if (error) {
         setStatus("Failed to start batch.");
-        toast.error(data.error || "Failed to queue background batch");
+        toast.error(error.message || "Failed to update database.");
+        onSendingChange(false);
       } else {
-        setStatus("Background send started! You can safely close the tab.");
-        toast.success("Background send started! You can safely close the tab.");
+        setStatus("Background send started! Tracking progress...");
+        toast.success("Background send started!");
       }
     } catch {
       setStatus("Network error queuing batch.");
       toast.error("Network error queuing batch.");
-    } finally {
       onSendingChange(false);
+    }
+  }
+
+  async function stopBackendBatch() {
+    abortRef.current = true;
+    setStatus("Stopping soon...");
+    
+    try {
+      const { error } = await supabase
+        .from("automailsend_app_state")
+        .update({ batch_send_pending: false })
+        .eq("user_id", userId);
+
+      if (error) throw error;
+      
+      toast.success("Stop command sent. Ending loop...");
+      onSendingChange(false);
+      expectedTotal.current = 0;
+    } catch {
+      toast.error("Failed to send stop command.");
     }
   }
 
@@ -330,6 +360,16 @@ export function SendPanel({
           >
             Resend successful ({activeSent.length})
           </button>
+            {sending && (
+              <button
+                type="button"
+                className="btn large danger ghost"
+                style={{ marginLeft: 'auto', border: '1px solid var(--danger)', background: 'var(--bg-elevated)' }}
+                onClick={stopBackendBatch}
+              >
+                Stop Sending
+              </button>
+            )}
         </div>
 
         {status && <p className="status-line">{status}</p>}

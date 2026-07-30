@@ -7,6 +7,8 @@ require("./config/supabase");
 // Initialize Queues and Workers
 require("./queues/scraper.queue");
 require("./workers/scraper.worker");
+require("./queues/batchSend.queue");
+require("./workers/batchSend.worker");
 
 // Start Scheduler
 const { startScheduler } = require("./scheduler");
