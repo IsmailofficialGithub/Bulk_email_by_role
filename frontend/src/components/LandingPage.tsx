@@ -275,21 +275,27 @@ export function LandingPage() {
       </section>
 
       {/* Massive CTA */}
-      <section className="py-32 px-6 text-center">
-        <FadeIn>
-          <h2 className="text-5xl md:text-7xl font-black text-gray-200 leading-none mb-12 tracking-tighter uppercase max-w-5xl mx-auto">
+      <section className="py-32 px-6 text-center relative overflow-hidden bg-slate-50 border-t border-slate-200">
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5 mix-blend-multiply"></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-400/10 rounded-full blur-[120px] -z-10"></div>
+        
+        <FadeIn className="relative z-10">
+          <h2 className="text-5xl md:text-7xl font-black text-slate-900 leading-[1.1] mb-8 tracking-tight max-w-4xl mx-auto">
             Ready to take control of your time?
           </h2>
+          <p className="text-xl text-slate-600 max-w-2xl mx-auto font-medium">
+            Join thousands of smart founders who use Viddr to automate their outreach and scale their business on autopilot.
+          </p>
         </FadeIn>
         
-        <FadeIn delay={200} className="mt-16">
-          <Link href="/signup" className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-12 py-6 rounded-full font-bold text-2xl transition-all shadow-2xl shadow-blue-500/30 hover:scale-105 transform duration-200 hover:-translate-y-2">
-            Get Started Now
+        <FadeIn delay={200} className="mt-14 relative z-10">
+          <Link href="/signup" className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-12 py-5 rounded-full font-bold text-xl transition-all shadow-2xl shadow-blue-500/30 hover:scale-105 transform duration-200 hover:-translate-y-1 border border-blue-500">
+            Get Started Now &rarr;
           </Link>
-          <div className="mt-8 flex items-center justify-center gap-6 text-gray-500 font-medium">
-            <span className="flex items-center gap-2"><CheckCircle2 className="w-5 h-5 text-green-500" /> Free Trial</span>
-            <span className="flex items-center gap-2"><CheckCircle2 className="w-5 h-5 text-green-500" /> No Credit Card</span>
-            <span className="flex items-center gap-2"><CheckCircle2 className="w-5 h-5 text-green-500" /> Cancel Anytime</span>
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-6 md:gap-10 text-slate-600 font-semibold text-sm">
+            <span className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm border border-slate-100"><CheckCircle2 className="w-5 h-5 text-blue-600" /> Free Trial</span>
+            <span className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm border border-slate-100"><CheckCircle2 className="w-5 h-5 text-blue-600" /> No Credit Card</span>
+            <span className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm border border-slate-100"><CheckCircle2 className="w-5 h-5 text-blue-600" /> Cancel Anytime</span>
           </div>
         </FadeIn>
       </section>
