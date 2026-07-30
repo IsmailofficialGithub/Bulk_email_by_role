@@ -18,6 +18,8 @@ async function checkBatchSends() {
     console.error(pc.red(`[Scheduler] Error fetching batch send users: ${error.message}`));
     return;
   }
+  
+  console.log(pc.dim(`  -> Result: Found ${users ? users.length : 0} pending batch jobs.`));
 
   for (const user of users || []) {
     console.log(pc.cyan(`✨ [Scheduler] Triggering manual batch send for user ${user.user_id.split('-')[0]}...`));

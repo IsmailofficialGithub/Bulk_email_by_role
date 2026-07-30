@@ -62,6 +62,8 @@ async function runAutomailJobs(supabase) {
       .eq("automail_enabled", true);
 
     if (usersErr) throw usersErr;
+    
+    console.log(pc.dim(`  -> Result: Found ${users ? users.length : 0} users with automail enabled.`));
     if (!users || users.length === 0) return;
 
     for (const user of users) {
