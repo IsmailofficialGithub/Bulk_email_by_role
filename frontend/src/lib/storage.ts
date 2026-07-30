@@ -112,13 +112,15 @@ export async function loadState(userId: string): Promise<PersistedState> {
     .single();
 
   if (appState) {
+    const dbConfig = appState.config || {};
     state.config = {
       email: appState.smtp_email || "",
       appPassword: appState.smtp_password || "",
-      fromName: (typeof window !== "undefined" ? localStorage.getItem("viddr_fromName") : "") || "",
-      provider: (typeof window !== "undefined" ? localStorage.getItem("viddr_provider") : "gmail") || "gmail",
-      host: (typeof window !== "undefined" ? localStorage.getItem("viddr_host") : "smtp.gmail.com") || "smtp.gmail.com",
-      port: parseInt((typeof window !== "undefined" ? localStorage.getItem("viddr_port") : "465") || "465", 10),
+      fromEmail: dbConfig.fromEmail || "",
+      fromName: dbConfig.fromName || "",
+      provider: dbConfig.provider || "gmail",
+      host: dbConfig.host || "smtp.gmail.com",
+      port: parseInt(dbConfig.port || "465", 10),
       configured: !!appState.smtp_password,
     };
     state.delaySec = appState.send_delay_sec || 3;
@@ -160,6 +162,7 @@ export async function loadState(userId: string): Promise<PersistedState> {
       title: r.title,
       phone: r.phone,
       status: r.status || "pending",
+      phone_status: r.phone_status || "pending",
       source: r.source || "auto_fetch",
     }));
   }
@@ -206,6 +209,7 @@ export async function saveAppState(userId: string, state: PersistedState) {
       user_id: userId,
       smtp_email: state.config.email,
       smtp_password: state.config.appPassword,
+      config: state.config,
       send_delay_sec: state.delaySec,
       active_template_role: state.activeTemplateRole,
       default_title: state.defaultTitle,
@@ -227,13 +231,6 @@ export async function saveAppState(userId: string, state: PersistedState) {
     },
     { onConflict: "user_id" }
   );
-
-  if (typeof window !== "undefined") {
-    localStorage.setItem("viddr_fromName", state.config.fromName || "");
-    localStorage.setItem("viddr_provider", state.config.provider || "gmail");
-    localStorage.setItem("viddr_host", state.config.host || "smtp.gmail.com");
-    localStorage.setItem("viddr_port", (state.config.port || 465).toString());
-  }
 }
 
 export async function saveTemplates(

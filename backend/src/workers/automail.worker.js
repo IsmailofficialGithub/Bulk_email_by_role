@@ -135,9 +135,10 @@ async function runAutomailJobs(supabase) {
       templates.forEach(t => { templatesByRole[t.role] = t; });
 
       // 5. Setup Nodemailer
-      let host = 'smtp.gmail.com';
-      let port = 465;
-      let secure = true;
+      const config = user.config || {};
+      let host = config.host || 'smtp.gmail.com';
+      let port = config.port || 465;
+      let secure = port === 465;
       if (email.includes('@outlook.com') || email.includes('@hotmail.com')) {
         host = 'smtp-mail.outlook.com';
         port = 587;
@@ -233,8 +234,11 @@ async function runAutomailJobs(supabase) {
         let status = "failed";
         let errorMsg = null;
 
+        const fromEmail = config.fromEmail || email;
+        const fromName = config.fromName;
+        
         const mailOptions = {
-          from: email,
+          from: fromName ? `"${fromName}" <${fromEmail}>` : fromEmail,
           to: recipient.email,
           subject,
           text,

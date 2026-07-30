@@ -450,7 +450,14 @@ export default function Home() {
           )}
 
           {activeTab === 'emails' && (
-            <EmailsTab recipients={recipients} />
+            <EmailsTab 
+              recipients={recipients}
+              onUpdateStatus={async (id, field, newStatus) => {
+                const updated = recipients.map(r => r.id === id ? { ...r, [field]: newStatus } : r);
+                setRecipients(updated);
+                await supabase.from("automailsend_recipients").update({ [field]: newStatus }).eq("id", id);
+              }}
+            />
           )}
 
           {activeTab === 'templates' && (

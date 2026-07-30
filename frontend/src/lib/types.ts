@@ -21,6 +21,7 @@ export type Recipient = {
   title: string;
   phone?: string;
   status?: "pending" | "sent" | "failed";
+  phone_status?: "pending" | "sent" | "wrong_number";
   source?: "auto_fetch" | "manual";
 };
 

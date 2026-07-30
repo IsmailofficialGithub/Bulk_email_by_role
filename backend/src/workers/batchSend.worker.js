@@ -71,7 +71,6 @@ async function processBatchSendJob(job) {
       .from("automailsend_recipients")
       .select("*")
       .eq("user_id", user_id);
-
     const toProcess = (recipients || []).filter(r => !sentKeys.has(`${r.email}::${r.role}`));
 
     if (toProcess.length === 0) {

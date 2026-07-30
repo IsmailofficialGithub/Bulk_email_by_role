@@ -5,10 +5,12 @@ import { ROLE_LABELS, type Recipient, type Role } from "@/lib/types";
 
 type Props = {
   recipients: Recipient[];
+  onUpdateStatus?: (id: string, field: 'status' | 'phone_status', newStatus: string) => Promise<void>;
 };
 
-export function EmailsTab({ recipients }: Props) {
+export function EmailsTab({ recipients, onUpdateStatus }: Props) {
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterPhoneStatus, setFilterPhoneStatus] = useState<string>("all");
   const [filterSource, setFilterSource] = useState<string>("all");
   const [filterRole, setFilterRole] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -19,6 +21,7 @@ export function EmailsTab({ recipients }: Props) {
   const filteredRecipients = useMemo(() => {
     return recipients.filter((r) => {
       if (filterStatus !== "all" && (r.status || "pending") !== filterStatus) return false;
+      if (filterPhoneStatus !== "all" && (r.phone_status || "pending") !== filterPhoneStatus) return false;
       if (filterSource !== "all" && (r.source || "auto_fetch") !== filterSource) return false;
       if (filterRole !== "all" && r.role !== filterRole) return false;
       
@@ -35,7 +38,7 @@ export function EmailsTab({ recipients }: Props) {
       }
       return true;
     });
-  }, [recipients, filterStatus, filterSource, filterRole, filterContactType, searchQuery]);
+  }, [recipients, filterStatus, filterPhoneStatus, filterSource, filterRole, filterContactType, searchQuery]);
 
   const visibleRecipients = filteredRecipients.slice(0, visibleCount);
 
@@ -77,10 +80,16 @@ export function EmailsTab({ recipients }: Props) {
             <option value="phone_only">Phone Only (No Email)</option>
           </select>
           <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-            <option value="all">All Statuses</option>
+            <option value="all">Email Status (All)</option>
             <option value="pending">Pending</option>
             <option value="sent">Sent</option>
             <option value="failed">Failed</option>
+          </select>
+          <select value={filterPhoneStatus} onChange={(e) => setFilterPhoneStatus(e.target.value)}>
+            <option value="all">Phone Status (All)</option>
+            <option value="pending">Pending</option>
+            <option value="sent">Msg Sent</option>
+            <option value="wrong_number">Wrong Number</option>
           </select>
           <select value={filterSource} onChange={(e) => setFilterSource(e.target.value)}>
             <option value="all">All Sources</option>
@@ -107,11 +116,12 @@ export function EmailsTab({ recipients }: Props) {
         ) : (
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem" }}>
             <thead>
-              <tr style={{ borderBottom: "2px solid var(--line)", textAlign: "left" }}>
-                <th style={{ padding: "0.75rem", color: "var(--muted)", fontWeight: 600 }}>Contact Info</th>
-                <th style={{ padding: "0.75rem", color: "var(--muted)", fontWeight: 600 }}>Role / Title</th>
-                <th style={{ padding: "0.75rem", color: "var(--muted)", fontWeight: 600 }}>Status</th>
-                <th style={{ padding: "0.75rem", color: "var(--muted)", fontWeight: 600 }}>Source</th>
+              <tr>
+                <th style={{ textAlign: "left", padding: "1rem 0.75rem", color: "var(--muted)", fontWeight: 500, width: "35%" }}>Contact</th>
+                <th style={{ textAlign: "left", padding: "1rem 0.75rem", color: "var(--muted)", fontWeight: 500, width: "25%" }}>Role & Title</th>
+                <th style={{ textAlign: "left", padding: "1rem 0.75rem", color: "var(--muted)", fontWeight: 500, width: "15%" }}>Email Status</th>
+                <th style={{ textAlign: "left", padding: "1rem 0.75rem", color: "var(--muted)", fontWeight: 500, width: "15%" }}>Phone Status</th>
+                <th style={{ textAlign: "left", padding: "1rem 0.75rem", color: "var(--muted)", fontWeight: 500, width: "10%" }}>Source</th>
               </tr>
             </thead>
             <tbody>
@@ -140,6 +150,31 @@ export function EmailsTab({ recipients }: Props) {
                       <span style={{ color: "var(--warn)", fontWeight: 500, display: "flex", alignItems: "center", gap: "0.3rem" }}>
                         <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--warn)" }}></span> Pending
                       </span>
+                    )}
+                  </td>
+                  <td style={{ padding: "1rem 0.75rem" }}>
+                    {!r.phone ? (
+                      <span style={{ color: "var(--muted)", fontStyle: "italic", fontSize: "0.85rem" }}>No Phone</span>
+                    ) : (
+                      <select
+                        value={r.phone_status || "pending"}
+                        onChange={(e) => onUpdateStatus?.(r.id, 'phone_status', e.target.value)}
+                        style={{
+                          padding: "0.2rem 0.5rem",
+                          borderRadius: "4px",
+                          border: "1px solid var(--line)",
+                          background: "var(--bg)",
+                          color: r.phone_status === "sent" ? "var(--ok)" : r.phone_status === "wrong_number" ? "var(--err)" : "var(--warn)",
+                          fontWeight: 500,
+                          fontSize: "0.85rem",
+                          cursor: "pointer",
+                          outline: "none"
+                        }}
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="sent">Msg Sent</option>
+                        <option value="wrong_number">Wrong Number</option>
+                      </select>
                     )}
                   </td>
                   <td style={{ padding: "1rem 0.75rem" }}>
