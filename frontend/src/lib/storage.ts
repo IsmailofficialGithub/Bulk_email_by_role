@@ -7,6 +7,7 @@ import {
   type SmtpConfig,
   type Attachment,
   type AutoFetchConfig,
+  type AutomailConfig,
 } from "@/lib/types";
 
 export type PersistedState = {
@@ -18,6 +19,7 @@ export type PersistedState = {
   defaultTitle: string;
   sentLog: SentRecord[];
   autoFetch: AutoFetchConfig;
+  automail: AutomailConfig;
 };
 
 export function emptyTemplates(): Record<Role, RoleTemplate> {
@@ -48,6 +50,13 @@ export function defaultState(): PersistedState {
       jsessionid: "",
       rawHeaders: "{}",
       postAgeFilter: "any",
+    },
+    automail: {
+      enabled: false,
+      dailyLimit: 50,
+      aiProvider: "none",
+      aiApiKey: "",
+      aiPrompt: "You are an expert recruiter. Analyze the following LinkedIn post text. The author's email is {{email}}. Write a highly personalized, friendly, and concise email subject and body offering our services. Output ONLY valid JSON with 'subject' and 'body' keys.",
     },
   };
 }
@@ -118,6 +127,14 @@ export async function loadState(userId: string): Promise<PersistedState> {
       jsessionid: appState.cookie_jsessionid || "",
       rawHeaders: appState.auto_fetch_raw_headers || "{}",
       postAgeFilter: (appState.post_age_filter as any) || "any",
+    };
+    
+    state.automail = {
+      enabled: appState.automail_enabled || false,
+      dailyLimit: appState.daily_mail_limit || 50,
+      aiProvider: appState.ai_provider || "none",
+      aiApiKey: appState.ai_api_key || "",
+      aiPrompt: appState.ai_prompt || defaultState().automail.aiPrompt,
     };
   }
 
@@ -192,6 +209,11 @@ export async function saveAppState(userId: string, state: PersistedState) {
       cookie_jsessionid: state.autoFetch.jsessionid,
       auto_fetch_raw_headers: state.autoFetch.rawHeaders,
       post_age_filter: state.autoFetch.postAgeFilter,
+      automail_enabled: state.automail.enabled,
+      daily_mail_limit: state.automail.dailyLimit,
+      ai_provider: state.automail.aiProvider,
+      ai_api_key: state.automail.aiApiKey,
+      ai_prompt: state.automail.aiPrompt,
     },
     { onConflict: "user_id" }
   );

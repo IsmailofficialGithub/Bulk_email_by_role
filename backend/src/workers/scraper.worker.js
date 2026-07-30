@@ -95,6 +95,7 @@ async function processJobLogic(job) {
         role: auto_fetch_keywords, 
         title: "",
         source: "auto_fetch",
+        context_text: contacts.contextText || null,
       });
       if (error) {
          log(pc.bgRed(pc.white(` ✖ Supabase insert error: ${error.message} `)));

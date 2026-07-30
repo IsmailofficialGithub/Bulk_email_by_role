@@ -1,6 +1,7 @@
 const pc = require("picocolors");
 const { supabase } = require("./config/supabase");
 const { processJob } = require("./workers/scraper.worker");
+const { runAutomailJobs } = require("./workers/automail.worker");
 
 const lastQueuedMap = new Map();
 
@@ -9,6 +10,11 @@ function startScheduler() {
   console.log(pc.green(`🚀 Starting Auto-Apply Scheduler (checking every ${tickSec} seconds)...`));
 
   setInterval(async () => {
+    // Run Automail jobs first
+    runAutomailJobs(supabase).catch(err => {
+      console.error(pc.red(`[Scheduler] Automail worker error: ${err.message}`));
+    });
+
     // Only log every tick if interval is >= 10s to prevent aggressive terminal spam, 
     // or just log it so the user knows it's checking.
     console.log(pc.dim(`[Scheduler] Checking for users due for scraping...`));

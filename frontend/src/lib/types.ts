@@ -73,3 +73,11 @@ export type AutoFetchConfig = {
   rawHeaders: string;
   postAgeFilter: "any" | "past-24h" | "past-week" | "past-month";
 };
+
+export type AutomailConfig = {
+  enabled: boolean;
+  dailyLimit: number;
+  aiProvider: "none" | "groq" | "openai" | "gemini";
+  aiApiKey: string;
+  aiPrompt: string;
+};

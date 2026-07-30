@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
 import type { AutoFetchConfig } from "@/lib/types";
+import { HelpTooltip } from "./HelpTooltip";
 
 type Props = {
   config: AutoFetchConfig;
@@ -290,7 +291,19 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
 
           <div className="grid-2">
             <label className="field">
-              <span>Keywords (comma separated)</span>
+              <span>
+                Keywords (comma separated)
+                <HelpTooltip 
+                  title="Search Keywords" 
+                  content={
+                    <>
+                      <p>These are the job titles or keywords the scraper will search for on LinkedIn.</p>
+                      <p><strong>Example:</strong> <code>React Developer, Python Engineer, HR Manager</code></p>
+                      <p>The system will automatically search for posts containing these keywords and extract any emails or phone numbers found within them.</p>
+                    </>
+                  } 
+                />
+              </span>
               <input
                 type="text"
                 value={keywords}
@@ -302,57 +315,115 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
               />
             </label>
             <label className="field">
-              <span>Interval (Minutes)</span>
+              <span>
+                Fetch Interval (Minutes)
+                <HelpTooltip 
+                  title="Fetch Interval" 
+                  content={
+                    <>
+                      <p>How often should the background worker wake up and search LinkedIn for new posts?</p>
+                      <p><strong>Recommendation:</strong> Set this to <strong>5 or 10 minutes</strong>. If you set it too low (like 1 minute), LinkedIn might temporarily block your account for searching too quickly.</p>
+                    </>
+                  } 
+                />
+              </span>
               <input
                 type="number"
-                min={5}
-                step={1}
+                min={1}
+                max={1440}
                 value={intervalMin}
-                onChange={(e) => setIntervalMin(Number(e.target.value))}
-                placeholder="Minimum 5"
-              />
-            </label>
-            <label className="field">
-              <span>Post Age Filter</span>
-              <select
-                value={postAgeFilter}
-                onChange={(e) => setPostAgeFilter(e.target.value as AutoFetchConfig["postAgeFilter"])}
-                style={{ width: "100%", padding: "0.5rem", borderRadius: "4px", border: "1px solid var(--line)", background: "var(--bg-body)" }}
-              >
-                <option value="any">Any Time</option>
-                <option value="past-24h">Past 24 Hours</option>
-                <option value="past-week">Past Week</option>
-                <option value="past-month">Past Month</option>
-              </select>
-            </label>
-            <label className="field">
-              <span>Pages per loop</span>
-              <input
-                type="number"
-                min={1}
-                step={1}
-                value={paginationLimit}
-                onChange={(e) => setPaginationLimit(Number(e.target.value))}
-                placeholder="e.g. 3"
-              />
-            </label>
-            <label className="field">
-              <span>Delay between pages (Sec)</span>
-              <input
-                type="number"
-                min={1}
-                step={1}
-                value={paginationDelaySec}
-                onChange={(e) => setPaginationDelaySec(Number(e.target.value))}
-                placeholder="e.g. 10"
+                onChange={(e) => setIntervalMin(Number(e.target.value) || 5)}
               />
             </label>
           </div>
 
+          <div className="grid-2">
+            <label className="field">
+              <span>
+                Pagination Limit
+                <HelpTooltip 
+                  title="Pagination Limit" 
+                  content={
+                    <>
+                      <p>How many pages of search results should the scraper look through during each interval?</p>
+                      <p>If set to <strong>3</strong>, it will scrape Page 1, Page 2, and Page 3 of the LinkedIn search results.</p>
+                    </>
+                  } 
+                />
+              </span>
+              <input
+                type="number"
+                min={1}
+                max={50}
+                value={paginationLimit}
+                onChange={(e) => setPaginationLimit(Number(e.target.value) || 3)}
+              />
+            </label>
+
+            <label className="field">
+              <span>
+                Pagination Delay (Sec)
+                <HelpTooltip 
+                  title="Pagination Delay" 
+                  content={
+                    <>
+                      <p>The amount of time (in seconds) to pause between scraping each page.</p>
+                      <p>This is a safety measure to mimic human browsing behavior and prevent LinkedIn from detecting the scraper. <strong>10 to 15 seconds</strong> is highly recommended.</p>
+                    </>
+                  } 
+                />
+              </span>
+              <input
+                type="number"
+                min={1}
+                max={60}
+                value={paginationDelaySec}
+                onChange={(e) => setPaginationDelaySec(Number(e.target.value) || 10)}
+              />
+            </label>
+          </div>
+
+          <label className="field" style={{ marginTop: "0.5rem" }}>
+            <span>
+              Post Age Filter
+              <HelpTooltip 
+                title="Post Age Filter" 
+                content={
+                  <>
+                    <p>Only scrape LinkedIn posts published within this timeframe.</p>
+                    <p><strong>Past 24 hours</strong> ensures you are only reaching out to fresh, active leads who just posted recently!</p>
+                  </>
+                } 
+              />
+            </span>
+            <select
+              value={postAgeFilter}
+              onChange={(e) => setPostAgeFilter(e.target.value as any)}
+              style={{ width: "100%", padding: "0.5rem", borderRadius: "4px", border: "1px solid var(--line)", background: "var(--bg-panel)", color: "var(--fg)" }}
+            >
+              <option value="24h">Past 24 hours (Recommended)</option>
+              <option value="1w">Past 1 week</option>
+              <option value="1m">Past 1 month</option>
+              <option value="all">Any time</option>
+            </select>
+          </label>
+
           <hr style={{ border: "0", borderTop: "1px solid var(--line)", margin: "0.5rem 0" }} />
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-            <h3 style={{ fontSize: "0.85rem", margin: "0 0 0.5rem 0" }}>LinkedIn Cookies</h3>
+            <h3 style={{ fontSize: "0.85rem", margin: "0 0 0.5rem 0", display: "flex", alignItems: "center" }}>
+              LinkedIn Cookies
+              <HelpTooltip 
+                title="LinkedIn Cookies" 
+                content={
+                  <>
+                    <p>To search LinkedIn automatically, the background worker needs your temporary session credentials (called "Cookies").</p>
+                    <p><strong>How to get them:</strong> Log in to LinkedIn on your browser. Use a browser extension (like "EditThisCookie") to copy your <code>li_at</code> and <code>JSESSIONID</code> cookies, and paste them here.</p>
+                    <p>We do not store your LinkedIn password.</p>
+                  </>
+                } 
+              />
+            </h3>
             <button
               type="button"
               className="btn ghost small"

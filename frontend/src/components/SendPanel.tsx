@@ -24,6 +24,8 @@ type Props = {
   onSendingChange: (sending: boolean) => void;
   sentLog: SentRecord[];
   onSentLogChange: (sentLog: SentRecord[]) => void;
+  automail: import("@/lib/types").AutomailConfig;
+  onAutomailChange: (automail: import("@/lib/types").AutomailConfig) => void;
 };
 
 function sleep(ms: number) {
@@ -51,6 +53,8 @@ export function SendPanel({
   onSendingChange,
   sentLog,
   onSentLogChange,
+  automail,
+  onAutomailChange,
 }: Props) {
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [status, setStatus] = useState("");
@@ -259,10 +263,12 @@ export function SendPanel({
   return (
     <section className="panel">
       <div className="panel-head">
-        <h2>4. Send</h2>
-        <span className="badge">
-          {pending.length} pending · {sentLog.length} history
-        </span>
+        <h2>4. Send Emails</h2>
+        <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+          <span className="badge">
+            {pending.length} pending · {sentLog.length} history
+          </span>
+        </div>
       </div>
       <div className="panel-body">
         <p className="hint compact">

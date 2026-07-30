@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { SmtpConfig } from "@/lib/types";
 import toast from "react-hot-toast";
 import { supabase } from "@/lib/supabase";
+import { HelpTooltip } from "./HelpTooltip";
 
 type Props = {
   config: SmtpConfig;
@@ -202,7 +203,25 @@ export function SmtpConfigPanel({ config, onChange, onResetAll }: Props) {
                   />
                 </label>
                 <label className="field">
-                  <span>App Password</span>
+                  <span>
+                    App Password
+                    <HelpTooltip 
+                      title="Google App Password" 
+                      content={
+                        <>
+                          <p>To let this app send emails on your behalf, you need a <strong>Google App Password</strong>.</p>
+                          <p><strong>Steps to generate one:</strong></p>
+                          <ol style={{ paddingLeft: "1.5rem", margin: "0.5rem 0" }}>
+                            <li>Go to your Google Account Settings.</li>
+                            <li>Turn on <strong>2-Step Verification</strong> if it isn't already.</li>
+                            <li>Search for "App Passwords" in your account settings.</li>
+                            <li>Create a new app password (name it "AutoMailSend") and copy the 16-character code.</li>
+                          </ol>
+                          <p>Paste that 16-character code here (spaces don't matter).</p>
+                        </>
+                      } 
+                    />
+                  </span>
                   <div className="password-wrap">
                     <input
                       type={showPassword ? "text" : "password"}

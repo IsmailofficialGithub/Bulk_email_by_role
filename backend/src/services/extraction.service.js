@@ -76,7 +76,7 @@ function extractInitialContacts(rawStr) {
   }
   const uniquePhones = [...new Set(candidatePhones.map(cleanPhoneNumber).filter(Boolean))];
 
-  return { emails: uniqueEmails, phones: uniquePhones };
+  return { emails: uniqueEmails, phones: uniquePhones, contextText: cleanText.substring(0, 5000) };
 }
 
 function extractPaginatedContacts(rawStr) {
@@ -118,7 +118,7 @@ function extractPaginatedContacts(rawStr) {
       })
   )];
 
-  return { emails, phones: [...new Set([...wa, ...phones])] };
+  return { emails, phones: [...new Set([...wa, ...phones])], contextText: text.substring(0, 5000) };
 }
 
 module.exports = {

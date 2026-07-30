@@ -533,16 +533,12 @@ body::before {
 }
 
 .scroll-area::-webkit-scrollbar {
-  width: 6px;
+  display: none;
 }
 
-.scroll-area::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.scroll-area::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--accent) 40%, var(--line));
-  border-radius: 999px;
+.scroll-area {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 .scroll-area > * {
@@ -556,28 +552,12 @@ body::before {
   border-radius: 8px;
   padding: 0.35rem;
   background: var(--bg-elevated);
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--accent) 60%, var(--line))
-    var(--bg);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 .send-scroll::-webkit-scrollbar {
-  width: 8px;
-  display: block;
-}
-
-.send-scroll::-webkit-scrollbar-track {
-  background: var(--bg);
-  border-radius: 999px;
-}
-
-.send-scroll::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--accent) 50%, var(--line));
-  border-radius: 999px;
-}
-
-.send-scroll::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--accent) 75%, var(--line));
+  display: none;
 }
 
 .send-columns {
@@ -1064,4 +1044,93 @@ body::before {
   .smtp-bar {
     width: 100%;
   }
+}
+
+.help-tooltip-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--line);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: bold;
+  border: none;
+  cursor: pointer;
+  margin-left: 6px;
+  transition: all 0.2s ease;
+}
+.help-tooltip-btn:hover {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.app-container {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.sidebar {
+  width: 250px;
+  background: var(--bg-panel);
+  border-right: 1px solid var(--line);
+  padding: 1.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.sidebar-title {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 1rem;
+  padding-left: 0.5rem;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sidebar-tab {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  color: var(--muted);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: transparent;
+  border: none;
+  text-align: left;
+  font-size: 1rem;
+}
+
+.sidebar-tab:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink);
+}
+
+.sidebar-tab.active {
+  background: var(--line);
+  color: var(--accent);
+}
+
+.main-content {
+  flex: 1;
+  padding: 2rem;
+  overflow-y: auto;
+}
+
+.main-content .board {
+  display: block; /* override board-three */
+  max-width: 900px;
+  margin: 0 auto;
 }
