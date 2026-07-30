@@ -336,9 +336,11 @@ export function SendPanel({
           >
             {sending
               ? `${progress.current}/${progress.total}`
-              : `Send All Pending (${pending.length})`}
+              : pending.length === 0 ? "All Emails Sent" : `Send All Pending (${pending.length})`}
           </button>
-          
+        </div>
+
+        <div className="card-header actions-bar">
           <button
             type="button"
             className="btn large"

@@ -20,6 +20,7 @@ export type PersistedState = {
   sentLog: SentRecord[];
   autoFetch: AutoFetchConfig;
   automail: AutomailConfig;
+  batchSendPending: boolean;
 };
 
 export function emptyTemplates(): Record<Role, RoleTemplate> {
@@ -59,6 +60,7 @@ export function defaultState(): PersistedState {
       aiApiKey: "",
       aiPrompt: "You are an expert recruiter. Analyze the following LinkedIn post text. The author's email is {{email}}. Write a highly personalized, friendly, and concise email subject and body offering our services. Output ONLY valid JSON with 'subject' and 'body' keys.",
     },
+    batchSendPending: false,
   };
 }
 
@@ -142,6 +144,7 @@ export async function loadState(userId: string): Promise<PersistedState> {
       aiApiKey: appState.ai_api_key || "",
       aiPrompt: appState.ai_prompt || defaultState().automail.aiPrompt,
     };
+    state.batchSendPending = appState.batch_send_pending || false;
   }
 
   // Load recipients

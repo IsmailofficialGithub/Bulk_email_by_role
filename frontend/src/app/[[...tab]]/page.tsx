@@ -146,6 +146,7 @@ export default function Home() {
       setSentLog(saved.sentLog);
       setAutoFetch(saved.autoFetch);
       setAutomail(saved.automail);
+      setSending(saved.batchSendPending);
       
       lastState.current = {
         config: saved.config,
@@ -258,7 +259,7 @@ export default function Home() {
     if (!hydrated || !userId) return;
     
     // Only save if app_state parts changed
-    const currState = { config, delaySec, activeTemplateRole, defaultTitle, autoFetch, automail };
+    const currState = { config, delaySec, activeTemplateRole, defaultTitle, autoFetch, automail, batchSendPending: sending };
     if (JSON.stringify(currState) === JSON.stringify(lastState.current)) {
       return;
     }
@@ -275,6 +276,7 @@ export default function Home() {
         sentLog, // not saved in app_state
         autoFetch,
         automail,
+        batchSendPending: sending,
       }).then(() => {
          lastState.current = currState;
       }).catch(console.error);
