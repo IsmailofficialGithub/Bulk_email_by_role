@@ -167,7 +167,7 @@ export function ExecutionLogsPanel({ userId }: { userId: string }) {
     <section className="panel">
       <div className="panel-head" style={{ flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-           <h2>Background Scraper Logs</h2>
+           <h2>Background Execution Logs</h2>
            {intervalMin && logs.length > 0 && (
              <div style={{ fontSize: '0.8rem', color: 'var(--muted)', marginTop: '0.25rem' }}>
                <span>Interval: {intervalMin}m</span> &bull; 
@@ -248,7 +248,7 @@ function LogItem({ log, getStatusClass, lastElementRef }: any) {
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
           )}
-          {log.status}
+          {log.details?.jobType ? `[${log.details.jobType.toUpperCase()}] ${log.status}` : log.status}
         </span>
         <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>
           {new Date(log.created_at).toLocaleString()}
@@ -274,6 +274,36 @@ function LogItem({ log, getStatusClass, lastElementRef }: any) {
       </div>
       {expanded && hasDetails && (
         <div style={{ marginTop: '0.5rem', padding: '0.75rem', backgroundColor: 'var(--bg-body)', borderRadius: '6px' }}>
+          {log.details.logs && Array.isArray(log.details.logs) && (
+            <div style={{ marginBottom: '0.75rem' }}>
+              <strong style={{ fontSize: '0.75rem', color: 'var(--ink)', display: 'block', marginBottom: '0.5rem' }}>
+                Terminal Output:
+              </strong>
+              <pre style={{ 
+                backgroundColor: '#1e1e1e', 
+                color: '#d4d4d4', 
+                padding: '0.75rem', 
+                borderRadius: '4px', 
+                fontSize: '0.75rem', 
+                maxHeight: '300px', 
+                overflowY: 'auto',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+                margin: 0
+              }}>
+                {log.details.logs.map((line: string, i: number) => {
+                  let color = '#d4d4d4';
+                  if (line.includes('[ERROR]')) color = '#f87171'; // red
+                  else if (line.includes('[WARN]')) color = '#fbbf24'; // yellow
+                  else if (line.includes('[SUCCESS]')) color = '#4ade80'; // green
+                  else if (line.includes('[INFO]')) color = '#60a5fa'; // blue
+                  
+                  return <div key={i} style={{ color, marginBottom: '2px', fontFamily: 'monospace' }}>{line}</div>;
+                })}
+              </pre>
+            </div>
+          )}
+
           {log.details.new_emails && Array.isArray(log.details.new_emails) && log.details.new_emails.length > 0 && (
             <div style={{ marginBottom: '0.75rem' }}>
               <strong style={{ fontSize: '0.75rem', color: 'var(--ink)', display: 'block', marginBottom: '0.25rem' }}>
@@ -301,7 +331,7 @@ function LogItem({ log, getStatusClass, lastElementRef }: any) {
           )}
 
           {/* Fallback for completely different log structures */}
-          {(!log.details.new_emails && !log.details.new_phones) && (
+          {(!log.details.logs && !log.details.new_emails && !log.details.new_phones) && (
             <div style={{ fontSize: '0.75rem', fontFamily: 'monospace', color: 'var(--muted)', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
               {JSON.stringify(log.details, null, 2)}
             </div>

@@ -2,6 +2,7 @@ const pc = require("picocolors");
 const nodemailer = require("nodemailer");
 const axios = require("axios");
 const { decryptPassword } = require("../lib/crypto");
+const { ExecutionLogger } = require("../lib/logger");
 
 async function generateAiPersonalizedEmail(provider, apiKey, promptTemplate, recipient, contextText, baseTemplate) {
   const prompt = applyPlaceholders(promptTemplate, recipient) 
@@ -84,6 +85,10 @@ async function runAutomailJobs(supabase) {
         continue;
       }
 
+      // Initialize execution logger for this user
+      const logger = new ExecutionLogger(userId, "automail");
+      await logger.start(`Starting Automail batch process...`);
+
       // 2. Determine how many emails they can send today
       const { count: sentToday, error: countErr } = await supabase
         .from("automailsend_sent_log")
@@ -93,12 +98,13 @@ async function runAutomailJobs(supabase) {
         .gte("sent_at", getStartOfDayUTC());
 
       if (countErr) {
-        console.error(pc.red(`[Automail] Error fetching sent count for ${userId}: ${countErr.message}`));
+        await logger.finish("error", `Error fetching sent count: ${countErr.message}`);
         continue;
       }
 
       const remainingQuota = limit - (sentToday || 0);
       if (remainingQuota <= 0) {
+        await logger.finish("success", "Daily mail limit reached.");
         continue;
       }
 
@@ -111,7 +117,7 @@ async function runAutomailJobs(supabase) {
         .limit(remainingQuota * 3); // fetch extra to account for duplicates
 
       if (pendingErr) {
-        console.error(pc.red(`[Automail] Error fetching pending recipients for ${userId}: ${pendingErr.message}`));
+        await logger.finish("error", `Error fetching pending recipients: ${pendingErr.message}`);
         continue;
       }
       
@@ -129,10 +135,11 @@ async function runAutomailJobs(supabase) {
       const pending = Array.from(uniquePendingMap.values()).slice(0, remainingQuota);
 
       if (!pending || pending.length === 0) {
+        await logger.finish("success", "No pending emails to send.");
         continue;
       }
 
-      console.log(pc.blue(`[Automail] Starting batch for user ${userId.substring(0, 8)}. Quota: ${remainingQuota}, Pending: ${pending.length}`));
+      await logger.append("INFO", `Quota: ${remainingQuota}, Pending: ${pending.length}`);
 
       // 4. Fetch user templates
       const { data: templates, error: tempErr } = await supabase
@@ -141,7 +148,7 @@ async function runAutomailJobs(supabase) {
         .eq("user_id", userId);
 
       if (tempErr || !templates) {
-        console.error(pc.red(`[Automail] Error fetching templates for ${userId}`));
+        await logger.finish("error", `Error fetching templates`);
         continue;
       }
 
@@ -164,7 +171,7 @@ async function runAutomailJobs(supabase) {
         try {
           passwordToUse = decryptPassword(passwordToUse);
         } catch (err) {
-          console.error(pc.red(`[Automail] Failed to decrypt password for ${userId}. Skipping.`));
+          await logger.finish("error", `Failed to decrypt SMTP password.`);
           continue;
         }
       }
@@ -185,12 +192,12 @@ async function runAutomailJobs(supabase) {
       for (const recipient of pending) {
         const template = templatesByRole[recipient.role];
         if (!template || !template.subject || !template.content) {
-          console.log(pc.yellow(`[Automail] Missing template for role ${recipient.role} for user ${userId}. Skipping recipient ${recipient.email}.`));
+          await logger.append("WARN", `Missing template for role ${recipient.role}. Skipping recipient ${recipient.email}.`);
           continue;
         }
 
         if (!recipient.email) {
-          console.log(pc.yellow(`[Automail] Recipient ${recipient.id} has no email address. Skipping.`));
+          await logger.append("WARN", `Recipient ${recipient.id} has no email address. Skipping.`);
           await supabase.from("automailsend_recipients").update({ status: "failed" }).eq("id", recipient.id);
           await supabase.from("automailsend_sent_log").insert({
             user_id: userId,
@@ -210,25 +217,22 @@ async function runAutomailJobs(supabase) {
 
         if (aiProvider !== "none" && aiApiKey) {
           try {
-            console.log(pc.cyan(`  [Automail] Generating AI personalization for ${recipient.email}...`));
+            await logger.append("INFO", `Generating AI personalization for ${recipient.email}...`);
             const aiContent = await generateAiPersonalizedEmail(aiProvider, aiApiKey, aiPrompt, recipient, recipient.context_text, template);
             
             if (aiContent && aiContent.skip) {
               shouldSkip = true;
               skipReason = aiContent.reason || "AI decided to skip based on context.";
-              console.log(pc.yellow(`  ⚠️ AI Skip: ${skipReason}`));
+              await logger.append("WARN", `AI Skip: ${skipReason}`);
             } else if (aiContent && aiContent.subject && aiContent.body) {
               subject = aiContent.subject;
               text = aiContent.body;
-              console.log(pc.green(`  ✔ AI personalization successful!`));
+              await logger.append("SUCCESS", `AI personalization successful!`);
             } else {
-              console.log(pc.yellow(`  ⚠️ AI returned invalid format, falling back to template.`));
+              await logger.append("WARN", `AI returned invalid format, falling back to template.`);
             }
           } catch (aiErr) {
-            console.error(pc.yellow(`  ⚠️ AI generation failed: ${aiErr.message}. Falling back to template.`));
-            if (aiErr.response && aiErr.response.data) {
-              console.error(pc.yellow(`  ⚠️ AI Error details: ${JSON.stringify(aiErr.response.data)}`));
-            }
+            await logger.append("ERROR", `AI generation failed: ${aiErr.message}. Falling back to template.`);
           }
         }
 
@@ -270,11 +274,11 @@ async function runAutomailJobs(supabase) {
           await transporter.sendMail(mailOptions);
           status = "sent";
           sentCount++;
-          console.log(pc.green(`  ✔ Sent email to ${recipient.email}`));
+          await logger.append("SUCCESS", `Sent email to ${recipient.email}`);
         } catch (err) {
           status = "failed";
           errorMsg = err.message;
-          console.error(pc.red(`  ✖ Failed to send to ${recipient.email}: ${err.message}`));
+          await logger.append("ERROR", `Failed to send to ${recipient.email}: ${err.message}`);
         }
 
         // Update recipient status
@@ -300,11 +304,12 @@ async function runAutomailJobs(supabase) {
           // Anti-ban Jitter: Randomize delay by +/- 20%
           const jitter = Math.random() * 0.4 - 0.2; 
           const actualDelayMs = (delaySec * 1000) * (1 + jitter);
+          await logger.append("INFO", `Waiting ${Math.round(actualDelayMs / 1000)}s before next email...`);
           await sleep(actualDelayMs);
         }
       }
       
-      console.log(pc.cyan(`[Automail] Finished batch for ${userId.substring(0, 8)}. Sent: ${sentCount}`));
+      await logger.finish("success", `Finished batch. Sent: ${sentCount}`);
     }
   } catch (err) {
     console.error(pc.red("[Automail] Global error: " + err.message));

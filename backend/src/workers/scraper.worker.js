@@ -2,10 +2,11 @@ const pc = require("picocolors");
 const axios = require("axios");
 const { supabase } = require("../config/supabase");
 const { extractInitialContacts, extractPaginatedContacts } = require("../services/extraction.service");
+const { ExecutionLogger } = require("../lib/logger");
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function processJobLogic(job) {
+async function processJobLogic(job, logger) {
   const { 
     user_id, 
     auto_fetch_keywords, 
@@ -16,11 +17,6 @@ async function processJobLogic(job) {
     auto_fetch_template_role
   } = job.data;
 
-  const log = (msg) => {
-    if (job.log) job.log(msg);
-    console.log(msg); 
-  };
-  
   let mappings = [];
   try {
     const parsed = JSON.parse(auto_fetch_keywords);
@@ -36,19 +32,20 @@ async function processJobLogic(job) {
   }
 
   if (mappings.length === 0) {
-    log(pc.bgYellow(pc.black(` ⚠️ No keywords provided. Skipping scrape. `)));
+    await logger.append("WARN", "No keywords provided. Skipping scrape.");
     return { inserted: 0, emails: [], phones: [] };
   }
 
-  log(pc.bgBlue(pc.white(` [WORKER] Starting auto-apply fetch for ${mappings.length} keywords `)));
+  await logger.append("INFO", `Starting auto-apply fetch for ${mappings.length} keywords`);
 
   let headers;
   try {
     headers = typeof auto_fetch_raw_headers === 'string' 
       ? JSON.parse(auto_fetch_raw_headers) 
       : auto_fetch_raw_headers;
-    log(pc.green(` ✔ Parsed Headers Successfully`));
+    await logger.append("SUCCESS", "Parsed Headers Successfully");
   } catch (err) {
+    await logger.append("ERROR", `Failed to parse raw headers: ${err.message}`);
     throw new Error(`Failed to parse raw headers: ${err.message}`);
   }
 
@@ -58,7 +55,7 @@ async function processJobLogic(job) {
   const successfullyInsertedEmails = [];
   const successfullyInsertedPhones = [];
 
-  log(pc.magenta(` ➜ Fetching existing contacts from DB to prevent duplicates...`));
+  await logger.append("INFO", "Fetching existing contacts from DB to prevent duplicates...");
   const { data: existingData } = await supabase
     .from('automailsend_recipients')
     .select('email, phone')
@@ -82,7 +79,7 @@ async function processJobLogic(job) {
     });
   }
   
-  log(pc.green(` ✔ Loaded ${allEmails.size} emails and ${allPhones.size} phones to skip (including sent log).`));
+  await logger.append("SUCCESS", `Loaded ${allEmails.size} emails and ${allPhones.size} phones to skip (including sent log).`);
 
   const saveContacts = async (contacts, roleToAssign) => {
     const newEmails = contacts.emails.filter(e => !allEmails.has(e.toLowerCase()));
@@ -96,7 +93,7 @@ async function processJobLogic(job) {
       newContactsToInsert.push({ email: newEmails[i] || null, phone: newPhones[i] || null });
     }
 
-    log(pc.magenta(` ➜ Inserting ${newContactsToInsert.length} new records into Supabase for role '${roleToAssign}'...`));
+    await logger.append("INFO", `Inserting ${newContactsToInsert.length} new records into Supabase for role '${roleToAssign}'...`);
     for (const entry of newContactsToInsert) {
       const emailToInsert = entry.email ? entry.email.toLowerCase() : "";
       const phoneToInsert = entry.phone || "";
@@ -112,7 +109,7 @@ async function processJobLogic(job) {
         scraped_at: new Date().toISOString(),
       });
       if (error) {
-         log(pc.bgRed(pc.white(` ✖ Supabase insert error: ${error.message} `)));
+         await logger.append("ERROR", `Supabase insert error: ${error.message}`);
       } else {
          totalInserted++;
          if (emailToInsert) {
@@ -131,7 +128,7 @@ async function processJobLogic(job) {
     const currentKeyword = mapping.keyword;
     const currentRole = mapping.role;
 
-    log(pc.bgBlue(pc.white(`\n[WORKER] Searching for keyword: "${currentKeyword}" (Role: ${currentRole})`)));
+    await logger.append("INFO", `Searching for keyword: "${currentKeyword}" (Role: ${currentRole})`);
 
     const keywordsQuery = encodeURIComponent(currentKeyword);
     const searchBase = process.env.LINKEDIN_SEARCH_BASE_URL || "https://www.linkedin.com/search/results/content/";
@@ -141,25 +138,25 @@ async function processJobLogic(job) {
       searchUrl += `&datePosted=%22${encodeURIComponent(post_age_filter)}%22`;
     }
 
-    log(pc.magenta(` ➜ Fetching Initial Search Page: ${searchUrl}`));
+    await logger.append("INFO", `Fetching Initial Search Page for "${currentKeyword}"...`);
     let response;
     try {
       response = await axios.get(searchUrl, { headers, responseType: 'text' });
     } catch (err) {
       const errorDetails = err.response ? `HTTP ${err.response.status}` : err.message;
-      log(pc.bgRed(pc.white(` ✖ Search request failed for "${currentKeyword}": ${errorDetails} `)));
+      await logger.append("ERROR", `Search request failed for "${currentKeyword}": ${errorDetails}`);
       continue; // Skip to next keyword
     }
 
     const rawText = response.data;
-    log(pc.green(` ✔ Initial Search Page Loaded (HTTP ${response.status}) [${rawText.length} bytes]`));
+    await logger.append("SUCCESS", `Initial Search Page Loaded (HTTP ${response.status}) [${rawText.length} bytes]`);
 
-    log(pc.magenta(` ➜ Extracting Contacts from Initial Page...`));
+    await logger.append("INFO", `Extracting Contacts from Initial Page for "${currentKeyword}"...`);
     const initialContacts = extractInitialContacts(rawText);
     let initialDetails = "";
     if (initialContacts.emails.length > 0) initialDetails += ` [Emails: ${initialContacts.emails.join(", ")}]`;
     if (initialContacts.phones.length > 0) initialDetails += ` [Phones: ${initialContacts.phones.join(", ")}]`;
-    log(pc.green(` ✔ Initial Page Found: ${initialContacts.emails.length} emails, ${initialContacts.phones.length} phones${initialDetails}`));
+    await logger.append("SUCCESS", `Initial Page Found: ${initialContacts.emails.length} emails, ${initialContacts.phones.length} phones${initialDetails}`);
 
     await saveContacts(initialContacts, currentRole);
 
@@ -168,7 +165,7 @@ async function processJobLogic(job) {
     const searchId = (raw.match(/"searchId"\s*:\s*"([0-9a-fA-F-]{36})"/) || [])[1];
     
     if (!searchId) {
-      log(pc.bgYellow(pc.black(` ⚠️ No searchId found, cannot paginate for "${currentKeyword}". `)));
+      await logger.append("WARN", `No searchId found, cannot paginate for "${currentKeyword}".`);
     } else {
       const rawKeywords = ((raw.match(/"keywords"\s*:\s*"((?:\\.|[^"\\])*)"/) || [])[1] || currentKeyword).replace(/\\"/g, '"');
       let startIndex = Number((raw.match(/"startIndex"\s*:\s*(\d+)/) || [])[1] || 12);
@@ -179,10 +176,10 @@ async function processJobLogic(job) {
       const defaultInterval = process.env.SCRAPER_INTERVAL_SEC ? parseInt(process.env.SCRAPER_INTERVAL_SEC, 10) : 10;
       const delayMs = (auto_fetch_pagination_delay_sec || defaultInterval) * 1000;
 
-      log(pc.bgBlue(pc.white(` [WORKER] Pagination details found for "${currentKeyword}". Max Pages: ${maxPages}, Delay: ${delayMs/1000}s `)));
+      await logger.append("INFO", `Pagination details found for "${currentKeyword}". Max Pages: ${maxPages}, Delay: ${delayMs/1000}s`);
 
       for (let page = 1; page <= maxPages; page++) {
-        log(pc.cyan(` ⏳ Fetching page ${page} of ${maxPages}... (waiting ${delayMs/1000}s)`));
+        await logger.append("INFO", `Fetching page ${page} of ${maxPages}... (waiting ${delayMs/1000}s)`);
         await sleep(delayMs);
 
         const payload = {
@@ -240,7 +237,7 @@ async function processJobLogic(job) {
           },
         };
 
-        log(pc.magenta(` ➜ Executing POST /rsc-action/actions/pagination for page ${page}`));
+        await logger.append("INFO", `Executing POST pagination request for page ${page}`);
         try {
           const paginationUrl = process.env.LINKEDIN_PAGINATION_URL || "https://www.linkedin.com/flagship-web/rsc-action/actions/pagination";
           const paginatedRes = await axios.post(`${paginationUrl}?sduiid=com.linkedin.sdui.search.contentSearchResults`, body, {
@@ -258,13 +255,13 @@ async function processJobLogic(job) {
           let paginatedDetails = "";
           if (paginatedContacts.emails.length > 0) paginatedDetails += ` [Emails: ${paginatedContacts.emails.join(", ")}]`;
           if (paginatedContacts.phones.length > 0) paginatedDetails += ` [Phones: ${paginatedContacts.phones.join(", ")}]`;
-          log(pc.green(` ✔ Page ${page} Found: ${paginatedContacts.emails.length} emails, ${paginatedContacts.phones.length} phones${paginatedDetails}`));
+          await logger.append("SUCCESS", `Page ${page} Found: ${paginatedContacts.emails.length} emails, ${paginatedContacts.phones.length} phones${paginatedDetails}`);
 
           await saveContacts(paginatedContacts, currentRole);
 
         } catch (err) {
           const errorDetails = err.response ? `HTTP ${err.response.status}` : err.message;
-          log(pc.bgRed(pc.white(` ✖ Paginated request error: ${errorDetails} `)));
+          await logger.append("ERROR", `Paginated request error: ${errorDetails}`);
         }
 
         startIndex += count;
@@ -273,12 +270,10 @@ async function processJobLogic(job) {
     }
   }
 
-  log(pc.bgGreen(pc.white(` [WORKER] Total Unique Contacts Inserted: ${totalInserted} `)));
-
   if (totalInserted === 0) {
-    log(pc.bgYellow(pc.black(` ⚠️ No new records to insert. `)));
+    await logger.append("WARN", "No new records to insert.");
   } else {
-    log(pc.bgCyan(pc.black(` ✔ Insertion successful! `)));
+    await logger.append("SUCCESS", `Total Unique Contacts Inserted: ${totalInserted}`);
   }
 
   return { inserted: totalInserted, emails: successfullyInsertedEmails, phones: successfullyInsertedPhones };
@@ -286,51 +281,18 @@ async function processJobLogic(job) {
 
 async function processJob(job) {
   const { user_id, auto_fetch_keywords } = job.data;
-  let logId = null;
-
-  const dbLog = async (status, message, details = {}) => {
-    try {
-      if (!logId) {
-        let res = await supabase
-          .from("automailsend_execution_logs")
-          .insert([{ user_id, status, message, details }])
-          .select("id")
-          .single();
-        if (res.error) {
-          res = await supabase
-            .from("automailsend_execution_logs")
-            .insert([{ user_id, status, message }])
-            .select("id")
-            .single();
-        }
-        if (res.error) throw res.error;
-        if (res.data) logId = res.data.id;
-      } else {
-        let res = await supabase
-          .from("automailsend_execution_logs")
-          .update({ status, message, details })
-          .eq("id", logId);
-        if (res.error) {
-          res = await supabase
-            .from("automailsend_execution_logs")
-            .update({ status, message })
-            .eq("id", logId);
-        }
-      }
-    } catch (err) {
-      console.error(pc.bgRed(pc.white(` [DB LOG ERROR] Failed to save log: ${err.message} `)));
-    }
-  };
+  
+  const logger = new ExecutionLogger(user_id, "scraper");
 
   try {
-    await dbLog("running", `Execution started for keywords: "${auto_fetch_keywords}"`);
-    const result = await processJobLogic(job);
+    await logger.start(`Execution started for keywords: "${auto_fetch_keywords}"`);
+    const result = await processJobLogic(job, logger);
     const detailsObj = { new_emails: result.emails, new_phones: result.phones };
-    await dbLog("success", `Execution finished. Inserted ${result.inserted} new unique records.`, detailsObj);
+    await logger.finish("success", `Execution finished. Inserted ${result.inserted} new unique records.`, detailsObj);
     return result;
   } catch (err) {
     const errorDetails = { stack: err.stack, name: err.name };
-    await dbLog("error", `Execution failed: ${err.message}`, errorDetails);
+    await logger.finish("error", `Execution failed: ${err.message}`, errorDetails);
     throw err;
   }
 }
