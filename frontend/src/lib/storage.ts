@@ -58,7 +58,7 @@ export function defaultState(): PersistedState {
       dailyLimit: 50,
       aiProvider: "none",
       aiApiKey: "",
-      aiPrompt: "You are an expert recruiter. Analyze the following LinkedIn post text. The author's email is {{email}}. Write a highly personalized, friendly, and concise email subject and body offering our services. Output ONLY valid JSON with 'subject' and 'body' keys.",
+      aiPrompt: "You are an expert recruiter. Analyze the following LinkedIn post text. The author's email is {{email}}. Write a highly personalized, friendly, and concise email subject and body offering our services. CRITICAL: DO NOT use placeholders like [Name], [Company], etc. If you don't know a piece of information, either infer it from the context or rephrase to omit it. Always sign off with a proper name if available, never use placeholders or generic company names for the sender signature. Output ONLY valid JSON with 'subject' and 'body' keys.",
     },
     batchSendPending: false,
   };

@@ -76,7 +76,7 @@ async function runAutomailJobs(supabase) {
       
       const aiProvider = user.ai_provider || "none";
       const aiApiKey = user.ai_api_key;
-      const aiPrompt = user.ai_prompt || "You are an expert recruiter. Analyze the POST TEXT. If it's completely irrelevant or doesn't look like a job/hiring post, return {\"skip\": true, \"reason\": \"Irrelevant post\"}. Otherwise, adapt the BASE TEMPLATE to perfectly match the role/requirements described in the POST TEXT (e.g. changing 'DevOps' to the role they are hiring for). Output ONLY valid JSON with 'subject' and 'body' keys (or 'skip' and 'reason').";
+      const aiPrompt = user.ai_prompt || "You are an expert recruiter. Analyze the POST TEXT. If it's completely irrelevant or doesn't look like a job/hiring post, return {\"skip\": true, \"reason\": \"Irrelevant post\"}. Otherwise, adapt the BASE TEMPLATE to perfectly match the role/requirements described in the POST TEXT. CRITICAL: DO NOT use placeholders like [Name], [Company], etc. If you don't know a piece of information, either infer it from the context or rephrase to omit it. Always sign off with a proper name if available in the template, never use placeholders or generic company names for the sender signature. Output ONLY valid JSON with 'subject' and 'body' keys (or 'skip' and 'reason').";
 
       if (!email || !appPassword) {
         console.log(pc.yellow(`[Automail] User ${userId.substring(0, 8)} enabled automail but missing SMTP creds. Skipping.`));

@@ -20,7 +20,7 @@ export function AutomailModal({ config, smtpConfig, templates, sentTodayCount, o
   const [dailyLimit, setDailyLimit] = useState(config.dailyLimit);
   const [aiProvider, setAiProvider] = useState<"none" | "groq" | "openai" | "gemini">(config.aiProvider || "none");
   const [aiApiKey, setAiApiKey] = useState(config.aiApiKey || "");
-  const [aiPrompt, setAiPrompt] = useState(config.aiPrompt || "You are an expert recruiter. Analyze the following LinkedIn post text. The author's email is {{email}}. Write a highly personalized, friendly, and concise email subject and body offering our services. Output ONLY valid JSON with 'subject' and 'body' keys.");
+  const [aiPrompt, setAiPrompt] = useState(config.aiPrompt || "You are an expert recruiter. Analyze the following LinkedIn post text. The author's email is {{email}}. Write a highly personalized, friendly, and concise email subject and body offering our services. CRITICAL: DO NOT use placeholders like [Name], [Company], etc. If you don't know a piece of information, either infer it from the context or rephrase to omit it. Always sign off with a proper name if available, never use placeholders or generic company names for the sender signature. Output ONLY valid JSON with 'subject' and 'body' keys.");
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
 
