@@ -45,6 +45,11 @@ export default function RootLayout({
               <a href="https://viddr.ismailabbasi.qzz.io" target="_blank" rel="noopener noreferrer" className="hover:text-gray-900 transition-colors">Viddr Web</a>
             </div>
           </div>
+          <div className="container mx-auto px-4 mt-4 text-center">
+            <p className="text-[10px] text-gray-400 opacity-60 max-w-3xl mx-auto">
+              Disclaimer & Privacy: This tool is provided "as is" without warranties of any kind. Any use of this platform for automated messaging or email sending is strictly at your own risk. The developer assumes no liability for account bans, data loss, or misuse of this software.
+            </p>
+          </div>
         </footer>
 
         <Toaster position="bottom-right" containerStyle={{ zIndex: 999999 }} />
