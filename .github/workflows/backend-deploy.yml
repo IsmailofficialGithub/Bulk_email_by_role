@@ -6,7 +6,7 @@ on:
       - master
       - main
     paths:
-      - 'backend/**'
+      - "backend/**"
   workflow_dispatch: # Allows manual trigger from the Actions tab
 
 jobs:
@@ -28,17 +28,17 @@ jobs:
           script: |
             # Use sudo -S to read the password from standard input
             echo "$ROOT_PASS" | sudo -S bash -c '
-              echo "Moving to project directory..."
-              cd /srv/ismail_data/auto_apply_linkedin
-              
-              echo "Pulling latest changes..."
-              git pull origin master
-              
-              echo "Installing backend dependencies..."
-              cd backend
-              npm i
-              
-              echo "Restarting PM2 process..."
-              # You can replace "all" with your specific pm2 app name if needed (e.g. pm2 restart backend)
-              pm2 restart all
+            echo "Moving to project directory..."
+            cd /srv/ismail_data/auto_apply_linkedin
+
+            echo "Pulling latest changes..."
+            git pull origin master
+
+            echo "Installing backend dependencies..."
+            cd backend
+            npm i
+
+            echo "Restarting PM2 process..."
+            # You can replace "all" with your specific pm2 app name if needed (e.g. pm2 restart backend)
+            pm2 restart all
             '
