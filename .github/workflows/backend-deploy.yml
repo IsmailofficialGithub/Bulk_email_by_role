@@ -24,21 +24,16 @@ jobs:
           port: ${{ secrets.SERVER_PORT }}
           key: ${{ secrets.SERVER_PRIVATE_KEY }}
           passphrase: ${{ secrets.SERVER_KEY_PHASS }}
-          envs: ROOT_PASS
           script: |
-            # Use sudo -S to read the password from standard input
-            echo "$ROOT_PASS" | sudo -S bash -c '
             echo "Moving to project directory..."
             cd /srv/ismail_data/auto_apply_linkedin
-
+            
             echo "Pulling latest changes..."
             git pull origin master
-
+            
             echo "Installing backend dependencies..."
             cd backend
             npm i
-
+            
             echo "Restarting PM2 process..."
-            # You can replace "all" with your specific pm2 app name if needed (e.g. pm2 restart backend)
             pm2 restart all
-            '
