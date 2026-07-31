@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { AutoGrowTextarea } from "@/components/AutoGrowTextarea";
 import { extractEmails } from "@/lib/extractEmails";
 import {
@@ -51,6 +51,20 @@ export function RecipientManager({
   const [visibleCount, setVisibleCount] = useState(50);
   
   const [hydratedTitle, setHydratedTitle] = useState(false);
+  const observerTarget = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount((prev) => prev + 50);
+        }
+      },
+      { threshold: 0.1, rootMargin: '200px' }
+    );
+    if (observerTarget.current) observer.observe(observerTarget.current);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (hydratedTitle) return;
@@ -87,12 +101,7 @@ export function RecipientManager({
 
   const visibleRecipients = filteredRecipients.slice(0, visibleCount);
 
-  function handleScroll(e: React.UIEvent<HTMLDivElement>) {
-    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-    if (scrollHeight - scrollTop <= clientHeight + 100) {
-      setVisibleCount((c) => Math.min(c + 50, filteredRecipients.length));
-    }
-  }
+
 
   function setDefaultFrom(title: string) {
     const next = title.trim();
@@ -303,7 +312,7 @@ export function RecipientManager({
           </button>
         </div>
 
-        <div className="scroll-area" onScroll={handleScroll} style={{ maxHeight: "400px", overflowY: "auto" }}>
+        <div className="scroll-area" style={{ maxHeight: "400px", overflowY: "auto" }}>
           {visibleRecipients.length > 0 ? (
             <ul className="recipient-list">
               {visibleRecipients.map((r) => (
@@ -372,7 +381,7 @@ export function RecipientManager({
                 </li>
               ))}
               {filteredRecipients.length > visibleCount && (
-                <div style={{ padding: "1rem", textAlign: "center", color: "var(--muted)", fontSize: "0.8rem" }}>
+                <div ref={observerTarget} style={{ padding: "1rem", textAlign: "center", color: "var(--muted)", fontSize: "0.8rem" }}>
                   Scroll down to load more...
                 </div>
               )}

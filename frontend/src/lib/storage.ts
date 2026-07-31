@@ -153,7 +153,8 @@ export async function loadState(userId: string): Promise<PersistedState> {
   const { data: recipients } = await supabase
     .from("automailsend_recipients")
     .select("*")
-    .eq("user_id", userId);
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
   if (recipients) {
     state.recipients = recipients.map((r) => ({
       id: r.id,

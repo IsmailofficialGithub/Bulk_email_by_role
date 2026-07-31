@@ -194,7 +194,7 @@ export default function Home() {
             if (exists) {
               return prev.map(r => r.id === newRow.id ? rowData : r);
             }
-            return [...prev, rowData];
+            return [rowData, ...prev];
           });
         }
       )

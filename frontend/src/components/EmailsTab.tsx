@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { ROLE_LABELS, type Recipient, type Role } from "@/lib/types";
 
 type Props = {
@@ -17,6 +17,21 @@ export function EmailsTab({ recipients, onUpdateStatus }: Props) {
   const [visibleCount, setVisibleCount] = useState(50);
 
   const [filterContactType, setFilterContactType] = useState<string>("all");
+
+  const observerTarget = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount((prev) => prev + 50);
+        }
+      },
+      { threshold: 0.1, rootMargin: '200px' }
+    );
+    if (observerTarget.current) observer.observe(observerTarget.current);
+    return () => observer.disconnect();
+  }, []);
 
   const filteredRecipients = useMemo(() => {
     return recipients.filter((r) => {
@@ -42,12 +57,7 @@ export function EmailsTab({ recipients, onUpdateStatus }: Props) {
 
   const visibleRecipients = filteredRecipients.slice(0, visibleCount);
 
-  function handleScroll(e: React.UIEvent<HTMLDivElement>) {
-    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-    if (scrollHeight - scrollTop <= clientHeight + 100) {
-      setVisibleCount((c) => Math.min(c + 50, filteredRecipients.length));
-    }
-  }
+
 
   return (
     <div className="card" style={{ height: "100%", display: "flex", flexDirection: "column" }}>
@@ -106,8 +116,7 @@ export function EmailsTab({ recipients, onUpdateStatus }: Props) {
       </div>
 
       <div 
-        style={{ flex: 1, overflowY: "auto", padding: "1.5rem", background: "var(--bg-panel)" }} 
-        onScroll={handleScroll}
+        style={{ flex: 1, padding: "1.5rem", background: "var(--bg-panel)" }} 
       >
         {visibleRecipients.length === 0 ? (
           <div style={{ textAlign: "center", padding: "3rem", color: "var(--muted)", fontStyle: "italic" }}>
@@ -203,6 +212,7 @@ export function EmailsTab({ recipients, onUpdateStatus }: Props) {
             </tbody>
           </table>
         )}
+        <div ref={observerTarget} style={{ height: '20px' }}></div>
       </div>
       <div className="card-footer" style={{ padding: "1rem 1.5rem", borderTop: "1px solid var(--line)", color: "var(--muted)", fontSize: "0.85rem", display: "flex", justifyContent: "space-between" }}>
         <span>Showing {visibleRecipients.length} of {filteredRecipients.length} filtered results</span>
