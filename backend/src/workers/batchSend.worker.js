@@ -98,7 +98,16 @@ async function processBatchSendJob(job) {
       .select("*")
       .eq("user_id", user_id);
 
-    let toProcess = (recipients || []).filter(r => !sentKeys.has(`${r.email}::${r.role}`));
+    const uniqueMap = new Map();
+    for (const r of (recipients || [])) {
+      if (!r.email) continue;
+      const key = `${r.email.toLowerCase()}::${r.role}`;
+      if (!sentKeys.has(key) && !uniqueMap.has(key)) {
+        uniqueMap.set(key, r);
+      }
+    }
+    
+    let toProcess = Array.from(uniqueMap.values());
     
     // Apply quota limit
     toProcess = toProcess.slice(0, remainingQuota);

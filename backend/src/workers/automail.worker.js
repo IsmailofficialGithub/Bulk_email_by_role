@@ -102,18 +102,31 @@ async function runAutomailJobs(supabase) {
       }
 
       // 3. Fetch pending recipients
-      const { data: pending, error: pendingErr } = await supabase
+      const { data: rawPending, error: pendingErr } = await supabase
         .from("automailsend_recipients")
         .select("*")
         .eq("user_id", userId)
         .eq("status", "pending")
-        .limit(remainingQuota);
+        .limit(remainingQuota * 3); // fetch extra to account for duplicates
 
       if (pendingErr) {
         console.error(pc.red(`[Automail] Error fetching pending recipients for ${userId}: ${pendingErr.message}`));
         continue;
       }
       
+      const uniquePendingMap = new Map();
+      for (const r of (rawPending || [])) {
+        if (!r.email) {
+           uniquePendingMap.set(`id:${r.id}`, r); // keep ones without email
+           continue;
+        }
+        const key = r.email.toLowerCase();
+        if (!uniquePendingMap.has(key)) {
+          uniquePendingMap.set(key, r);
+        }
+      }
+      const pending = Array.from(uniquePendingMap.values()).slice(0, remainingQuota);
+
       if (!pending || pending.length === 0) {
         continue;
       }
@@ -219,7 +232,7 @@ async function runAutomailJobs(supabase) {
         }
 
         if (shouldSkip) {
-          await supabase.from("automailsend_recipients").update({ status: "failed" }).eq("id", recipient.id);
+          await supabase.from("automailsend_recipients").update({ status: "failed" }).eq("user_id", userId).eq("email", recipient.email);
           await supabase.from("automailsend_sent_log").insert({
             user_id: userId,
             email: recipient.email,
@@ -267,7 +280,8 @@ async function runAutomailJobs(supabase) {
         await supabase
           .from("automailsend_recipients")
           .update({ status })
-          .eq("id", recipient.id);
+          .eq("user_id", userId)
+          .eq("email", recipient.email);
 
         // Log to sent_log
         await supabase

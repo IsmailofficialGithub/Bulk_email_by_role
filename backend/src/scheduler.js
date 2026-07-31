@@ -48,20 +48,34 @@ function startScheduler() {
 
   const automailTickSec = process.env.AUTOMAIL_WORKER_INTERVAL_SEC ? parseInt(process.env.AUTOMAIL_WORKER_INTERVAL_SEC, 10) : 10;
   console.log(pc.green(`🚀 Starting Automail Worker (checking every ${automailTickSec} seconds)...`));
+  let isAutomailRunning = false;
   setInterval(async () => {
+    if (isAutomailRunning) return;
+    isAutomailRunning = true;
     console.log(pc.dim(`[Automail Worker] Checking for pending background emails...`));
-    runAutomailJobs(supabase).catch(err => {
+    try {
+      await runAutomailJobs(supabase);
+    } catch (err) {
       console.error(pc.red(`[Scheduler] Automail worker error: ${err.message}`));
-    });
+    } finally {
+      isAutomailRunning = false;
+    }
   }, automailTickSec * 1000);
 
   const batchTickSec = process.env.BATCH_INTERVAL_SEC ? parseInt(process.env.BATCH_INTERVAL_SEC, 10) : 10;
   console.log(pc.green(`🚀 Starting Batch Send Worker (checking every ${batchTickSec} seconds)...`));
+  let isBatchRunning = false;
   setInterval(async () => {
+    if (isBatchRunning) return;
+    isBatchRunning = true;
     console.log(pc.dim(`[BatchSend Worker] Checking for pending manual batches...`));
-    checkBatchSends().catch(err => {
+    try {
+      await checkBatchSends();
+    } catch (err) {
       console.error(pc.red(`[Scheduler] Batch Send error: ${err.message}`));
-    });
+    } finally {
+      isBatchRunning = false;
+    }
   }, batchTickSec * 1000);
 
   setInterval(async () => {
