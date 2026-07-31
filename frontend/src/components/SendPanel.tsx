@@ -325,6 +325,9 @@ export function SendPanel({
               onChange={(e) => onDelayChange(Number(e.target.value) || 0)}
               disabled={sending}
             />
+            <span style={{ fontSize: "0.8rem", color: "var(--muted)" }}>
+              Recommended: 60-120s to avoid spam bans
+            </span>
           </label>
           <button
             type="button"

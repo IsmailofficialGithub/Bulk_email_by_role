@@ -7,6 +7,12 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function getStartOfDayUTC() {
+  const d = new Date();
+  d.setUTCHours(0, 0, 0, 0);
+  return d.toISOString();
+}
+
 function applyPlaceholders(text, recipient) {
   return text
     .replaceAll("{{title}}", recipient.title || "")
@@ -66,15 +72,39 @@ async function processBatchSendJob(job) {
     
     const sentKeys = new Set((sentLog || []).map(s => `${s.email}::${s.role}`));
 
-    // 3. Fetch pending recipients
+    // 3. Check Daily Quota
+    const dailyLimit = userState.daily_mail_limit || 50;
+    const { count: sentToday, error: countErr } = await supabase
+      .from("automailsend_sent_log")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user_id)
+      .eq("status", "sent")
+      .gte("sent_at", getStartOfDayUTC());
+
+    if (countErr) {
+      console.error(pc.red(`[BatchSend] Error fetching sent count for ${user_id}: ${countErr.message}`));
+      return;
+    }
+
+    const remainingQuota = dailyLimit - (sentToday || 0);
+    if (remainingQuota <= 0) {
+      console.log(pc.yellow(`[BatchSend] User ${user_id} reached daily limit of ${dailyLimit}. Skipping batch send.`));
+      return;
+    }
+
+    // 4. Fetch pending recipients
     const { data: recipients } = await supabase
       .from("automailsend_recipients")
       .select("*")
       .eq("user_id", user_id);
-    const toProcess = (recipients || []).filter(r => !sentKeys.has(`${r.email}::${r.role}`));
+
+    let toProcess = (recipients || []).filter(r => !sentKeys.has(`${r.email}::${r.role}`));
+    
+    // Apply quota limit
+    toProcess = toProcess.slice(0, remainingQuota);
 
     if (toProcess.length === 0) {
-      console.log(pc.green(`[BatchSend] No new emails to send for ${user_id}`));
+      console.log(pc.green(`[BatchSend] No new emails to send for ${user_id} (or quota reached)`));
       return;
     }
 
@@ -167,7 +197,12 @@ async function processBatchSendJob(job) {
         let slept = 0;
         const interval = 1000;
         let cancelled = false;
-        while (slept < delayMs) {
+
+        // Anti-ban Jitter: Randomize delay by +/- 20% to avoid exact, predictable intervals
+        const jitter = Math.random() * 0.4 - 0.2; 
+        const actualDelayMs = delayMs > 0 ? delayMs * (1 + jitter) : 0;
+
+        while (slept < actualDelayMs) {
           await sleep(interval);
           slept += interval;
           const { data: pollState } = await supabase.from("automailsend_app_state").select("batch_send_pending").eq("user_id", user_id).single();

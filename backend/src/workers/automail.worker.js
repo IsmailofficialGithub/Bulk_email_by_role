@@ -282,7 +282,10 @@ async function runAutomailJobs(supabase) {
           });
 
         if (delaySec > 0) {
-          await sleep(delaySec * 1000);
+          // Anti-ban Jitter: Randomize delay by +/- 20%
+          const jitter = Math.random() * 0.4 - 0.2; 
+          const actualDelayMs = (delaySec * 1000) * (1 + jitter);
+          await sleep(actualDelayMs);
         }
       }
       
