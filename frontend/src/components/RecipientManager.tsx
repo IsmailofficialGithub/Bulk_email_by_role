@@ -326,6 +326,20 @@ export function RecipientManager({
                       {r.email && <span className="email" style={{ fontSize: "0.75rem", fontWeight: 600 }}>{r.email}</span>}
                       {r.phone && <span className="phone" style={{ fontSize: "0.75rem", color: "var(--muted)" }}>📞 {r.phone}</span>}
                     </div>
+                    {(r.scraped_at || r.source_url) && (
+                      <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginTop: "2px" }}>
+                        {r.scraped_at && <span style={{ fontSize: "0.65rem", color: "var(--muted)" }}>Scraped: {new Date(r.scraped_at).toLocaleString()}</span>}
+                        {r.source_url && (
+                          <div style={{ display: "flex", gap: "0.25rem" }}>
+                            {r.source_url.split(',').map((url, i) => (
+                              <a key={i} href={url.trim()} target="_blank" rel="noopener noreferrer" style={{ fontSize: "0.65rem", color: "var(--accent)", textDecoration: "underline" }}>
+                                [Post {i + 1}]
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div style={{ flex: "0 0 auto", display: "flex", gap: "0.5rem", alignItems: "center" }}>

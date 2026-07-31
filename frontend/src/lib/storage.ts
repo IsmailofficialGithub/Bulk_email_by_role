@@ -164,6 +164,8 @@ export async function loadState(userId: string): Promise<PersistedState> {
       status: r.status || "pending",
       phone_status: r.phone_status || "pending",
       source: r.source || "auto_fetch",
+      source_url: r.source_url,
+      scraped_at: r.scraped_at,
     }));
   }
 

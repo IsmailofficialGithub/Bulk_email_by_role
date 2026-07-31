@@ -23,6 +23,8 @@ export type Recipient = {
   status?: "pending" | "sent" | "failed";
   phone_status?: "pending" | "sent" | "wrong_number";
   source?: "auto_fetch" | "manual";
+  source_url?: string;
+  scraped_at?: string;
 };
 
 export type Attachment = {

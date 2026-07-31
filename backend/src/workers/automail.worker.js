@@ -7,7 +7,8 @@ async function generateAiPersonalizedEmail(provider, apiKey, promptTemplate, rec
   const prompt = applyPlaceholders(promptTemplate, recipient) 
     + "\n\n--- BASE TEMPLATE SUBJECT ---\n" + baseTemplate.subject
     + "\n\n--- BASE TEMPLATE BODY ---\n" + baseTemplate.content
-    + "\n\n--- POST TEXT ---\n" + (contextText || "No context provided.");
+    + "\n\n--- POST TEXT ---\n" + (contextText || "No context provided.")
+    + (recipient.source_url ? "\n\n--- SOURCE URL(S) ---\n" + recipient.source_url : "");
   
   if (provider === "openai" || provider === "groq") {
     const url = provider === "openai" 

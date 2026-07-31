@@ -76,7 +76,11 @@ function extractInitialContacts(rawStr) {
   }
   const uniquePhones = [...new Set(candidatePhones.map(cleanPhoneNumber).filter(Boolean))];
 
-  return { emails: uniqueEmails, phones: uniquePhones, contextText: cleanText.substring(0, 5000) };
+  const urlMatches = cleanText.match(/"postSlugUrl"\s*:\s*"([^"]+)"/g) || [];
+  const uniqueUrls = [...new Set(urlMatches.map(m => m.match(/"postSlugUrl"\s*:\s*"([^"]+)"/)[1]))];
+  const source_urls = uniqueUrls.join(", ");
+
+  return { emails: uniqueEmails, phones: uniquePhones, source_urls, contextText: cleanText.substring(0, 5000) };
 }
 
 function extractPaginatedContacts(rawStr) {
@@ -118,7 +122,11 @@ function extractPaginatedContacts(rawStr) {
       })
   )];
 
-  return { emails, phones: [...new Set([...wa, ...phones])], contextText: text.substring(0, 5000) };
+  const urlMatches = cleanText.match(/"postSlugUrl"\s*:\s*"([^"]+)"/g) || [];
+  const uniqueUrls = [...new Set(urlMatches.map(m => m.match(/"postSlugUrl"\s*:\s*"([^"]+)"/)[1]))];
+  const source_urls = uniqueUrls.join(", ");
+
+  return { emails, phones: [...new Set([...wa, ...phones])], source_urls, contextText: text.substring(0, 5000) };
 }
 
 module.exports = {
