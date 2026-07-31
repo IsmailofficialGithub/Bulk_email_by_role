@@ -131,42 +131,101 @@ export function LandingPage() {
         </FadeIn>
       </section>
 
-      {/* Feature Grid to add more height and value */}
-      <section className="py-24 px-6 bg-white">
+      {/* Feature Grid */}
+      <section className="py-24 px-6 bg-white relative">
+        <div className="absolute inset-0 bg-blue-50/50 skew-y-3 -z-10 transform origin-top-left"></div>
         <div className="max-w-6xl mx-auto">
           <FadeIn>
             <div className="text-center mb-16">
               <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mb-4">
-                Everything you need to succeed
+                Powerful Automation at Your Fingertips
               </h2>
               <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                Viddr replaces three different software subscriptions. It does the prospecting, the writing, and the sending, all in one platform.
+                Viddr connects directly to LinkedIn and your inbox to automate the entire outreach pipeline, from finding recruiters to writing the emails.
               </p>
             </div>
           </FadeIn>
-          <div className="grid md:grid-cols-3 gap-8">
-            <FadeIn delay={100} className="p-8 bg-slate-50 rounded-3xl border border-slate-100 hover:shadow-lg transition-shadow">
-              <div className="w-14 h-14 bg-blue-100 text-blue-600 flex items-center justify-center rounded-2xl mb-6">
-                <Search className="w-7 h-7" />
+          
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <FadeIn delay={100} className="p-8 bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all">
+              <div className="w-12 h-12 bg-blue-100 text-blue-600 flex items-center justify-center rounded-2xl mb-6">
+                <Search className="w-6 h-6" />
               </div>
-              <h3 className="text-xl font-bold mb-3">Auto Lead Scraper</h3>
-              <p className="text-gray-600">Turn on our built-in LinkedIn scraper to automatically pull in highly qualified leads without doing manual research.</p>
+              <h3 className="text-xl font-bold mb-3">LinkedIn Keyword Scraper</h3>
+              <p className="text-gray-600 text-sm">Automatically search LinkedIn for specific keywords and instantly extract targeted profiles and emails into your CRM.</p>
             </FadeIn>
-            <FadeIn delay={200} className="p-8 bg-slate-50 rounded-3xl border border-slate-100 hover:shadow-lg transition-shadow">
-              <div className="w-14 h-14 bg-blue-100 text-blue-600 flex items-center justify-center rounded-2xl mb-6">
-                <FileText className="w-7 h-7" />
+            
+            <FadeIn delay={200} className="p-8 bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all">
+              <div className="w-12 h-12 bg-blue-100 text-blue-600 flex items-center justify-center rounded-2xl mb-6">
+                <UserPlus className="w-6 h-6" />
               </div>
-              <h3 className="text-xl font-bold mb-3">AI Ghostwriter</h3>
-              <p className="text-gray-600">Our Artificial Intelligence analyzes your leads and writes highly personalized, role-specific emails that get replies.</p>
+              <h3 className="text-xl font-bold mb-3">Auto-Extract Recruiters</h3>
+              <p className="text-gray-600 text-sm">Find hiring managers and recruiters from any company page. Let the system pull their contact info while you sleep.</p>
             </FadeIn>
-            <FadeIn delay={300} className="p-8 bg-slate-50 rounded-3xl border border-slate-100 hover:shadow-lg transition-shadow">
-              <div className="w-14 h-14 bg-blue-100 text-blue-600 flex items-center justify-center rounded-2xl mb-6">
-                <Send className="w-7 h-7" />
+            
+            <FadeIn delay={300} className="p-8 bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all">
+              <div className="w-12 h-12 bg-blue-100 text-blue-600 flex items-center justify-center rounded-2xl mb-6">
+                <FileText className="w-6 h-6" />
               </div>
-              <h3 className="text-xl font-bold mb-3">Background Sending</h3>
-              <p className="text-gray-600">Press start and close the tab. Viddr will connect to your email and slowly send out messages mimicking human behavior to avoid spam filters.</p>
+              <h3 className="text-xl font-bold mb-3">AI Mail Sender</h3>
+              <p className="text-gray-600 text-sm">Our AI analyzes every single LinkedIn profile and writes a highly personalized, custom email for each person automatically.</p>
+            </FadeIn>
+            
+            <FadeIn delay={400} className="p-8 bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all">
+              <div className="w-12 h-12 bg-blue-100 text-blue-600 flex items-center justify-center rounded-2xl mb-6">
+                <Send className="w-6 h-6" />
+              </div>
+              <h3 className="text-xl font-bold mb-3">Auto Job Apply</h3>
+              <p className="text-gray-600 text-sm">Don't waste time clicking apply. Automatically submit applications and send follow-up emails to the hiring team in the background.</p>
             </FadeIn>
           </div>
+          
+          {/* LinkedIn Image Showcase */}
+          <FadeIn delay={500}>
+            <div className="mt-16 bg-slate-900 rounded-3xl p-8 md:p-12 overflow-hidden relative shadow-2xl">
+              <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/20 rounded-full blur-[100px]"></div>
+              <div className="md:flex items-center gap-12 relative z-10">
+                <div className="md:w-1/2 mb-8 md:mb-0">
+                  <h3 className="text-3xl font-bold text-white mb-4">Deep LinkedIn Integration</h3>
+                  <p className="text-blue-200 text-lg">
+                    Viddr runs invisibly alongside your LinkedIn session. We automatically fetch cookies, search queries, and profiles without requiring complex API keys or manual data entry.
+                  </p>
+                </div>
+                <div className="md:w-1/2">
+                  <div className="bg-white/10 backdrop-blur-sm rounded-xl p-2 border border-white/20 shadow-2xl transform rotate-2 hover:rotate-0 transition-transform">
+                    {/* Dummy LinkedIn Image UI */}
+                    <div className="bg-white rounded-lg overflow-hidden">
+                      <div className="bg-[#0077b5] text-white p-3 flex items-center gap-3">
+                        <div className="font-bold text-xl ml-2 tracking-tighter">in</div>
+                        <div className="bg-white/20 h-8 flex-1 rounded text-sm px-3 flex items-center">Search "Software Engineer"</div>
+                      </div>
+                      <div className="p-4 flex gap-4 border-b border-gray-100">
+                        <div className="w-16 h-16 bg-gray-200 rounded-full shrink-0"></div>
+                        <div>
+                          <div className="h-5 w-40 bg-gray-800 rounded mb-2"></div>
+                          <div className="h-3 w-60 bg-gray-400 rounded mb-2"></div>
+                          <div className="h-3 w-32 bg-gray-300 rounded"></div>
+                        </div>
+                        <div className="ml-auto">
+                          <div className="bg-blue-600 text-white text-xs px-3 py-1.5 rounded-full font-bold shadow-lg shadow-blue-500/50 flex items-center gap-1">
+                            <Zap className="w-3 h-3" /> Auto-Extracting...
+                          </div>
+                        </div>
+                      </div>
+                      <div className="p-4 flex gap-4">
+                        <div className="w-16 h-16 bg-gray-200 rounded-full shrink-0"></div>
+                        <div>
+                          <div className="h-5 w-32 bg-gray-800 rounded mb-2"></div>
+                          <div className="h-3 w-48 bg-gray-400 rounded mb-2"></div>
+                          <div className="h-3 w-24 bg-gray-300 rounded"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </FadeIn>
         </div>
       </section>
 
