@@ -25,7 +25,7 @@ jobs:
           key: ${{ secrets.SERVER_PRIVATE_KEY }}
           envs: ROOT_PASS
           script: |
-            echo "$ROOT_PASS" | sudo -S bash -c '
+            printf "%s\n" "$ROOT_PASS" | sudo -S -p "" bash -c '
               echo "Moving to project directory..."
               cd /srv/ismail_data/auto_apply_linkedin
               
