@@ -56,11 +56,19 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
   
   useEffect(() => {
     setMounted(true);
-    // Check if extension injected the marker
-    const hasMarker = document.querySelector('meta[name="automail-extension-installed"]');
-    if (hasMarker) {
-      setExtensionInstalled(true);
-    }
+    
+    const checkExtension = () => {
+      const hasMarker = document.querySelector('meta[name="automail-extension-installed"]');
+      if (hasMarker) {
+        setExtensionInstalled(true);
+      }
+    };
+    
+    // Check initially and then poll every second in case they install it while the modal is open
+    checkExtension();
+    const interval = setInterval(checkExtension, 1000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   // Regex validation
@@ -187,7 +195,12 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
   }
   
   function handleAutoDetect() {
-    if (!extensionInstalled) {
+    const isInstalledNow = !!document.querySelector('meta[name="automail-extension-installed"]');
+    if (isInstalledNow && !extensionInstalled) {
+      setExtensionInstalled(true);
+    }
+    
+    if (!isInstalledNow) {
       toast.error("Extension not detected. Please install the Automail LinkedIn Cookie Extractor first.");
       return;
     }
