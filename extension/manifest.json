@@ -10,7 +10,8 @@
     "*://*.linkedin.com/*",
     "http://localhost/*",
     "http://127.0.0.1/*",
-    "https://bulk-email.ismailabbasi.qzz.io/*"
+    "https://bulk-email.ismailabbasi.qzz.io/*",
+    "https://viddr.ismailabbasi.qzz.io/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -20,7 +21,8 @@
       "matches": [
         "http://localhost/*",
         "http://127.0.0.1/*",
-        "https://bulk-email.ismailabbasi.qzz.io/*"
+        "https://bulk-email.ismailabbasi.qzz.io/*",
+        "https://viddr.ismailabbasi.qzz.io/*"
       ],
       "js": ["content.js"],
       "run_at": "document_idle"
