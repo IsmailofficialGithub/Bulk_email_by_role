@@ -136,6 +136,20 @@ export function EmailsTab({ recipients, onUpdateStatus }: Props) {
                       {ROLE_LABELS[r.role]}
                     </div>
                     {r.title && <div style={{ fontSize: "0.85rem", color: "var(--muted)", marginTop: "0.4rem" }}>{r.title}</div>}
+                    {(r.scraped_at || r.source_url) && (
+                      <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginTop: "0.4rem" }}>
+                        {r.scraped_at && <span style={{ fontSize: "0.65rem", color: "var(--muted)" }}>Scraped: {new Date(r.scraped_at).toLocaleDateString()}</span>}
+                        {r.source_url && (
+                          <div style={{ display: "flex", gap: "0.25rem", flexWrap: "wrap" }}>
+                            {r.source_url.split(',').map((url, i) => (
+                              <a key={i} href={url.trim()} target="_blank" rel="noopener noreferrer" style={{ fontSize: "0.65rem", color: "var(--accent)", textDecoration: "underline" }}>
+                                [Post {i + 1}]
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </td>
                   <td style={{ padding: "1rem 0.75rem" }}>
                     {r.status === "sent" ? (

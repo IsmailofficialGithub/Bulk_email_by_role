@@ -59,6 +59,7 @@ function extractInitialContacts(rawStr) {
   const cleanText = unescapePayload(rawStr + ' ' + decodedBuffers);
   
   const foundEmails = [];
+  MAILTO_RE.lastIndex = 0;
   let mailtoMatch;
   while ((mailtoMatch = MAILTO_RE.exec(cleanText)) !== null) {
     foundEmails.push(mailtoMatch[1].toLowerCase());
@@ -70,6 +71,7 @@ function extractInitialContacts(rawStr) {
   const candidatePhones = [];
   const localMatches = cleanText.match(LOCAL_MOBILE_RE) || [];
   candidatePhones.push(...localMatches);
+  CONTEXT_PHONE_RE.lastIndex = 0;
   let contextMatch;
   while ((contextMatch = CONTEXT_PHONE_RE.exec(cleanText)) !== null) {
     candidatePhones.push(contextMatch[0]);
