@@ -106,6 +106,7 @@ function startScheduler() {
           .from("automailsend_execution_logs")
           .select("created_at")
           .eq("user_id", user.user_id)
+          .contains("details", { jobType: "scraper" })
           .order("created_at", { ascending: false })
           .limit(1);
 
