@@ -1,4 +1,5 @@
 User-agent: *
 Allow: /
+Disallow: /automail-extension.zip
 
 Sitemap: https://viddr.ismailabbasi.qzz.io/sitemap.xml
