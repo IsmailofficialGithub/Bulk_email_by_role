@@ -19,9 +19,9 @@ async function processJobLogic(job, logger) {
 
   let mappings = [];
   try {
-    const parsed = JSON.parse(auto_fetch_keywords);
-    if (Array.isArray(parsed)) mappings = parsed;
-    else throw new Error("not array");
+    const parsed = JSON.parse(auto_fetch_keywords || "[]");
+    if (Array.isArray(parsed) && parsed.length > 0) mappings = parsed;
+    else throw new Error("not array or empty");
   } catch {
     if (auto_fetch_keywords && auto_fetch_keywords.trim()) {
       mappings = auto_fetch_keywords.split(",").map(k => ({
@@ -32,10 +32,11 @@ async function processJobLogic(job, logger) {
   }
 
   if (mappings.length === 0) {
-    await logger.append("WARN", "No keywords provided. Skipping scrape.");
+    // Silently skip if no keywords to prevent log flooding
     return { inserted: 0, emails: [], phones: [] };
   }
 
+  // We have keywords, so we can now initialize the logger and safely use it
   await logger.append("INFO", `Starting auto-apply fetch for ${mappings.length} keywords`);
 
   let headers;
@@ -281,6 +282,21 @@ async function processJobLogic(job, logger) {
 
 async function processJob(job) {
   const { user_id, auto_fetch_keywords } = job.data;
+  
+  // We only start the logger immediately if we know keywords exist, 
+  // but to keep the architecture clean, we'll let processJobLogic handle the appending.
+  // Wait, processJobLogic expects a logger. 
+  // If we return early from processJobLogic, we should handle the logger.
+  // Actually, we can check keywords here before creating the logger.
+  
+  let hasKeywords = false;
+  if (auto_fetch_keywords && auto_fetch_keywords.trim() && auto_fetch_keywords !== "[]") {
+    hasKeywords = true;
+  }
+  
+  if (!hasKeywords) {
+    return { inserted: 0, emails: [], phones: [] };
+  }
   
   const logger = new ExecutionLogger(user_id, "scraper");
 

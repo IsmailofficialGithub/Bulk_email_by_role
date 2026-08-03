@@ -72,7 +72,7 @@ async function runAutomailJobs(supabase) {
       const userId = user.user_id;
       const email = user.smtp_email;
       const appPassword = user.smtp_password;
-      const limit = user.daily_mail_limit || 50;
+      const limit = parseInt(user.daily_mail_limit, 10) || 50;
       const defaultInterval = process.env.AUTOMAIL_WORKER_INTERVAL_SEC ? parseInt(process.env.AUTOMAIL_WORKER_INTERVAL_SEC, 10) : 3;
       const delaySec = user.send_delay_sec || defaultInterval;
       
@@ -85,9 +85,8 @@ async function runAutomailJobs(supabase) {
         continue;
       }
 
-      // Initialize execution logger for this user
-      const logger = new ExecutionLogger(userId, "automail");
-      await logger.start(`Starting Automail batch process...`);
+      // Delay logger creation until we are sure there is work to do
+
 
       // 2. Determine how many emails they can send today
       const { count: sentToday, error: countErr } = await supabase
@@ -98,13 +97,14 @@ async function runAutomailJobs(supabase) {
         .gte("sent_at", getStartOfDayUTC());
 
       if (countErr) {
-        await logger.finish("error", `Error fetching sent count: ${countErr.message}`);
+        console.error(pc.red(`Error fetching sent count for user ${userId}: ${countErr.message}`));
         continue;
       }
 
       const remainingQuota = limit - (sentToday || 0);
+      
       if (remainingQuota <= 0) {
-        await logger.finish("success", "Daily mail limit reached.");
+        // Silently skip to prevent log flooding every 3 seconds
         continue;
       }
 
@@ -117,7 +117,7 @@ async function runAutomailJobs(supabase) {
         .limit(remainingQuota * 3); // fetch extra to account for duplicates
 
       if (pendingErr) {
-        await logger.finish("error", `Error fetching pending recipients: ${pendingErr.message}`);
+        console.error(pc.red(`Error fetching pending recipients for user ${userId}: ${pendingErr.message}`));
         continue;
       }
       
@@ -135,9 +135,14 @@ async function runAutomailJobs(supabase) {
       const pending = Array.from(uniquePendingMap.values()).slice(0, remainingQuota);
 
       if (!pending || pending.length === 0) {
-        await logger.finish("success", "No pending emails to send.");
+        // Silently skip if no emails to send
         continue;
       }
+
+      // We have work to do, initialize the logger
+      const logger = new ExecutionLogger(userId, "automail");
+      await logger.start(`Starting Automail batch process...`);
+      await logger.append("INFO", `Checking Quota - Limit: ${limit}, Sent Today: ${sentToday || 0}, Remaining: ${remainingQuota}`);
 
       await logger.append("INFO", `Quota: ${remainingQuota}, Pending: ${pending.length}`);
 
