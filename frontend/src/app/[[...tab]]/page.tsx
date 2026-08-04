@@ -100,6 +100,8 @@ export default function Home() {
   
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const sentTodayCount = sentLog.filter(s => s.status === 'sent' && new Date(s.sentAt).toDateString() === new Date().toDateString()).length;
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
@@ -444,6 +446,40 @@ export default function Home() {
       </aside>
 
       <main className="main-content">
+        <header style={{ 
+          padding: '1rem 2rem', 
+          background: 'var(--bg-elevated)', 
+          borderBottom: '1px solid var(--line)', 
+          display: 'flex', 
+          justifyContent: 'flex-end', 
+          alignItems: 'center',
+          position: 'sticky',
+          top: 0,
+          zIndex: 10
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.9rem' }}>
+            <span style={{ color: 'var(--muted)' }}>Daily Mail Limit:</span>
+            <div style={{ 
+              background: 'var(--bg)', 
+              padding: '4px 12px', 
+              borderRadius: '999px', 
+              border: '1px solid var(--line)', 
+              fontWeight: 600, 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '6px' 
+            }}>
+              <div style={{ 
+                width: '8px', 
+                height: '8px', 
+                borderRadius: '50%', 
+                background: sentTodayCount >= automail.dailyLimit ? '#ef4444' : '#10b981' 
+              }}></div>
+              {sentTodayCount} / {automail.dailyLimit}
+            </div>
+          </div>
+        </header>
+
         <div className="board">
           {activeTab === 'contacts' && (
             <RecipientManager
@@ -608,7 +644,7 @@ export default function Home() {
               config={automail}
               smtpConfig={config}
               templates={templates}
-              sentTodayCount={sentLog.filter(s => s.status === 'sent' && new Date(s.sentAt).toDateString() === new Date().toDateString()).length}
+              sentTodayCount={sentTodayCount}
               onSave={setAutomail}
               onClose={() => setShowAutomailModal(false)}
             />
