@@ -182,12 +182,27 @@ async function processBatchSendJob(job) {
       const fromName = config.fromName;
 
       try {
+        const isHtml = /<html|<body|<!DOCTYPE|<div|<p>|<br|<a\s/i.test(content);
+        
+        let finalHtml = "";
+        let finalText = "";
+        if (isHtml) {
+          finalHtml = content;
+          finalText = content.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+                             .replace(/<[^>]+>/g, '\n')
+                             .replace(/\n\s*\n/g, '\n')
+                             .trim();
+        } else {
+          finalText = content;
+          finalHtml = content.replace(/\n/g, "<br>");
+        }
+
         await transporter.sendMail({
           from: fromName ? `"${fromName}" <${fromEmail}>` : fromEmail,
           to: recipient.email,
           subject,
-          text: content,
-          html: content.replace(/\n/g, "<br>"),
+          text: finalText,
+          html: finalHtml,
           attachments: (tpl.files || []).map(a => ({
             filename: a.name,
             path: a.url,

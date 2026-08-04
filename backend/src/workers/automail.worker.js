@@ -228,11 +228,27 @@ async function runAutomailJobs(supabase) {
         const fromEmail = config.fromEmail || email;
         const fromName = config.fromName;
         
+        const isHtml = /<html|<body|<!DOCTYPE|<div|<p>|<br|<a\s/i.test(text);
+        
+        let finalHtml = "";
+        let finalText = "";
+        if (isHtml) {
+          finalHtml = text;
+          finalText = text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+                          .replace(/<[^>]+>/g, '\n')
+                          .replace(/\n\s*\n/g, '\n')
+                          .trim();
+        } else {
+          finalText = text;
+          finalHtml = text.replace(/\n/g, "<br>");
+        }
+
         const mailOptions = {
           from: fromName ? `"${fromName}" <${fromEmail}>` : fromEmail,
           to: recipient.email,
           subject,
-          text,
+          text: finalText,
+          html: finalHtml,
         };
 
         if (template.files && template.files.length > 0) {
