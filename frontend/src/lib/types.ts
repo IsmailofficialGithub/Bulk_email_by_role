@@ -90,7 +90,7 @@ export type AutoFetchConfig = {
 export type AutomailConfig = {
   enabled: boolean;
   dailyLimit: number;
-  aiProvider: "none" | "groq" | "openai" | "gemini";
+  aiProvider: string;
   aiApiKey: string;
   aiPrompt: string;
 };

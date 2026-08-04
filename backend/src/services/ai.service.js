@@ -35,11 +35,16 @@ async function generateAiPersonalizedEmail(provider, apiKey, promptTemplate, rec
 
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      if (provider === "openai" || provider === "groq") {
-        const url = provider === "openai" 
-          ? (process.env.OPENAI_API_URL || "https://api.openai.com/v1/chat/completions")
-          : (process.env.GROQ_API_URL || "https://api.groq.com/openai/v1/chat/completions");
-        const model = provider === "openai" ? "gpt-4o-mini" : "llama-3.1-8b-instant";
+      if (provider.startsWith("openai") || provider.startsWith("groq")) {
+        const isGroq = provider.startsWith("groq");
+        const url = isGroq 
+          ? (process.env.GROQ_API_URL || "https://api.groq.com/openai/v1/chat/completions")
+          : (process.env.OPENAI_API_URL || "https://api.openai.com/v1/chat/completions");
+        
+        let model = isGroq ? "llama-3.1-8b-instant" : "gpt-4o-mini";
+        if (isGroq && provider.includes(":")) {
+          model = provider.split(":")[1];
+        }
         
         const res = await axios.post(url, {
           model,

@@ -18,7 +18,9 @@ type Props = {
 export function AutomailModal({ config, smtpConfig, templates, sentTodayCount, onSave, onClose }: Props) {
   const [enabled, setEnabled] = useState(config.enabled);
   const [dailyLimit, setDailyLimit] = useState(config.dailyLimit);
-  const [aiProvider, setAiProvider] = useState<"none" | "groq" | "openai" | "gemini">(config.aiProvider || "none");
+  const [aiProvider, setAiProvider] = useState<string>(
+    config.aiProvider === "groq" ? "groq:llama-3.1-8b-instant" : (config.aiProvider || "none")
+  );
   const [aiApiKey, setAiApiKey] = useState(config.aiApiKey || "");
   const [aiPrompt, setAiPrompt] = useState(config.aiPrompt || "You are an expert recruiter. Analyze the following LinkedIn post text. The author's email is {{email}}. Write a highly personalized, friendly, and concise email subject and body offering our services. CRITICAL: DO NOT use placeholders like [Name], [Company], etc. If you don't know a piece of information, either infer it from the context or rephrase to omit it. Always sign off with a proper name if available, never use placeholders or generic company names for the sender signature. Output ONLY valid JSON with 'subject' and 'body' keys.");
   const [loading, setLoading] = useState(false);
@@ -190,7 +192,10 @@ export function AutomailModal({ config, smtpConfig, templates, sentTodayCount, o
                 >
                   <option value="none">None (Use Default Templates)</option>
                   <option value="openai">OpenAI (ChatGPT)</option>
-                  <option value="groq">Groq (Llama3, etc.)</option>
+                  <option value="groq:llama-3.1-8b-instant">Groq (Llama 3.1 8B)</option>
+                  <option value="groq:llama3-70b-8192">Groq (Llama 3 70B)</option>
+                  <option value="groq:mixtral-8x7b-32768">Groq (Mixtral 8x7B)</option>
+                  <option value="groq:gemma2-9b-it">Groq (Gemma 2 9B)</option>
                   <option value="gemini">Google Gemini</option>
                 </select>
               </label>
