@@ -51,6 +51,8 @@ export type SmtpConfig = {
   host?: string;
   port?: number;
   configured: boolean;
+  batchMode?: "ai" | "template";
+  batchTargetIds?: string[];
 };
 
 export type SendResult = {
@@ -65,6 +67,8 @@ export type SentRecord = {
   email: string;
   role: Role;
   title: string;
+  subject?: string;
+  body?: string;
   status: "sent" | "failed" | "skipped";
   error?: string;
   sentAt: string;

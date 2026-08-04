@@ -81,6 +81,7 @@ export function SendPanel({
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOrder, setSortOrder] = useState<"none" | "asc" | "desc">("none");
   const [expandedErrors, setExpandedErrors] = useState<Set<string>>(new Set());
+  const [previewEmail, setPreviewEmail] = useState<SentRecord | null>(null);
   const abortRef = useRef(false);
   const initialSentCount = useRef(0);
   const expectedTotal = useRef(0);
@@ -168,7 +169,7 @@ export function SendPanel({
 
   async function sendList(
     list: Recipient[],
-    options: { force: boolean; label: string }
+    options: { force: boolean; label: string; mode: "ai" | "template" }
   ) {
     if (!config.configured) {
       setStatus("Verify SMTP first.");
@@ -214,9 +215,12 @@ export function SendPanel({
       initialSentCount.current = sentLog.length;
       expectedTotal.current = toProcess.length;
 
+      // Update config with batchMode and batchTargetIds
+      const updatedConfig = { ...config, batchMode: options.mode, batchTargetIds: list.length === recipients.length ? null : list.map(r => r.id) };
+
       const { error } = await supabase
         .from("automailsend_app_state")
-        .update({ batch_send_pending: true, batch_send_processing: false })
+        .update({ batch_send_pending: true, batch_send_processing: false, config: updatedConfig })
         .eq("user_id", userId);
 
       if (error) {
@@ -329,32 +333,61 @@ export function SendPanel({
               Recommended: 60-120s to avoid spam bans
             </span>
           </label>
-          <button
-            type="button"
-            className="btn primary large"
-            onClick={() =>
-              sendList(pending, { force: false, label: "Sending all pending" })
-            }
-            disabled={sending || pending.length === 0}
-          >
-            {sending
-              ? `${progress.current}/${progress.total}`
-              : pending.length === 0 ? "All Emails Sent" : `Send All Pending (${pending.length})`}
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <button
+              type="button"
+              className="btn primary large"
+              onClick={() =>
+                sendList(pending, { force: false, label: "Sending all pending (Template)", mode: "template" })
+              }
+              disabled={sending || pending.length === 0}
+            >
+              {sending
+                ? `${progress.current}/${progress.total}`
+                : pending.length === 0 ? "All Sent" : `Send All (${pending.length}) - Template`}
+            </button>
+            <button
+              type="button"
+              className="btn large"
+              style={{ background: 'var(--accent)', color: '#fff', border: 'none' }}
+              onClick={() =>
+                sendList(pending, { force: false, label: "Sending all pending (AI)", mode: "ai" })
+              }
+              disabled={sending || pending.length === 0 || !automail.enabled}
+              title={automail.enabled ? "Send personalized emails with AI" : "Enable AI Automail in Settings first"}
+            >
+              {sending
+                ? `${progress.current}/${progress.total}`
+                : pending.length === 0 ? "All Sent" : `Send All (${pending.length}) - AI`}
+            </button>
+          </div>
         </div>
 
         <div className="card-header actions-bar">
-          <button
-            type="button"
-            className="btn large"
-            onClick={() =>
-              sendList(selectedPending, { force: false, label: "Sending selected" })
-            }
-            disabled={sending || selectedPending.length === 0}
-            style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}
-          >
-            Send Selected ({selectedPending.length})
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button
+              type="button"
+              className="btn large"
+              onClick={() =>
+                sendList(selectedPending, { force: false, label: "Sending selected", mode: "template" })
+              }
+              disabled={sending || selectedPending.length === 0}
+              style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}
+            >
+              Send Selected ({selectedPending.length})
+            </button>
+            <button
+              type="button"
+              className="btn large"
+              onClick={() =>
+                sendList(selectedPending, { force: false, label: "Sending selected (AI)", mode: "ai" })
+              }
+              disabled={sending || selectedPending.length === 0 || !automail.enabled}
+              style={{ background: 'var(--accent)', color: '#fff', border: 'none' }}
+            >
+              Send Selected (AI)
+            </button>
+          </div>
           <button
             type="button"
             className="btn large"
@@ -362,6 +395,7 @@ export function SendPanel({
               sendList(activeSent, {
                 force: true,
                 label: "Resending",
+                mode: "template"
               })
             }
             disabled={sending || activeSent.length === 0}
@@ -485,7 +519,7 @@ export function SendPanel({
                         className="btn ghost"
                         disabled={sending}
                         onClick={() =>
-                          sendList([r], { force: true, label: "Resending one" })
+                          sendList([r], { force: true, label: "Resending one", mode: "template" })
                         }
                       >
                         Resend
@@ -540,6 +574,20 @@ export function SendPanel({
                           <span className={`badge ${s.status === "failed" ? "danger" : "ok"}`} style={{ marginRight: '0.5rem' }}>
                             {s.status}
                           </span>
+                          {(s.subject || s.body) && (
+                            <button
+                              type="button"
+                              className="btn ghost"
+                              style={{ padding: '0', width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '0.2rem', borderRadius: '50%' }}
+                              onClick={() => setPreviewEmail(s)}
+                              title="Preview email"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                              </svg>
+                            </button>
+                          )}
                           {s.status === "failed" && (
                             <button
                               type="button"
@@ -577,6 +625,31 @@ export function SendPanel({
           </div>
       </div>
       </div>
+      
+      {previewEmail && (
+        <div className="modal-overlay" onClick={() => setPreviewEmail(null)}>
+          <div className="modal" style={{ maxWidth: '600px', width: '90%' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Sent Email Preview</h2>
+              <button className="close-btn" onClick={() => setPreviewEmail(null)}>×</button>
+            </div>
+            <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+              <div style={{ marginBottom: '1rem' }}>
+                <strong style={{ color: 'var(--muted)' }}>To:</strong> {previewEmail.email}
+              </div>
+              <div style={{ marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px solid var(--line)' }}>
+                <strong style={{ color: 'var(--muted)' }}>Subject:</strong> {previewEmail.subject || "(No Subject)"}
+              </div>
+              <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.5, color: 'var(--fg)' }}>
+                {previewEmail.body || "(No Body)"}
+              </div>
+            </div>
+            <div className="modal-footer" style={{ padding: '1rem', borderTop: '1px solid var(--line)', display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="btn" onClick={() => setPreviewEmail(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

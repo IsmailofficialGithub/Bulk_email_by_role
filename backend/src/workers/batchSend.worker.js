@@ -2,6 +2,7 @@ const pc = require("picocolors");
 const nodemailer = require("nodemailer");
 const { supabase } = require("../config/supabase");
 const { decryptPassword } = require("../lib/crypto");
+const { generateAiPersonalizedEmail } = require("../services/ai.service");
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -101,6 +102,11 @@ async function processBatchSendJob(job) {
     const uniqueMap = new Map();
     for (const r of (recipients || [])) {
       if (!r.email) continue;
+      // If target IDs are specified, ignore others
+      if (config.batchTargetIds && Array.isArray(config.batchTargetIds) && config.batchTargetIds.length > 0) {
+        if (!config.batchTargetIds.includes(r.id)) continue;
+      }
+      
       const key = `${r.email.toLowerCase()}::${r.role}`;
       if (!sentKeys.has(key) && !uniqueMap.has(key)) {
         uniqueMap.set(key, r);
@@ -148,8 +154,28 @@ async function processBatchSendJob(job) {
       const tpl = templates[recipient.role];
       if (!tpl) continue;
 
-      const subject = applyPlaceholders(tpl.subject, recipient);
-      const content = applyPlaceholders(tpl.content, recipient);
+      let subject = applyPlaceholders(tpl.subject, recipient);
+      let content = applyPlaceholders(tpl.content, recipient);
+      
+      if (config.batchMode === "ai" && userState.ai_provider && userState.ai_api_key && userState.ai_provider !== "none") {
+        try {
+          const aiContent = await generateAiPersonalizedEmail(userState.ai_provider, userState.ai_api_key, userState.ai_prompt, recipient, recipient.context_text, tpl);
+          if (aiContent && aiContent.skip) {
+            console.log(pc.yellow(`[BatchSend] AI skipped ${recipient.email}: ${aiContent.reason}`));
+            await supabase.from("automailsend_sent_log").insert({
+              user_id, email: recipient.email.toLowerCase(), role: recipient.role, title: recipient.title,
+              subject: subject, body: content, status: "skipped", error_message: aiContent.reason, sent_at: new Date().toISOString()
+            });
+            continue;
+          } else if (aiContent && aiContent.subject && aiContent.body) {
+            subject = aiContent.subject;
+            content = aiContent.body;
+          }
+        } catch (err) {
+          console.error(pc.red(`[BatchSend] AI generation failed for ${recipient.email}: ${err.message}`));
+        }
+      }
+
       const fromEmail = config.fromEmail || config.email;
       const fromName = config.fromName;
 
@@ -173,6 +199,8 @@ async function processBatchSendJob(job) {
           email: recipient.email.toLowerCase(),
           role: recipient.role,
           title: recipient.title,
+          subject: subject,
+          body: content,
           status: "sent",
           sent_at: new Date().toISOString()
         });
@@ -190,6 +218,8 @@ async function processBatchSendJob(job) {
           email: recipient.email.toLowerCase(),
           role: recipient.role,
           title: recipient.title,
+          subject: subject,
+          body: content,
           status: "failed",
           error_message: errMessage,
           sent_at: new Date().toISOString()
