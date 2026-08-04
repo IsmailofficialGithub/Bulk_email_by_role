@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useRef, useEffect } from "react";
 import {
+  AutomailConfig,
   ROLE_LABELS,
   type Recipient,
   type Role,
@@ -25,8 +26,9 @@ type Props = {
   onSendingChange: (sending: boolean) => void;
   sentLog: SentRecord[];
   onSentLogChange: (sentLog: SentRecord[]) => void;
-  automail: import("@/lib/types").AutomailConfig;
-  onAutomailChange: (automail: import("@/lib/types").AutomailConfig) => void;
+  automail: AutomailConfig;
+  onAutomailChange: (automail: AutomailConfig) => void;
+  sentTodayCount: number;
 };
 
 function sleep(ms: number) {
@@ -74,6 +76,7 @@ export function SendPanel({
   onSentLogChange,
   automail,
   onAutomailChange,
+  sentTodayCount
 }: Props) {
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [status, setStatus] = useState("");
@@ -318,6 +321,12 @@ export function SendPanel({
           Successfully sent are skipped · failed remain pending
         </p>
 
+        {sentTodayCount >= automail.dailyLimit && (
+          <div style={{ padding: '0.75rem', background: 'var(--danger-light)', color: 'var(--danger)', borderRadius: '6px', marginBottom: '1.5rem', fontSize: '0.9rem', textAlign: 'center' }}>
+            You have reached your daily limit of <strong>{automail.dailyLimit}</strong> emails. Background and manual sending are paused until tomorrow.
+          </div>
+        )}
+
         <div className="add-row">
           <label className="field grow">
             <span>Delay (sec)</span>
@@ -340,7 +349,7 @@ export function SendPanel({
               onClick={() =>
                 sendList(pending, { force: false, label: "Sending all pending (Template)", mode: "template" })
               }
-              disabled={sending || pending.length === 0}
+              disabled={sending || pending.length === 0 || sentTodayCount >= automail.dailyLimit}
             >
               {sending
                 ? `${progress.current}/${progress.total}`
@@ -349,11 +358,11 @@ export function SendPanel({
             <button
               type="button"
               className="btn large"
-              style={{ background: 'var(--accent)', color: '#fff', border: 'none' }}
+              style={{ background: 'var(--accent)', color: '#fff', border: 'none', opacity: (!automail.enabled || sentTodayCount >= automail.dailyLimit) ? 0.6 : 1 }}
               onClick={() =>
                 sendList(pending, { force: false, label: "Sending all pending (AI)", mode: "ai" })
               }
-              disabled={sending || pending.length === 0 || !automail.enabled}
+              disabled={sending || pending.length === 0 || !automail.enabled || sentTodayCount >= automail.dailyLimit}
               title={automail.enabled ? "Send personalized emails with AI" : "Enable AI Automail in Settings first"}
             >
               {sending

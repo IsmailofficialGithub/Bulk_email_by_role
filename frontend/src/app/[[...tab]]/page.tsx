@@ -529,6 +529,7 @@ export default function Home() {
                 onSentLogChange={setSentLog}
                 automail={automail}
                 onAutomailChange={setAutomail}
+                sentTodayCount={sentTodayCount}
               />
             </>
           )}
@@ -539,6 +540,7 @@ export default function Home() {
               config={config}
               automail={automail}
               onSendingChange={setSending}
+              sentTodayCount={sentTodayCount}
             />
           )}
 

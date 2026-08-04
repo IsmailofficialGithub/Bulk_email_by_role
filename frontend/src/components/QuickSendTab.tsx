@@ -9,10 +9,11 @@ type Props = {
   userId: string;
   config: SmtpConfig;
   automail: AutomailConfig;
+  sentTodayCount: number;
   onSendingChange?: (sending: boolean) => void;
 };
 
-export function QuickSendTab({ userId, config, automail, onSendingChange }: Props) {
+export function QuickSendTab({ userId, config, automail, sentTodayCount, onSendingChange }: Props) {
   const [quickEmail, setQuickEmail] = useState("");
   const [quickRole, setQuickRole] = useState<Role>("fullstack");
   const [quickTitle, setQuickTitle] = useState("");
@@ -25,6 +26,10 @@ export function QuickSendTab({ userId, config, automail, onSendingChange }: Prop
     }
     if (!config.configured) {
       toast.error("Please verify SMTP settings first.");
+      return;
+    }
+    if (sentTodayCount >= automail.dailyLimit) {
+      toast.error(`Daily limit of ${automail.dailyLimit} reached. Cannot send more today.`);
       return;
     }
 
@@ -124,6 +129,11 @@ export function QuickSendTab({ userId, config, automail, onSendingChange }: Prop
             </label>
 
             <div style={{ marginTop: '1rem' }}>
+              {sentTodayCount >= automail.dailyLimit && (
+                <div style={{ padding: '0.75rem', background: 'var(--danger-light)', color: 'var(--danger)', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.9rem', textAlign: 'center' }}>
+                  You have reached your daily limit of <strong>{automail.dailyLimit}</strong> emails.
+                </div>
+              )}
               <button 
                 type="button" 
                 className="btn large" 
@@ -135,11 +145,11 @@ export function QuickSendTab({ userId, config, automail, onSendingChange }: Prop
                   padding: '1rem',
                   fontSize: '1.1rem',
                   fontWeight: 600,
-                  opacity: (quickSending || !quickEmail || !automail.enabled) ? 0.6 : 1
+                  opacity: (quickSending || !quickEmail || !automail.enabled || sentTodayCount >= automail.dailyLimit) ? 0.6 : 1
                 }}
                 onClick={handleQuickSend}
-                disabled={quickSending || !quickEmail || !automail.enabled}
-                title={automail.enabled ? "Send immediately with AI" : "Enable AI Automail first"}
+                disabled={quickSending || !quickEmail || !automail.enabled || sentTodayCount >= automail.dailyLimit}
+                title={!automail.enabled ? "Enable AI Automail first" : sentTodayCount >= automail.dailyLimit ? "Daily limit reached" : "Send immediately with AI"}
               >
                 {quickSending ? "Sending via AI..." : "Send with AI"}
               </button>
