@@ -82,10 +82,6 @@ export function SendPanel({
   const [sortOrder, setSortOrder] = useState<"none" | "asc" | "desc">("none");
   const [expandedErrors, setExpandedErrors] = useState<Set<string>>(new Set());
   const [previewEmail, setPreviewEmail] = useState<SentRecord | null>(null);
-  const [quickEmail, setQuickEmail] = useState("");
-  const [quickRole, setQuickRole] = useState<Role>("fullstack");
-  const [quickTitle, setQuickTitle] = useState("");
-  const [quickSending, setQuickSending] = useState(false);
   const abortRef = useRef(false);
   const initialSentCount = useRef(0);
   const expectedTotal = useRef(0);
@@ -321,78 +317,6 @@ export function SendPanel({
         <p className="hint compact">
           Successfully sent are skipped · failed remain pending
         </p>
-
-        <div className="card" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--accent)', padding: '1rem', marginBottom: '1.5rem', borderRadius: '8px' }}>
-          <h3 style={{ margin: '0 0 1rem 0', color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-            Quick Send AI Email
-          </h3>
-          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <label className="field grow" style={{ flex: '1 1 200px' }}>
-              <span>Email Address</span>
-              <input 
-                type="email" 
-                placeholder="lead@example.com"
-                value={quickEmail}
-                onChange={e => setQuickEmail(e.target.value)}
-                disabled={sending || quickSending}
-              />
-            </label>
-            <label className="field" style={{ flex: '0 1 150px' }}>
-              <span>Role</span>
-              <select 
-                value={quickRole} 
-                onChange={e => setQuickRole(e.target.value as Role)}
-                disabled={sending || quickSending}
-              >
-                {Object.keys(ROLE_LABELS).map(r => (
-                  <option key={r} value={r}>{ROLE_LABELS[r as Role]}</option>
-                ))}
-              </select>
-            </label>
-            <label className="field" style={{ flex: '1 1 150px' }}>
-              <span>Context / Title (Optional)</span>
-              <input 
-                type="text" 
-                placeholder="e.g. CTO at Acme"
-                value={quickTitle}
-                onChange={e => setQuickTitle(e.target.value)}
-                disabled={sending || quickSending}
-              />
-            </label>
-            <button 
-              type="button" 
-              className="btn large" 
-              style={{ background: 'var(--accent)', color: '#fff', border: 'none', minWidth: '120px' }}
-              onClick={async () => {
-                if (!quickEmail) return toast.error("Please enter an email");
-                setQuickSending(true);
-                try {
-                  const newId = crypto.randomUUID();
-                  const r: Recipient = {
-                    id: newId, email: quickEmail, role: quickRole, title: quickTitle,
-                    source: "manual", status: "pending"
-                  };
-                  const { error } = await supabase.from("automailsend_recipients").insert({
-                    id: newId, user_id: userId, email: r.email, role: r.role, title: r.title,
-                    source: r.source, status: r.status
-                  });
-                  if (error) throw error;
-                  setQuickEmail(""); setQuickTitle("");
-                  await sendList([r], { force: true, label: "Quick AI Send", mode: "ai" });
-                } catch (e: any) {
-                  toast.error("Quick send failed: " + e.message);
-                } finally {
-                  setQuickSending(false);
-                }
-              }}
-              disabled={sending || quickSending || !quickEmail || !automail.enabled}
-              title={automail.enabled ? "Send immediately with AI" : "Enable AI Automail first"}
-            >
-              {quickSending ? "Sending..." : "Send with AI"}
-            </button>
-          </div>
-        </div>
 
         <div className="add-row">
           <label className="field grow">

@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { RecipientManager } from "@/components/RecipientManager";
 import { RoleTemplates } from "@/components/RoleTemplates";
 import { SendPanel } from "@/components/SendPanel";
+import { QuickSendTab } from "@/components/QuickSendTab";
 import { SmtpConfigPanel } from "@/components/SmtpConfigPanel";
 import { ExecutionLogsPanel } from "@/components/ExecutionLogsPanel";
 import { EmailsTab } from "@/components/EmailsTab";
@@ -33,18 +34,18 @@ import {
 export default function Home() {
   const router = useRouter();
   
-  const [activeTab, setActiveTab] = useState<"contacts" | "templates" | "sending" | "settings" | "logs" | "emails">("contacts");
+  const [activeTab, setActiveTab] = useState<"contacts" | "templates" | "sending" | "quicksend" | "settings" | "logs" | "emails">("contacts");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const currentTab = window.location.pathname.replace('/', '') || 'contacts';
-      if (["contacts", "templates", "sending", "settings", "logs", "emails"].includes(currentTab)) {
+      if (["contacts", "templates", "sending", "quicksend", "settings", "logs", "emails"].includes(currentTab)) {
         setActiveTab(currentTab as any);
       }
 
       const handlePopState = () => {
         const popTab = window.location.pathname.replace('/', '') || 'contacts';
-        if (["contacts", "templates", "sending", "settings", "logs", "emails"].includes(popTab)) {
+        if (["contacts", "templates", "sending", "quicksend", "settings", "logs", "emails"].includes(popTab)) {
           setActiveTab(popTab as any);
         }
       };
@@ -54,7 +55,7 @@ export default function Home() {
     }
   }, []);
 
-  const handleTabChange = (tab: "contacts" | "templates" | "sending" | "settings" | "logs" | "emails") => {
+  const handleTabChange = (tab: "contacts" | "templates" | "sending" | "quicksend" | "settings" | "logs" | "emails") => {
     setActiveTab(tab);
     if (typeof window !== "undefined") {
       window.history.pushState(null, '', `/${tab}`);
@@ -410,6 +411,12 @@ export default function Home() {
             Sending & Automail
           </button>
           <button 
+            className={`sidebar-tab ${activeTab === 'quicksend' ? 'active' : ''}`}
+            onClick={() => handleTabChange('quicksend')}
+          >
+            Quick Send (AI)
+          </button>
+          <button 
             className={`sidebar-tab ${activeTab === 'logs' ? 'active' : ''}`}
             onClick={() => handleTabChange('logs')}
           >
@@ -488,6 +495,15 @@ export default function Home() {
                 onAutomailChange={setAutomail}
               />
             </>
+          )}
+
+          {activeTab === 'quicksend' && (
+            <QuickSendTab 
+              userId={userId}
+              config={config}
+              automail={automail}
+              onSendingChange={setSending}
+            />
           )}
 
           {activeTab === 'logs' && (
