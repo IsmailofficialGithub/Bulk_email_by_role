@@ -18,9 +18,25 @@ type Props = {
 export function AutomailModal({ config, smtpConfig, templates, sentTodayCount, onSave, onClose }: Props) {
   const [enabled, setEnabled] = useState(config.enabled);
   const [dailyLimit, setDailyLimit] = useState(config.dailyLimit);
-  const [aiProvider, setAiProvider] = useState<string>(
-    config.aiProvider === "groq" ? "groq:llama-3.1-8b-instant" : (config.aiProvider || "none")
-  );
+  
+  const [selectedProvider, setSelectedProvider] = useState<string>(() => {
+    if (!config.aiProvider || config.aiProvider === "none") return "none";
+    if (config.aiProvider.startsWith("groq")) return "groq";
+    if (config.aiProvider.startsWith("openai")) return "openai";
+    if (config.aiProvider.startsWith("gemini")) return "gemini";
+    return "none";
+  });
+  
+  const [selectedModel, setSelectedModel] = useState<string>(() => {
+    if (config.aiProvider && config.aiProvider.includes(":")) {
+      return config.aiProvider.split(":")[1];
+    }
+    if (config.aiProvider?.startsWith("groq")) return "llama-3.1-8b-instant";
+    if (config.aiProvider?.startsWith("openai")) return "gpt-4o-mini";
+    if (config.aiProvider?.startsWith("gemini")) return "gemini-1.5-flash";
+    return "";
+  });
+
   const [aiApiKey, setAiApiKey] = useState(config.aiApiKey || "");
   const [aiPrompt, setAiPrompt] = useState(config.aiPrompt || "You are an expert recruiter. Analyze the following LinkedIn post text. The author's email is {{email}}. Write a highly personalized, friendly, and concise email subject and body offering our services. CRITICAL: DO NOT use placeholders like [Name], [Company], etc. If you don't know a piece of information, either infer it from the context or rephrase to omit it. Always sign off with a proper name if available, never use placeholders or generic company names for the sender signature. Output ONLY valid JSON with 'subject' and 'body' keys.");
   const [loading, setLoading] = useState(false);
@@ -83,10 +99,15 @@ export function AutomailModal({ config, smtpConfig, templates, sentTodayCount, o
       }
     }
 
+    let finalAiProvider = selectedProvider;
+    if (selectedProvider !== "none" && selectedModel) {
+      finalAiProvider = `${selectedProvider}:${selectedModel}`;
+    }
+
     onSave({
       enabled,
       dailyLimit,
-      aiProvider,
+      aiProvider: finalAiProvider,
       aiApiKey,
       aiPrompt,
     });
@@ -187,26 +208,62 @@ export function AutomailModal({ config, smtpConfig, templates, sentTodayCount, o
                   />
                 </span>
                 <select 
-                  value={aiProvider} 
-                  onChange={(e) => setAiProvider(e.target.value as any)}
+                  value={selectedProvider} 
+                  onChange={(e) => {
+                    const newProvider = e.target.value;
+                    setSelectedProvider(newProvider);
+                    if (newProvider === "groq") setSelectedModel("llama-3.1-8b-instant");
+                    else if (newProvider === "openai") setSelectedModel("gpt-4o-mini");
+                    else if (newProvider === "gemini") setSelectedModel("gemini-1.5-flash");
+                  }}
                 >
                   <option value="none">None (Use Default Templates)</option>
                   <option value="openai">OpenAI (ChatGPT)</option>
-                  <option value="groq:llama-3.1-8b-instant">Groq (Llama 3.1 8B)</option>
-                  <option value="groq:llama3-70b-8192">Groq (Llama 3 70B)</option>
-                  <option value="groq:mixtral-8x7b-32768">Groq (Mixtral 8x7B)</option>
-                  <option value="groq:gemma2-9b-it">Groq (Gemma 2 9B)</option>
+                  <option value="groq">Groq</option>
                   <option value="gemini">Google Gemini</option>
                 </select>
               </label>
 
-              {aiProvider !== "none" && (
+              {selectedProvider !== "none" && (
+                <label className="field" style={{ marginTop: "-0.5rem" }}>
+                  <span>AI Model</span>
+                  <select 
+                    value={selectedModel} 
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                  >
+                    {selectedProvider === "groq" && (
+                      <>
+                        <option value="llama-3.1-8b-instant">Llama 3.1 8B</option>
+                        <option value="llama3-70b-8192">Llama 3 70B</option>
+                        <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
+                        <option value="gemma2-9b-it">Gemma 2 9B</option>
+                      </>
+                    )}
+                    {selectedProvider === "openai" && (
+                      <>
+                        <option value="gpt-4o-mini">GPT-4o Mini</option>
+                        <option value="gpt-4o">GPT-4o</option>
+                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                      </>
+                    )}
+                    {selectedProvider === "gemini" && (
+                      <>
+                        <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                        <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                        <option value="gemini-1.0-pro">Gemini 1.0 Pro</option>
+                      </>
+                    )}
+                  </select>
+                </label>
+              )}
+
+              {selectedProvider !== "none" && (
                 <>
                   <label className="field">
                     <span>API Key</span>
                     <input
                       type="password"
-                      placeholder={`Enter your ${aiProvider} API Key`}
+                      placeholder={`Enter your ${selectedProvider} API Key`}
                       value={aiApiKey}
                       onChange={(e) => setAiApiKey(e.target.value)}
                     />

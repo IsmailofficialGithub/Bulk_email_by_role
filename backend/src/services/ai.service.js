@@ -42,7 +42,7 @@ async function generateAiPersonalizedEmail(provider, apiKey, promptTemplate, rec
           : (process.env.OPENAI_API_URL || "https://api.openai.com/v1/chat/completions");
         
         let model = isGroq ? "llama-3.1-8b-instant" : "gpt-4o-mini";
-        if (isGroq && provider.includes(":")) {
+        if (provider.includes(":")) {
           model = provider.split(":")[1];
         }
         
@@ -58,8 +58,12 @@ async function generateAiPersonalizedEmail(provider, apiKey, promptTemplate, rec
         });
         
         return JSON.parse(res.data.choices[0].message.content);
-      } else if (provider === "gemini") {
-        const baseUrl = process.env.GEMINI_API_URL || "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+      } else if (provider.startsWith("gemini")) {
+        let model = "gemini-1.5-flash";
+        if (provider.includes(":")) {
+          model = provider.split(":")[1];
+        }
+        const baseUrl = process.env.GEMINI_API_URL || `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
         const url = `${baseUrl}?key=${apiKey}`;
         const res = await axios.post(url, {
           system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
