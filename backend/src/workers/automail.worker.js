@@ -195,9 +195,9 @@ async function runAutomailJobs(supabase) {
               shouldSkip = true;
               skipReason = aiContent.reason || "AI decided to skip based on context.";
               await logger.append("WARN", `AI Skip: ${skipReason}`);
-            } else if (aiContent && aiContent.subject && aiContent.body) {
+            } else if (aiContent && aiContent.subject && (aiContent.body || aiContent.html)) {
               subject = aiContent.subject;
-              text = aiContent.body;
+              text = aiContent.body || aiContent.html;
               await logger.append("SUCCESS", `AI personalization successful!`);
             } else {
               await logger.append("WARN", `AI returned invalid format, falling back to template.`);
