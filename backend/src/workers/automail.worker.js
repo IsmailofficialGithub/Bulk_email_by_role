@@ -200,10 +200,10 @@ async function runAutomailJobs(supabase) {
               text = aiContent.body || aiContent.html;
               await logger.append("SUCCESS", `AI personalization successful!`);
             } else {
-              await logger.append("WARN", `AI returned invalid format, falling back to template.`);
+              await logger.append("WARN", `AI returned invalid format, falling back to template. Response: ${JSON.stringify(aiContent)}`);
             }
           } catch (aiErr) {
-            await logger.append("ERROR", `AI generation failed: ${aiErr.message}. Falling back to template.`);
+            await logger.append("ERROR", `AI generation failed: ${aiErr.message} - ${aiErr.response?.data ? JSON.stringify(aiErr.response.data) : ''}. Falling back to template.`);
           }
         }
 

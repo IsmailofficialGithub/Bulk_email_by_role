@@ -167,12 +167,14 @@ async function processBatchSendJob(job) {
               subject: subject, body: content, status: "skipped", error_message: aiContent.reason, sent_at: new Date().toISOString()
             });
             continue;
-          } else if (aiContent && aiContent.subject && aiContent.body) {
+          } else if (aiContent && aiContent.subject && (aiContent.body || aiContent.html)) {
             subject = aiContent.subject;
-            content = aiContent.body;
+            content = aiContent.body || aiContent.html;
+          } else {
+            console.log(pc.yellow(`[BatchSend] AI returned invalid format for ${recipient.email}. Response: ${JSON.stringify(aiContent)}`));
           }
         } catch (err) {
-          console.error(pc.red(`[BatchSend] AI generation failed for ${recipient.email}: ${err.message}`));
+          console.error(pc.red(`[BatchSend] AI generation failed for ${recipient.email}: ${err.message} - ${err.response?.data ? JSON.stringify(err.response.data) : ''}`));
         }
       }
 
