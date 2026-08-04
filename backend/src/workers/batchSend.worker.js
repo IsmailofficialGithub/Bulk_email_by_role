@@ -182,19 +182,27 @@ async function processBatchSendJob(job) {
       const fromName = config.fromName;
 
       try {
-        const isHtml = /<html|<body|<!DOCTYPE|<div|<p>|<br|<a\s/i.test(content);
+        const isHtmlBlock = /<html|<body|<!DOCTYPE|<style|<div|<p|<table|<ul|<ol|<li|<h[1-6]|<br|<hr|<blockquote/i.test(content);
         
         let finalHtml = "";
         let finalText = "";
-        if (isHtml) {
+
+        if (isHtmlBlock) {
           finalHtml = content;
+        } else {
+          finalHtml = content.replace(/\n/g, "<br>");
+        }
+
+        const hasAnyTags = /<[a-z][\s\S]*>/i.test(content) || content.includes("<!DOCTYPE");
+        if (hasAnyTags) {
           finalText = content.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-                             .replace(/<[^>]+>/g, '\n')
-                             .replace(/\n\s*\n/g, '\n')
+                             .replace(/<br[^>]*>/gi, '\n')
+                             .replace(/<\/p>|<\/div>|<\/li>|<\/h[1-6]>/gi, '\n')
+                             .replace(/<[^>]+>/g, '')
+                             .replace(/\n\s*\n/g, '\n\n')
                              .trim();
         } else {
           finalText = content;
-          finalHtml = content.replace(/\n/g, "<br>");
         }
 
         await transporter.sendMail({
