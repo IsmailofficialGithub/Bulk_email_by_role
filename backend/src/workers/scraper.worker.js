@@ -108,6 +108,7 @@ async function processJobLogic(job, logger) {
         context_text: contacts.contextText || null,
         source_url: contacts.source_urls || null,
         scraped_at: new Date().toISOString(),
+        status: "pending",
       });
       if (error) {
          await logger.append("ERROR", `Supabase insert error: ${error.message}`);
