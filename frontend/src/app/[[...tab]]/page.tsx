@@ -3,6 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
+import dynamic from 'next/dynamic';
+
+const Joyride: any = dynamic(() => import('react-joyride'), { ssr: false });
+
 import { RecipientManager } from "@/components/RecipientManager";
 import { RoleTemplates } from "@/components/RoleTemplates";
 import { SendPanel } from "@/components/SendPanel";
@@ -13,6 +17,7 @@ import { EmailsTab } from "@/components/EmailsTab";
 import { AutoFetchModal } from "@/components/AutoFetchModal";
 import { AutomailModal } from "@/components/AutomailModal";
 import { LandingPage } from "@/components/LandingPage";
+import { AdminPortal } from "@/components/AdminPortal";
 import { supabase } from "@/lib/supabase";
 import {
   defaultState,
@@ -34,18 +39,18 @@ import {
 export default function Home() {
   const router = useRouter();
   
-  const [activeTab, setActiveTab] = useState<"contacts" | "templates" | "sending" | "quicksend" | "settings" | "logs" | "emails">("contacts");
+  const [activeTab, setActiveTab] = useState<"contacts" | "templates" | "sending" | "quicksend" | "settings" | "logs" | "emails" | "admin">("contacts");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const currentTab = window.location.pathname.replace('/', '') || 'contacts';
-      if (["contacts", "templates", "sending", "quicksend", "settings", "logs", "emails"].includes(currentTab)) {
+      if (["contacts", "templates", "sending", "quicksend", "settings", "logs", "emails", "admin"].includes(currentTab)) {
         setActiveTab(currentTab as any);
       }
 
       const handlePopState = () => {
         const popTab = window.location.pathname.replace('/', '') || 'contacts';
-        if (["contacts", "templates", "sending", "quicksend", "settings", "logs", "emails"].includes(popTab)) {
+        if (["contacts", "templates", "sending", "quicksend", "settings", "logs", "emails", "admin"].includes(popTab)) {
           setActiveTab(popTab as any);
         }
       };
@@ -55,7 +60,7 @@ export default function Home() {
     }
   }, []);
 
-  const handleTabChange = (tab: "contacts" | "templates" | "sending" | "quicksend" | "settings" | "logs" | "emails") => {
+  const handleTabChange = (tab: "contacts" | "templates" | "sending" | "quicksend" | "settings" | "logs" | "emails" | "admin") => {
     setActiveTab(tab);
     if (typeof window !== "undefined") {
       window.history.pushState(null, '', `/${tab}`);
@@ -63,6 +68,7 @@ export default function Home() {
   };
   
   const [userId, setUserId] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [showLanding, setShowLanding] = useState(false);
   
   const [hydrated, setHydrated] = useState(false);
@@ -83,6 +89,9 @@ export default function Home() {
   const [showAutoFetch, setShowAutoFetch] = useState(false);
   const [showAutomailModal, setShowAutomailModal] = useState(false);
   const [showSmtpModal, setShowSmtpModal] = useState(false);
+  
+  const [runTour, setRunTour] = useState(false);
+  const [stepIndex, setStepIndex] = useState(0);
   
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [newPassword, setNewPassword] = useState("");
@@ -113,6 +122,8 @@ export default function Home() {
         }
       } else {
         setUserId(session.user.id);
+        const adminEmails = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || "").split(",");
+        setIsAdmin(adminEmails.includes(session.user.email || ""));
       }
     });
 
@@ -130,6 +141,8 @@ export default function Home() {
       } else {
         setShowLanding(false);
         setUserId(session.user.id);
+        const adminEmails = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || "").split(",");
+        setIsAdmin(adminEmails.includes(session.user.email || ""));
       }
     });
 
@@ -338,6 +351,97 @@ export default function Home() {
     await supabase.auth.signOut();
   }
 
+  const startTutorial = () => {
+    setStepIndex(0);
+    setRunTour(true);
+    handleTabChange("templates");
+  };
+
+  const handleJoyrideCallback = (data: any) => {
+    const { action, index, status, type } = data;
+    
+    if (status === 'finished' || status === 'skipped') {
+      setRunTour(false);
+      setShowSmtpModal(false);
+      setShowAutoFetch(false);
+      setShowAutomailModal(false);
+      return;
+    }
+
+    if (type === 'step:after') {
+      if (action === 'next') {
+        const nextIndex = index + 1;
+        setStepIndex(nextIndex);
+        
+        if (nextIndex === 3) {
+          handleTabChange("settings");
+          setShowSmtpModal(true);
+        } else if (nextIndex === 5) {
+          setShowSmtpModal(false);
+          setShowAutoFetch(true);
+        } else if (nextIndex === 7) {
+          setShowAutoFetch(false);
+          setShowAutomailModal(true);
+        }
+      } else if (action === 'prev') {
+        const prevIndex = index - 1;
+        setStepIndex(prevIndex);
+        
+        if (prevIndex === 2) {
+          setShowSmtpModal(false);
+          handleTabChange("templates");
+        } else if (prevIndex === 4) {
+          setShowAutoFetch(false);
+          setShowSmtpModal(true);
+        } else if (prevIndex === 6) {
+          setShowAutomailModal(false);
+          setShowAutoFetch(true);
+        }
+      }
+    }
+  };
+
+  const steps = [
+    {
+      target: 'body',
+      content: 'Welcome to Viddr! Let\'s get you set up to automate your emails. This will take just 2 minutes.',
+      placement: 'center' as const,
+    },
+    {
+      target: '#tour-templates-subject',
+      content: 'First, write an attention-grabbing subject line for your template.',
+      disableBeacon: true,
+    },
+    {
+      target: '#tour-templates-body',
+      content: 'Then, write the main body of your email. You can use placeholders like {name} which will be automatically replaced later.',
+    },
+    {
+      target: '#tour-smtp-email',
+      content: 'Next, enter the email address you want to send emails from (e.g. your Gmail).',
+    },
+    {
+      target: '#tour-smtp-password',
+      content: 'Enter your App Password here. If you use Gmail, you need to generate a 16-character App Password from your Google Account settings.',
+    },
+    {
+      target: '#tour-autofetch-keywords',
+      content: 'Want to automatically scrape leads? Enter keywords like "software engineer" here, and we will find leads on LinkedIn.',
+    },
+    {
+      target: '#tour-autofetch-interval',
+      content: 'Set how often the scraper should run in the background.',
+    },
+    {
+      target: '#tour-automail-enable',
+      content: 'Enable Automail to let our AI automatically personalize and send emails to the leads you scrape.',
+    },
+    {
+      target: '#tour-automail-rules',
+      content: 'Set a daily limit to avoid spam filters (we recommend 50/day). You\'re all set after this!',
+    }
+  ];
+
   async function handlePasswordChange(e: React.FormEvent) {
     e.preventDefault();
     if (!newPassword || newPassword.length < 6) {
@@ -395,6 +499,22 @@ export default function Home() {
         </div>
         <nav className="sidebar-nav">
           <button 
+            className="sidebar-tab"
+            style={{ 
+              background: 'color-mix(in srgb, var(--accent) 15%, transparent)', 
+              color: 'var(--accent)', 
+              fontWeight: 650, 
+              border: '1px solid color-mix(in srgb, var(--accent) 30%, transparent)', 
+              display: 'flex', 
+              justifyContent: 'center', 
+              marginBottom: '1rem',
+              boxShadow: '0 2px 8px color-mix(in srgb, var(--accent) 10%, transparent)'
+            }}
+            onClick={startTutorial}
+          >
+            Start Tutorial ✨
+          </button>
+          <button 
             className={`sidebar-tab ${activeTab === 'contacts' ? 'active' : ''}`}
             onClick={() => handleTabChange('contacts')}
           >
@@ -436,6 +556,21 @@ export default function Home() {
           >
             Settings
           </button>
+          {isAdmin && (
+            <button 
+              className={`sidebar-tab ${activeTab === 'admin' ? 'active' : ''}`}
+              onClick={() => handleTabChange('admin')}
+              style={{ 
+                color: "var(--err)", 
+                fontWeight: 650,
+                marginTop: '1rem',
+                border: "1px solid color-mix(in srgb, var(--err) 30%, transparent)", 
+                background: activeTab === 'admin' ? "color-mix(in srgb, var(--err) 15%, transparent)" : "color-mix(in srgb, var(--err) 5%, transparent)" 
+              }}
+            >
+              Admin Portal 🛡️
+            </button>
+          )}
         </nav>
         
         <div style={{ marginTop: 'auto' }}>
@@ -547,6 +682,23 @@ export default function Home() {
           {activeTab === 'logs' && (
             <div className="panel flex-col gap-4">
               <ExecutionLogsPanel userId={userId} />
+            </div>
+          )}
+
+          {activeTab === 'admin' && isAdmin && (
+            <div className="panel flex-col gap-4">
+              <AdminPortal />
+            </div>
+          )}
+
+          {activeTab === 'admin' && !isAdmin && (
+            <div className="panel flex-col gap-4" style={{ textAlign: "center", padding: "4rem 2rem" }}>
+              <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🔒</div>
+              <h2 className="panel-title" style={{ color: "var(--err)" }}>Access Denied</h2>
+              <p className="hint">You do not have administrative privileges to view this portal.</p>
+              <button className="btn primary" onClick={() => handleTabChange('contacts')} style={{ margin: "1rem auto 0" }}>
+                Return to Dashboard
+              </button>
             </div>
           )}
 
@@ -662,6 +814,22 @@ export default function Home() {
           )}
         </div>
       </main>
+
+      <Joyride
+        steps={steps}
+        run={runTour}
+        stepIndex={stepIndex}
+        callback={handleJoyrideCallback}
+        continuous={true}
+        showProgress={true}
+        showSkipButton={true}
+        styles={{
+          options: {
+            primaryColor: 'var(--accent)',
+            zIndex: 1000000,
+          }
+        }}
+      />
     </div>
   );
 }

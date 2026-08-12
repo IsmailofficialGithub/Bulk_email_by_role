@@ -3,6 +3,7 @@ const axios = require("axios");
 const { supabase } = require("../config/supabase");
 const { extractInitialContacts, extractPaginatedContacts } = require("../services/extraction.service");
 const { ExecutionLogger } = require("../lib/logger");
+const { getGlobalSettings } = require("../lib/globalSettings");
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -174,9 +175,13 @@ async function processJobLogic(job, logger) {
       const count = Number((raw.match(/"count"\s*:\s*(\d+)/) || [])[1] || 3);
       let clusterStartPosition = Number((raw.match(/"clusterStartPosition"\s*:\s*(\d+)/) || [])[1] || 9);
       
-      const maxPages = auto_fetch_pagination_limit || 1;
+      const globalSettings = await getGlobalSettings();
+      let maxPages = auto_fetch_pagination_limit || 1;
+      maxPages = Math.min(maxPages, globalSettings.max_pagination_limit || 10);
+
       const defaultInterval = process.env.SCRAPER_INTERVAL_SEC ? parseInt(process.env.SCRAPER_INTERVAL_SEC, 10) : 10;
-      const delayMs = (auto_fetch_pagination_delay_sec || defaultInterval) * 1000;
+      let delayMs = (auto_fetch_pagination_delay_sec || defaultInterval) * 1000;
+      delayMs = Math.max(delayMs, (globalSettings.min_pagination_delay || 5) * 1000);
 
       await logger.append("INFO", `Pagination details found for "${currentKeyword}". Max Pages: ${maxPages}, Delay: ${delayMs/1000}s`);
 
@@ -296,6 +301,17 @@ async function processJob(job) {
   }
   
   if (!hasKeywords) {
+    return { inserted: 0, emails: [], phones: [] };
+  }
+  
+  const { data: userState } = await supabase
+    .from("automailsend_app_state")
+    .select("is_blocked")
+    .eq("user_id", user_id)
+    .single();
+
+  if (userState && userState.is_blocked) {
+    console.log(pc.red(`[Scraper Worker] User ${user_id} is blocked by admin. Halting.`));
     return { inserted: 0, emails: [], phones: [] };
   }
   

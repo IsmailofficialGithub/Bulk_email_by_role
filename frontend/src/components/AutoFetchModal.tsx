@@ -37,7 +37,7 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
   const [newKeyword, setNewKeyword] = useState("");
   const [newRole, setNewRole] = useState<Role>("fullstack");
 
-  const [intervalMin, setIntervalMin] = useState(config.intervalMin);
+  const [intervalMin, setIntervalMin] = useState(config.intervalMin || 180);
   const [paginationLimit, setPaginationLimit] = useState(config.paginationLimit || 3);
   const [paginationDelaySec, setPaginationDelaySec] = useState(config.paginationDelaySec || 10);
   const [liAt, setLiAt] = useState(config.liAt);
@@ -125,7 +125,7 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
     // Force disable if tokens are missing when saving
     const finalEnabled = enabled && canEnable;
     // Enforce minimum interval
-    const finalInterval = Math.max(5, intervalMin || 5);
+    const finalInterval = Math.max(180, intervalMin || 180);
 
     if (finalEnabled) {
       setIsVerifying(true);
@@ -182,7 +182,7 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
         keywords: JSON.stringify(keywordMappings),
         targetRole: keywordMappings.length > 0 ? keywordMappings[0].role : "fullstack", // Fallback for types
         intervalMin: finalInterval,
-        paginationLimit: Math.max(1, paginationLimit || 3),
+        paginationLimit: Math.max(3, paginationLimit || 3),
         paginationDelaySec: Math.max(1, paginationDelaySec || 10),
         liAt: liAt.trim(),
         jsessionid: jsessionid.trim(),
@@ -400,6 +400,7 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
             <div style={{ display: "flex", gap: "0.5rem", gridColumn: "1 / -1", alignItems: "flex-end" }}>
               <div style={{ flex: 2 }}>
                 <input
+                  id="tour-autofetch-keywords"
                   type="text"
                   value={newKeyword}
                   onChange={(e) => setNewKeyword(e.target.value)}
@@ -423,6 +424,10 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
                 type="button"
                 onClick={() => {
                   if (newKeyword.trim()) {
+                    if (keywordMappings.length >= 3) {
+                      toast.error("You can only add up to 3 keywords.");
+                      return;
+                    }
                     setKeywordMappings([...keywordMappings, { keyword: newKeyword.trim(), role: newRole }]);
                     setNewKeyword("");
                   }
@@ -461,7 +466,7 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
           <div className="grid-2">
             <label className="field">
               <span>
-                Fetch Interval (Minutes)
+                Run interval (minutes)
                 <HelpTooltip 
                   title="Fetch Interval" 
                   content={
@@ -473,11 +478,12 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
                 />
               </span>
               <input
+                id="tour-autofetch-interval"
                 type="number"
-                min={1}
+                min={180}
                 max={1440}
                 value={intervalMin}
-                onChange={(e) => setIntervalMin(Number(e.target.value) || 5)}
+                onChange={(e) => setIntervalMin(Number(e.target.value) || 180)}
               />
             </label>
 
@@ -496,7 +502,7 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
               </span>
               <input
                 type="number"
-                min={1}
+                min={3}
                 max={50}
                 value={paginationLimit}
                 onChange={(e) => setPaginationLimit(Number(e.target.value) || 3)}

@@ -105,6 +105,7 @@ export function RoleTemplates({
             <label className="field">
               <span>Subject</span>
               <input
+                id="tour-templates-subject"
                 type="text"
                 value={tpl.subject}
                 onChange={(e) =>
@@ -117,6 +118,7 @@ export function RoleTemplates({
             <label className="field stretch">
               <span>Content</span>
               <AutoGrowTextarea
+                id="tour-templates-body"
                 className="textarea-content"
                 value={tpl.content}
                 maxHeight={320}

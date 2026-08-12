@@ -145,6 +145,7 @@ export function AutomailModal({ config, smtpConfig, templates, sentTodayCount, o
             </span>
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.25rem" }}>
               <input
+                id="tour-automail-enable"
                 type="checkbox"
                 checked={enabled}
                 onChange={(e) => setEnabled(e.target.checked)}
@@ -173,6 +174,7 @@ export function AutomailModal({ config, smtpConfig, templates, sentTodayCount, o
                 </span>
                 <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
                   <input
+                    id="tour-automail-rules"
                     type="number"
                     min={1}
                     max={500}

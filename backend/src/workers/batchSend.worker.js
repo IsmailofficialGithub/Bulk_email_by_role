@@ -34,6 +34,11 @@ async function processBatchSendJob(job) {
 
     if (userErr || !userState) throw new Error("Could not fetch user state");
 
+    if (userState.is_blocked) {
+      console.log(pc.red(`[BatchSend] User ${user_id} is blocked by admin. Halting.`));
+      return;
+    }
+
     const config = userState.config || {};
     const defaultInterval = process.env.BATCH_INTERVAL_SEC ? parseInt(process.env.BATCH_INTERVAL_SEC, 10) : 3;
     const delaySec = userState.delay_sec || defaultInterval;

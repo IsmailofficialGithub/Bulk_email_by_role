@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -15,7 +15,21 @@ export default function SignUpPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [allowSignups, setAllowSignups] = useState<boolean | null>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    fetch("/api/public/settings")
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.data) {
+          setAllowSignups(data.data.allow_signups !== false);
+        } else {
+          setAllowSignups(true); // default fallback
+        }
+      })
+      .catch(() => setAllowSignups(true));
+  }, []);
 
   async function handleSignUp(e: React.FormEvent) {
     e.preventDefault();
@@ -57,7 +71,15 @@ export default function SignUpPage() {
         </Link>
         <p className="text-[var(--muted)] text-center mb-6">Create your account to get started.</p>
 
-        <form onSubmit={handleSignUp} className="space-y-5">
+        {allowSignups === false ? (
+          <div className="p-6 bg-[var(--danger-dim)] text-[var(--danger)] rounded-xl text-center border border-[var(--danger)] border-opacity-20">
+            <h3 className="font-bold text-lg mb-2">Signups Closed</h3>
+            <p className="text-sm opacity-90">
+              We are not accepting new accounts at this time. Please check back later or contact the administrator.
+            </p>
+          </div>
+        ) : (
+          <form onSubmit={handleSignUp} className="space-y-5">
           <label className="field">
             <span>Email</span>
             <input
@@ -123,6 +145,7 @@ export default function SignUpPage() {
             </button>
           </div>
         </form>
+        )}
 
         <p className="mt-6 text-center text-sm text-[var(--muted)]">
           Already have an account?{" "}

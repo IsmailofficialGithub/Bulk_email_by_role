@@ -18,8 +18,10 @@ const PROVIDERS = [
   { id: "gmail", name: "Gmail", host: "smtp.gmail.com", port: 465, userLabel: "Username / Login", passLabel: "App Password", tooltip: "Google App Password" },
   { id: "sendgrid", name: "SendGrid", host: "smtp.sendgrid.net", port: 465, userLabel: "Username (usually 'apikey')", passLabel: "API Key", tooltip: "SendGrid API Key" },
   { id: "resend", name: "Resend", host: "smtp.resend.com", port: 465, userLabel: "Username (usually 'resend')", passLabel: "API Key", tooltip: "Resend API Key" },
-  { id: "custom", name: "Custom", host: "", port: 465, userLabel: "SMTP Username", passLabel: "SMTP Password", tooltip: "SMTP Credentials" },
+  { id: "custom", name: "Custom SMTP", host: "", port: 465, userLabel: "Username", passLabel: "Password", tooltip: "Your SMTP Password" },
 ];
+
+const SANITIZE_REGEX = /[^a-zA-Z0-9!@#$%^&*()_+\-=[\]{};':"\\|,.<>/? ]/g;
 
 export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props) {
   const [email, setEmail] = useState(config.email);
@@ -251,6 +253,7 @@ export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props
                 <label className="field">
                   <span>{currentProvider.userLabel}</span>
                   <input
+                    id="tour-smtp-email"
                     type="text"
                     value={email}
                     disabled={locked}
@@ -286,13 +289,14 @@ export function SmtpConfigPanel({ config, onChange, onResetAll, onClose }: Props
                   </span>
                   <div className="password-wrap">
                     <input
+                      id="tour-smtp-password"
                       type={showPassword ? "text" : "password"}
                       value={displayAppPassword}
                       disabled={locked}
                       onChange={(e) => {
                         let val = e.target.value;
                         if (appPassword.startsWith("enc:")) {
-                          val = val.replace(/�/g, "");
+                          val = val.replace(SANITIZE_REGEX, "");
                         }
                         setAppPassword(val);
                         setMessage(null);

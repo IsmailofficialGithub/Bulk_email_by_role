@@ -4,6 +4,7 @@ const { processJob } = require("./workers/scraper.worker");
 const { runAutomailJobs } = require("./workers/automail.worker");
 
 const { processBatchSendJob } = require("./workers/batchSend.worker");
+const { getGlobalSettings } = require("./lib/globalSettings");
 
 const lastQueuedMap = new Map();
 
@@ -99,7 +100,9 @@ function startScheduler() {
 
     for (const user of users) {
       try {
-        const intervalMin = user.auto_fetch_interval_min || 5;
+          const globalSettings = await getGlobalSettings();
+          let intervalMin = user.auto_fetch_interval_min || 5;
+          intervalMin = Math.max(intervalMin, globalSettings.min_fetch_interval || 5);
         
         // Fetch last execution for this user
         const { data: logs } = await supabase
