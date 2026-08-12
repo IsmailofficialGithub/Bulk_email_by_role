@@ -227,7 +227,7 @@ export function AutomailModal({ config, smtpConfig, templates, sentTodayCount, o
               </label>
 
               <div style={{ opacity: selectedProvider !== "none" ? 1 : 0.4, pointerEvents: selectedProvider !== "none" ? 'auto' : 'none', transition: 'opacity 0.2s' }}>
-                <label className="field" style={{ marginTop: "-0.5rem" }}>
+                <label className="field">
                   <span>AI Model</span>
                   <select 
                     value={selectedModel} 

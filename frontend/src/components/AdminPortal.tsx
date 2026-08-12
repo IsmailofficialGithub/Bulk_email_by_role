@@ -30,7 +30,8 @@ export function AdminPortal() {
   const [maxLimit, setMaxLimit] = useState(10);
   const [allowSignups, setAllowSignups] = useState(true);
   
-  // View Config Modal State
+  // Navigation State
+  const [activeTopTab, setActiveTopTab] = useState<"global" | "users">("users");
   const [viewUser, setViewUser] = useState<UserState | null>(null);
 
   useEffect(() => {
@@ -127,136 +128,344 @@ export function AdminPortal() {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
-      <section className="panel">
-        <h2 className="panel-title">Global Limits & Settings (Backend Cache)</h2>
-        <p className="hint">These settings apply to all users and are strictly enforced by the backend.</p>
-        
-        <div className="grid-2" style={{ marginTop: "1rem" }}>
-          <label className="field">
-            <span>Minimum Fetch Interval (Minutes)</span>
-            <input 
-              type="number" 
-              value={minInterval} 
-              onChange={e => setMinInterval(Number(e.target.value))} 
-            />
-          </label>
-          <label className="field">
-            <span>Minimum Pagination Delay (Seconds)</span>
-            <input 
-              type="number" 
-              value={minDelay} 
-              onChange={e => setMinDelay(Number(e.target.value))} 
-            />
-          </label>
-          <label className="field">
-            <span>Maximum Pagination Limit (Pages)</span>
-            <input 
-              type="number" 
-              value={maxLimit} 
-              onChange={e => setMaxLimit(Number(e.target.value))} 
-            />
-          </label>
-          <label className="field">
-            <span>Allow New User Signups</span>
-            <select 
-              value={allowSignups ? "true" : "false"}
-              onChange={e => setAllowSignups(e.target.value === "true")}
-              style={{ width: "100%", padding: "0.75rem", borderRadius: "8px", border: "1px solid var(--line)", background: "var(--bg-input)" }}
-            >
-              <option value="true">Yes, signups are open</option>
-              <option value="false">No, signups are closed</option>
-            </select>
-          </label>
-        </div>
-        <button className="btn primary" style={{ marginTop: "1rem" }} onClick={saveGlobalSettings}>
-          Save Global Settings
+    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+      <div className="tabs" style={{ display: "flex", gap: "1rem", borderBottom: "1px solid var(--line)", paddingBottom: "0.5rem" }}>
+        <button 
+          className={`btn ${activeTopTab === "users" ? "primary" : "ghost"}`} 
+          onClick={() => setActiveTopTab("users")}
+        >
+          User Management
         </button>
-      </section>
+        <button 
+          className={`btn ${activeTopTab === "global" ? "primary" : "ghost"}`} 
+          onClick={() => setActiveTopTab("global")}
+        >
+          Global Settings
+        </button>
+      </div>
 
-      <section className="panel">
-        <h2 className="panel-title">User Management</h2>
-        <p className="hint">Block users or edit their configurations.</p>
-        
-        <div style={{ overflowX: "auto", marginTop: "1rem" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem" }}>
-            <thead>
-              <tr style={{ borderBottom: "1px solid var(--line)", textAlign: "left" }}>
-                <th style={{ padding: "0.75rem 0.5rem" }}>User ID</th>
-                <th style={{ padding: "0.75rem 0.5rem" }}>Joined</th>
-                <th style={{ padding: "0.75rem 0.5rem" }}>Status</th>
-                <th style={{ padding: "0.75rem 0.5rem" }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map(u => (
-                <tr key={u.user_id} style={{ borderBottom: "1px solid var(--line)" }}>
-                  <td style={{ padding: "0.75rem 0.5rem", fontFamily: "monospace" }}>{u.user_id}</td>
-                  <td style={{ padding: "0.75rem 0.5rem" }}>{new Date(u.created_at).toLocaleDateString()}</td>
-                  <td style={{ padding: "0.75rem 0.5rem" }}>
-                    {u.is_blocked ? (
-                      <span className="badge err">Blocked</span>
-                    ) : (
-                      <span className="badge ok">Active</span>
-                    )}
-                  </td>
-                  <td style={{ padding: "0.75rem 0.5rem", display: "flex", gap: "0.5rem" }}>
-                    <button 
-                      className={`btn small ${u.is_blocked ? "ok" : "danger"}`} 
-                      onClick={() => toggleBlock(u.user_id, u.is_blocked)}
-                    >
-                      {u.is_blocked ? "Unblock" : "Block"}
-                    </button>
-                    <button 
-                      className="btn small" 
-                      onClick={() => setViewUser(u)}
-                    >
-                      View Config
-                    </button>
-                  </td>
+      {activeTopTab === "global" && (
+        <section className="panel">
+          <h2 className="panel-title">Global Limits & Settings (Backend Cache)</h2>
+          <p className="hint">These settings apply to all users and are strictly enforced by the backend.</p>
+          
+          <div className="grid-2" style={{ marginTop: "1rem" }}>
+            <label className="field">
+              <span>Minimum Fetch Interval (Minutes)</span>
+              <input 
+                type="number" 
+                value={minInterval} 
+                onChange={e => setMinInterval(Number(e.target.value))} 
+              />
+            </label>
+            <label className="field">
+              <span>Minimum Pagination Delay (Seconds)</span>
+              <input 
+                type="number" 
+                value={minDelay} 
+                onChange={e => setMinDelay(Number(e.target.value))} 
+              />
+            </label>
+            <label className="field">
+              <span>Maximum Pagination Limit (Pages)</span>
+              <input 
+                type="number" 
+                value={maxLimit} 
+                onChange={e => setMaxLimit(Number(e.target.value))} 
+              />
+            </label>
+            <label className="field">
+              <span>Allow New User Signups</span>
+              <select 
+                value={allowSignups ? "true" : "false"}
+                onChange={e => setAllowSignups(e.target.value === "true")}
+                style={{ width: "100%", padding: "0.75rem", borderRadius: "8px", border: "1px solid var(--line)", background: "var(--bg-input)" }}
+              >
+                <option value="true">Yes, signups are open</option>
+                <option value="false">No, signups are closed</option>
+              </select>
+            </label>
+          </div>
+          <button className="btn primary" style={{ marginTop: "1rem" }} onClick={saveGlobalSettings}>
+            Save Global Settings
+          </button>
+        </section>
+      )}
+
+      {activeTopTab === "users" && (
+        <section className="panel">
+          <h2 className="panel-title">User Management</h2>
+          <p className="hint">Block users or view their detailed configurations and CRM data.</p>
+          
+          <div style={{ overflowX: "auto", marginTop: "1rem" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--line)", textAlign: "left" }}>
+                  <th style={{ padding: "0.75rem 0.5rem" }}>User ID</th>
+                  <th style={{ padding: "0.75rem 0.5rem" }}>Joined</th>
+                  <th style={{ padding: "0.75rem 0.5rem" }}>Status</th>
+                  <th style={{ padding: "0.75rem 0.5rem" }}>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+              </thead>
+              <tbody>
+                {users.map(u => (
+                  <tr key={u.user_id} style={{ borderBottom: "1px solid var(--line)" }}>
+                    <td style={{ padding: "0.75rem 0.5rem", fontFamily: "monospace" }}>{u.user_id}</td>
+                    <td style={{ padding: "0.75rem 0.5rem" }}>{new Date(u.created_at).toLocaleDateString()}</td>
+                    <td style={{ padding: "0.75rem 0.5rem" }}>
+                      {u.is_blocked ? (
+                        <span className="badge err">Blocked</span>
+                      ) : (
+                        <span className="badge ok">Active</span>
+                      )}
+                    </td>
+                    <td style={{ padding: "0.75rem 0.5rem", display: "flex", gap: "0.5rem" }}>
+                      <button 
+                        className={`btn small ${u.is_blocked ? "ok" : "danger"}`} 
+                        onClick={() => toggleBlock(u.user_id, u.is_blocked)}
+                      >
+                        {u.is_blocked ? "Unblock" : "Block"}
+                      </button>
+                      <button 
+                        className="btn small primary" 
+                        onClick={() => setViewUser(u)}
+                      >
+                        View Details
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       {viewUser && (
-        <div className="modal-backdrop" onClick={() => setViewUser(null)} style={{ zIndex: 9999 }}>
-          <div className="modal-card" style={{ maxWidth: "800px" }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h2 className="panel-title">User Configuration</h2>
-              <button className="btn ghost icon" onClick={() => setViewUser(null)}>✕</button>
-            </div>
-            <p className="hint" style={{ marginTop: "0.25rem", fontFamily: "monospace" }}>{viewUser.user_id}</p>
-            
-            <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginTop: "1rem", maxHeight: "60vh", overflowY: "auto" }}>
-              <div style={{ background: "var(--bg-panel)", padding: "1rem", borderRadius: "8px" }}>
-                <strong style={{ color: "var(--accent)" }}>Auto-Fetch Config</strong>
-                <pre style={{ fontSize: "0.75rem", overflowX: "auto", margin: 0, marginTop: "0.5rem", whiteSpace: "pre-wrap" }}>
-                  {JSON.stringify(viewUser.auto_fetch, null, 2)}
-                </pre>
-              </div>
-              <div style={{ background: "var(--bg-panel)", padding: "1rem", borderRadius: "8px" }}>
-                <strong style={{ color: "var(--accent)" }}>Automail AI Config</strong>
-                <pre style={{ fontSize: "0.75rem", overflowX: "auto", margin: 0, marginTop: "0.5rem", whiteSpace: "pre-wrap" }}>
-                  {JSON.stringify(viewUser.automail, null, 2)}
-                </pre>
-              </div>
-              <div style={{ background: "var(--bg-panel)", padding: "1rem", borderRadius: "8px" }}>
-                <strong style={{ color: "var(--accent)" }}>SMTP Config (Hidden)</strong>
-                <pre style={{ fontSize: "0.75rem", overflowX: "auto", margin: 0, marginTop: "0.5rem" }}>
-                  Configured: {viewUser.config?.configured ? "Yes" : "No"}
-                  <br />
-                  Host: {viewUser.config?.host}
-                  <br />
-                  User: {viewUser.config?.user}
-                </pre>
-              </div>
-            </div>
-          </div>
-        </div>
+        <UserDetailsModal user={viewUser} onClose={() => setViewUser(null)} />
       )}
+    </div>
+  );
+}
+
+// ----------------------------------------------------
+// New Detailed User Modal Component
+// ----------------------------------------------------
+
+function UserDetailsModal({ user, onClose }: { user: UserState; onClose: () => void }) {
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"overview" | "keys" | "templates" | "crm" | "logs">("overview");
+  const [details, setDetails] = useState<any>(null);
+
+  useEffect(() => {
+    fetchUserDetails();
+  }, [user.user_id]);
+
+  async function fetchUserDetails() {
+    setLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = session ? { "Authorization": `Bearer ${session.access_token}` } : {};
+      
+      const res = await fetch(`/api/admin/users/${user.user_id}`, { headers });
+      const json = await res.json();
+      
+      if (json.success) {
+        setDetails(json.data);
+      } else {
+        toast.error("Failed to load user details: " + json.error);
+      }
+    } catch (err) {
+      toast.error("Network error loading details");
+    }
+    setLoading(false);
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose} style={{ zIndex: 9999 }}>
+      <div 
+        className="modal-card" 
+        style={{ maxWidth: "1000px", width: "95vw", height: "90vh", display: "flex", flexDirection: "column" }} 
+        onClick={e => e.stopPropagation()}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "1rem", borderBottom: "1px solid var(--line)" }}>
+          <div>
+            <h2 className="panel-title">User Details Dashboard</h2>
+            <p className="hint compact" style={{ fontFamily: "monospace", marginTop: "0.25rem" }}>{user.user_id}</p>
+          </div>
+          <button className="btn ghost icon" onClick={onClose}>✕</button>
+        </div>
+        
+        {loading ? (
+          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <p>Loading deep data...</p>
+          </div>
+        ) : !details ? (
+          <div style={{ flex: 1, padding: "2rem", color: "var(--err)" }}>Failed to load data.</div>
+        ) : (
+          <>
+            <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem", borderBottom: "1px solid var(--line)", paddingBottom: "0.5rem" }}>
+              {(["overview", "keys", "templates", "crm", "logs"] as const).map(tab => (
+                <button
+                  key={tab}
+                  className={`btn small ${activeTab === tab ? "filled" : "ghost"}`}
+                  onClick={() => setActiveTab(tab)}
+                  style={{ textTransform: "capitalize" }}
+                >
+                  {tab === "crm" ? "Email CRM" : tab}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ flex: 1, overflowY: "auto", marginTop: "1rem", paddingRight: "0.5rem" }}>
+              {activeTab === "overview" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                  <div className="panel" style={{ background: "var(--bg-panel)" }}>
+                    <p><strong>Status:</strong> {user.is_blocked ? "Blocked" : "Active"}</p>
+                    <p><strong>Joined:</strong> {new Date(user.created_at).toLocaleString()}</p>
+                    <p><strong>Total Scraped/Added Leads:</strong> {details.recipients.length}</p>
+                    <p><strong>Total Emails Sent:</strong> {details.sent_logs.length}</p>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === "keys" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                  <div style={{ background: "var(--bg-panel)", padding: "1rem", borderRadius: "8px" }}>
+                    <strong style={{ color: "var(--accent)", display: "block", marginBottom: "0.5rem" }}>Auto-Fetch Config (LinkedIn)</strong>
+                    <pre style={{ fontSize: "0.75rem", overflowX: "auto", margin: 0, whiteSpace: "pre-wrap" }}>
+                      {JSON.stringify(details.app_state.auto_fetch, null, 2)}
+                    </pre>
+                  </div>
+                  <div style={{ background: "var(--bg-panel)", padding: "1rem", borderRadius: "8px" }}>
+                    <strong style={{ color: "var(--accent)", display: "block", marginBottom: "0.5rem" }}>Automail AI Config</strong>
+                    <pre style={{ fontSize: "0.75rem", overflowX: "auto", margin: 0, whiteSpace: "pre-wrap" }}>
+                      {JSON.stringify(details.app_state.automail, null, 2)}
+                    </pre>
+                  </div>
+                  <div style={{ background: "var(--bg-panel)", padding: "1rem", borderRadius: "8px" }}>
+                    <strong style={{ color: "var(--accent)", display: "block", marginBottom: "0.5rem" }}>SMTP Config (Hidden Password)</strong>
+                    <pre style={{ fontSize: "0.75rem", overflowX: "auto", margin: 0 }}>
+                      Configured: {details.app_state.config?.configured ? "Yes" : "No"}{"\n"}
+                      Host: {details.app_state.config?.host}{"\n"}
+                      User: {details.app_state.config?.user}
+                    </pre>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === "templates" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                  {details.templates.length === 0 ? <p className="hint">No custom templates saved.</p> : null}
+                  {details.templates.map((tpl: any) => (
+                    <div key={tpl.role} style={{ background: "var(--bg-panel)", padding: "1rem", borderRadius: "8px", border: "1px solid var(--line)" }}>
+                      <h4 style={{ margin: "0 0 0.5rem 0", color: "var(--accent)", textTransform: "capitalize" }}>Role: {tpl.role}</h4>
+                      <p style={{ margin: "0 0 0.25rem 0", fontWeight: 500 }}>Subject: {tpl.subject}</p>
+                      <pre style={{ fontSize: "0.8rem", whiteSpace: "pre-wrap", background: "var(--bg-input)", padding: "0.5rem", borderRadius: "4px" }}>
+                        {tpl.content}
+                      </pre>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {activeTab === "crm" && (
+                <div>
+                  <p className="hint compact" style={{ marginBottom: "1rem" }}>Showing up to 200 recent leads.</p>
+                  {details.recipients.length === 0 ? <p className="hint">No leads in CRM.</p> : (
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}>
+                      <thead>
+                        <tr style={{ borderBottom: "1px solid var(--line)", textAlign: "left" }}>
+                          <th style={{ padding: "0.5rem" }}>Name</th>
+                          <th style={{ padding: "0.5rem" }}>Email</th>
+                          <th style={{ padding: "0.5rem" }}>Role</th>
+                          <th style={{ padding: "0.5rem" }}>Status</th>
+                          <th style={{ padding: "0.5rem" }}>Source</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {details.recipients.map((r: any) => (
+                          <tr key={r.id} style={{ borderBottom: "1px solid var(--line)" }}>
+                            <td style={{ padding: "0.5rem" }}>{r.name}</td>
+                            <td style={{ padding: "0.5rem" }}>{r.email}</td>
+                            <td style={{ padding: "0.5rem" }}>{r.role}</td>
+                            <td style={{ padding: "0.5rem" }}>
+                              <span className={`badge ${r.status === 'sent' ? 'ok' : r.status === 'failed' ? 'err' : 'ghost'}`}>
+                                {r.status}
+                              </span>
+                            </td>
+                            <td style={{ padding: "0.5rem", color: "var(--muted)" }}>{r.source || 'manual'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              )}
+
+              {activeTab === "logs" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
+                  <div>
+                    <h3 style={{ fontSize: "1rem", marginBottom: "0.5rem" }}>Email Sent Logs (Recent 200)</h3>
+                    {details.sent_logs.length === 0 ? <p className="hint">No emails sent yet.</p> : (
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}>
+                        <thead>
+                          <tr style={{ borderBottom: "1px solid var(--line)", textAlign: "left" }}>
+                            <th style={{ padding: "0.5rem" }}>Time</th>
+                            <th style={{ padding: "0.5rem" }}>To</th>
+                            <th style={{ padding: "0.5rem" }}>Subject</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {details.sent_logs.map((log: any) => (
+                            <tr key={log.id} style={{ borderBottom: "1px solid var(--line)" }}>
+                              <td style={{ padding: "0.5rem", color: "var(--muted)" }}>{new Date(log.created_at).toLocaleString()}</td>
+                              <td style={{ padding: "0.5rem" }}>{log.email}</td>
+                              <td style={{ padding: "0.5rem" }}>{log.subject}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+
+                  <div>
+                    <h3 style={{ fontSize: "1rem", marginBottom: "0.5rem" }}>Background Worker Logs (Recent 200)</h3>
+                    {details.execution_logs.length === 0 ? <p className="hint">No worker executions yet.</p> : (
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}>
+                        <thead>
+                          <tr style={{ borderBottom: "1px solid var(--line)", textAlign: "left" }}>
+                            <th style={{ padding: "0.5rem" }}>Time</th>
+                            <th style={{ padding: "0.5rem" }}>Action</th>
+                            <th style={{ padding: "0.5rem" }}>Result</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {details.execution_logs.map((log: any) => (
+                            <tr key={log.id} style={{ borderBottom: "1px solid var(--line)" }}>
+                              <td style={{ padding: "0.5rem", color: "var(--muted)", whiteSpace: "nowrap" }}>{new Date(log.created_at).toLocaleString()}</td>
+                              <td style={{ padding: "0.5rem" }}>
+                                <span className={`badge ${log.action_type === 'autofetch' ? 'ok' : 'ghost'}`}>
+                                  {log.action_type}
+                                </span>
+                              </td>
+                              <td style={{ padding: "0.5rem" }}>
+                                <pre style={{ margin: 0, fontSize: "0.75rem", whiteSpace: "pre-wrap", background: "none" }}>
+                                  {JSON.stringify(log.result, null, 2)}
+                                </pre>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
