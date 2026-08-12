@@ -371,31 +371,39 @@ export default function Home() {
     if (type === 'step:after') {
       if (action === 'next') {
         const nextIndex = index + 1;
-        setStepIndex(nextIndex);
         
         if (nextIndex === 3) {
           handleTabChange("settings");
           setShowSmtpModal(true);
+          setTimeout(() => setStepIndex(nextIndex), 100);
         } else if (nextIndex === 5) {
           setShowSmtpModal(false);
           setShowAutoFetch(true);
+          setTimeout(() => setStepIndex(nextIndex), 100);
         } else if (nextIndex === 7) {
           setShowAutoFetch(false);
           setShowAutomailModal(true);
+          setTimeout(() => setStepIndex(nextIndex), 100);
+        } else {
+          setStepIndex(nextIndex);
         }
       } else if (action === 'prev') {
         const prevIndex = index - 1;
-        setStepIndex(prevIndex);
         
         if (prevIndex === 2) {
           setShowSmtpModal(false);
           handleTabChange("templates");
+          setTimeout(() => setStepIndex(prevIndex), 100);
         } else if (prevIndex === 4) {
           setShowAutoFetch(false);
           setShowSmtpModal(true);
+          setTimeout(() => setStepIndex(prevIndex), 100);
         } else if (prevIndex === 6) {
           setShowAutomailModal(false);
           setShowAutoFetch(true);
+          setTimeout(() => setStepIndex(prevIndex), 100);
+        } else {
+          setStepIndex(prevIndex);
         }
       }
     }
