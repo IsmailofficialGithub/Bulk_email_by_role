@@ -17,10 +17,10 @@ async function verifyAdmin(req: Request) {
   return adminEmails.includes(user.email || "");
 }
 
-export async function GET(req: Request, { params }: { params: { userId: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ userId: string }> }) {
   if (!(await verifyAdmin(req))) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   
-  const { userId } = params;
+  const { userId } = await params;
   if (!userId) {
     return NextResponse.json({ success: false, error: "Missing userId" }, { status: 400 });
   }
