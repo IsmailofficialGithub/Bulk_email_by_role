@@ -157,8 +157,7 @@ export function AutomailModal({ config, smtpConfig, templates, sentTodayCount, o
             </div>
           </label>
 
-          {enabled && (
-            <>
+          <div style={{ opacity: enabled ? 1 : 0.4, pointerEvents: enabled ? 'auto' : 'none', transition: 'opacity 0.2s' }}>
               <label className="field">
                 <span>
                   Daily Mail Limit
@@ -227,7 +226,7 @@ export function AutomailModal({ config, smtpConfig, templates, sentTodayCount, o
                 </select>
               </label>
 
-              {selectedProvider !== "none" && (
+              <div style={{ opacity: selectedProvider !== "none" ? 1 : 0.4, pointerEvents: selectedProvider !== "none" ? 'auto' : 'none', transition: 'opacity 0.2s' }}>
                 <label className="field" style={{ marginTop: "-0.5rem" }}>
                   <span>AI Model</span>
                   <select 
@@ -256,12 +255,9 @@ export function AutomailModal({ config, smtpConfig, templates, sentTodayCount, o
                         <option value="gemini-1.0-pro">Gemini 1.0 Pro</option>
                       </>
                     )}
-                  </select>
-                </label>
-              )}
+                    </select>
+                  </label>
 
-              {selectedProvider !== "none" && (
-                <>
                   <label className="field">
                     <span>API Key</span>
                     <input
@@ -297,10 +293,8 @@ export function AutomailModal({ config, smtpConfig, templates, sentTodayCount, o
                       The post text will be automatically appended to the end of your prompt.
                     </span>
                   </label>
-                </>
-              )}
-            </>
-          )}
+              </div>
+          </div>
 
         </div>
         
