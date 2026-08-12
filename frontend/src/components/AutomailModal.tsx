@@ -182,7 +182,7 @@ export function AutomailModal({ config, smtpConfig, templates, sentTodayCount, o
                     style={{ width: "100px" }}
                   />
                   <span style={{ fontSize: "1.05rem", fontWeight: "500", color: "var(--muted)" }}>
-                    / {sentTodayCount} sent today
+                    emails (Sent today: {sentTodayCount})
                   </span>
                 </div>
                 <span className="hint compact">Maximum emails to send automatically per day.</span>
