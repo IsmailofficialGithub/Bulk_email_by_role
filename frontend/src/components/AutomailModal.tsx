@@ -210,6 +210,7 @@ export function AutomailModal({ config, smtpConfig, templates, sentTodayCount, o
                   />
                 </span>
                 <select 
+                  id="tour-automail-provider"
                   value={selectedProvider} 
                   onChange={(e) => {
                     const newProvider = e.target.value;
@@ -264,6 +265,7 @@ export function AutomailModal({ config, smtpConfig, templates, sentTodayCount, o
                   <label className="field">
                     <span>API Key</span>
                     <input
+                      id="tour-automail-key"
                       type="password"
                       placeholder={`Enter your ${selectedProvider} API Key`}
                       value={aiApiKey}
@@ -308,7 +310,7 @@ export function AutomailModal({ config, smtpConfig, templates, sentTodayCount, o
           <button className="btn" onClick={onClose} disabled={loading}>
             Cancel
           </button>
-          <button className="btn primary" onClick={handleSave} disabled={loading}>
+          <button id="tour-automail-save" className="btn primary" onClick={handleSave} disabled={loading}>
             {loading ? "Saving..." : "Save Settings"}
           </button>
         </div>

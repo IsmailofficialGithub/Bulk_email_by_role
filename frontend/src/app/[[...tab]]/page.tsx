@@ -380,7 +380,7 @@ export default function Home() {
           setShowSmtpModal(false);
           setShowAutoFetch(true);
           setTimeout(() => setStepIndex(nextIndex), 100);
-        } else if (nextIndex === 7) {
+        } else if (nextIndex === 13) {
           setShowAutoFetch(false);
           setShowAutomailModal(true);
           setTimeout(() => setStepIndex(nextIndex), 100);
@@ -398,7 +398,7 @@ export default function Home() {
           setShowAutoFetch(false);
           setShowSmtpModal(true);
           setTimeout(() => setStepIndex(prevIndex), 100);
-        } else if (prevIndex === 6) {
+        } else if (prevIndex === 12) {
           setShowAutomailModal(false);
           setShowAutoFetch(true);
           setTimeout(() => setStepIndex(prevIndex), 100);
@@ -434,11 +434,35 @@ export default function Home() {
     },
     {
       target: '#tour-autofetch-keywords',
-      content: 'Want to automatically scrape leads? Enter keywords like "software engineer" here, and we will find leads on LinkedIn.',
+      content: 'Want to automatically scrape leads? Enter keywords like "software engineer" here.',
+    },
+    {
+      target: '#tour-autofetch-role',
+      content: 'Link this keyword to an email template role so leads get the right email.',
+    },
+    {
+      target: '#tour-autofetch-add',
+      content: 'Click Add to save the keyword mapping.',
     },
     {
       target: '#tour-autofetch-interval',
-      content: 'Set how often the scraper should run in the background.',
+      content: 'Set how often the scraper should run in the background (we recommend 5-10 minutes).',
+    },
+    {
+      target: '#tour-autofetch-limit',
+      content: 'Set the pagination limit to control how many pages to scrape per run.',
+    },
+    {
+      target: '#tour-autofetch-delay',
+      content: 'Set a pagination delay to mimic human behavior and avoid bans.',
+    },
+    {
+      target: '#tour-autofetch-postage',
+      content: 'Filter the post age to only reach out to fresh leads (Past 24 hours is best).',
+    },
+    {
+      target: '#tour-autofetch-cookie',
+      content: 'Follow this guide to install our extension and automatically set your LinkedIn cookies.',
     },
     {
       target: '#tour-automail-enable',
@@ -446,7 +470,19 @@ export default function Home() {
     },
     {
       target: '#tour-automail-rules',
-      content: 'Set a daily limit to avoid spam filters (we recommend 50/day). You\'re all set after this!',
+      content: 'Set a daily limit to avoid spam filters (we recommend 50/day).',
+    },
+    {
+      target: '#tour-automail-provider',
+      content: 'Select an AI provider like OpenAI or Groq to write the personalized emails.',
+    },
+    {
+      target: '#tour-automail-key',
+      content: 'Add your AI provider API key here.',
+    },
+    {
+      target: '#tour-automail-save',
+      content: 'Click save, and you\'re all set!',
     }
   ];
 

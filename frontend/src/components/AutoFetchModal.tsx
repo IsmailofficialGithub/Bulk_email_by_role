@@ -410,6 +410,7 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
               </div>
               <div style={{ flex: 1 }}>
                 <select
+                  id="tour-autofetch-role"
                   value={newRole}
                   onChange={(e) => setNewRole(e.target.value as Role)}
                   style={{ width: "100%", padding: "0.5rem", borderRadius: "4px", border: "1px solid var(--line)", background: "var(--bg-panel)", color: "var(--fg)" }}
@@ -420,6 +421,7 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
                 </select>
               </div>
               <button 
+                id="tour-autofetch-add"
                 className="btn filled" 
                 type="button"
                 onClick={() => {
@@ -501,6 +503,7 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
                 />
               </span>
               <input
+                id="tour-autofetch-limit"
                 type="number"
                 min={3}
                 max={50}
@@ -525,6 +528,7 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
                 />
               </span>
               <input
+                id="tour-autofetch-delay"
                 type="number"
                 min={1}
                 max={60}
@@ -548,6 +552,7 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
               />
             </span>
             <select
+              id="tour-autofetch-postage"
               value={postAgeFilter}
               onChange={(e) => setPostAgeFilter(e.target.value as any)}
               style={{ width: "100%", padding: "0.5rem", borderRadius: "4px", border: "1px solid var(--line)", background: "var(--bg-panel)", color: "var(--fg)" }}
@@ -576,6 +581,7 @@ export function AutoFetchModal({ config, onSave, onClose }: Props) {
                 />
               </h3>
               <button 
+                id="tour-autofetch-cookie"
                 type="button" 
                 onClick={() => setShowHelpModal(true)}
                 className="btn small ghost" 
