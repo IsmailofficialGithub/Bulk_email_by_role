@@ -789,7 +789,10 @@ export default function Home() {
             <AutoFetchModal
               config={autoFetch}
               onSave={setAutoFetch}
-              onClose={() => setShowAutoFetch(false)}
+              onClose={() => {
+                setShowAutoFetch(false);
+                if (runTour) setRunTour(false);
+              }}
             />
           )}
 
@@ -800,7 +803,10 @@ export default function Home() {
               templates={templates}
               sentTodayCount={sentTodayCount}
               onSave={setAutomail}
-              onClose={() => setShowAutomailModal(false)}
+              onClose={() => {
+                setShowAutomailModal(false);
+                if (runTour) setRunTour(false);
+              }}
             />
           )}
 
@@ -809,7 +815,10 @@ export default function Home() {
               config={config}
               onChange={setConfig}
               onResetAll={resetAll}
-              onClose={() => setShowSmtpModal(false)}
+              onClose={() => {
+                setShowSmtpModal(false);
+                if (runTour) setRunTour(false);
+              }}
             />
           )}
         </div>
