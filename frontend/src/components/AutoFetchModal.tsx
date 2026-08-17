@@ -50,7 +50,7 @@ export function AutoFetchModal({ config, autoCommentConfig, onSave, onClose }: P
   const hasKeywords = keywordMappings.length > 0;
 
   // Basic validation to enable
-  const canEnable = hasKeywords && config.liAt && config.jsessionid && config.rawHeaders;
+  const canEnable = Boolean(hasKeywords && config.liAt && config.jsessionid && config.rawHeaders);
 
   async function handleSave() {
     const finalEnabled = enabled && canEnable;
