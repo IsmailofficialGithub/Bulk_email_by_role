@@ -16,8 +16,11 @@ import { ExecutionLogsPanel } from "@/components/ExecutionLogsPanel";
 import { EmailsTab } from "@/components/EmailsTab";
 import { AutoFetchModal } from "@/components/AutoFetchModal";
 import { AutomailModal } from "@/components/AutomailModal";
+import { LinkedInConfigModal } from "@/components/LinkedInConfigModal";
 import { LandingPage } from "@/components/LandingPage";
 import { AdminPortal } from "@/components/AdminPortal";
+import { CommentsTab } from "@/components/CommentsTab";
+import { AutoCommentModal } from "@/components/AutoCommentModal";
 import { supabase } from "@/lib/supabase";
 import {
   defaultState,
@@ -34,23 +37,25 @@ import {
   type SentRecord,
   type SmtpConfig,
   type AutoFetchConfig,
+  type CommentRecord,
+  AutoCommentConfig,
 } from "@/lib/types";
 
 export default function Home() {
   const router = useRouter();
   
-  const [activeTab, setActiveTab] = useState<"contacts" | "templates" | "sending" | "quicksend" | "settings" | "logs" | "emails" | "admin">("contacts");
+  const [activeTab, setActiveTab] = useState<"contacts" | "templates" | "sending" | "quicksend" | "settings" | "logs" | "emails" | "comments" | "admin">("contacts");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const currentTab = window.location.pathname.replace('/', '') || 'contacts';
-      if (["contacts", "templates", "sending", "quicksend", "settings", "logs", "emails", "admin"].includes(currentTab)) {
+      if (["contacts", "templates", "sending", "quicksend", "settings", "logs", "emails", "comments", "admin"].includes(currentTab)) {
         setActiveTab(currentTab as any);
       }
 
       const handlePopState = () => {
         const popTab = window.location.pathname.replace('/', '') || 'contacts';
-        if (["contacts", "templates", "sending", "quicksend", "settings", "logs", "emails", "admin"].includes(popTab)) {
+        if (["contacts", "templates", "sending", "quicksend", "settings", "logs", "emails", "comments", "admin"].includes(popTab)) {
           setActiveTab(popTab as any);
         }
       };
@@ -60,7 +65,7 @@ export default function Home() {
     }
   }, []);
 
-  const handleTabChange = (tab: "contacts" | "templates" | "sending" | "quicksend" | "settings" | "logs" | "emails" | "admin") => {
+  const handleTabChange = (tab: "contacts" | "templates" | "sending" | "quicksend" | "settings" | "logs" | "emails" | "comments" | "admin") => {
     setActiveTab(tab);
     if (typeof window !== "undefined") {
       window.history.pushState(null, '', `/${tab}`);
@@ -85,10 +90,16 @@ export default function Home() {
   const [sentLog, setSentLog] = useState<SentRecord[]>([]);
   const [autoFetch, setAutoFetch] = useState<AutoFetchConfig>(defaultState().autoFetch);
   const [automail, setAutomail] = useState(defaultState().automail);
+  const [autoComment, setAutoComment] = useState<AutoCommentConfig>(defaultState().autoComment);
+  const [allowedProducts, setAllowedProducts] = useState<string[]>([]);
+  const [linkedinConnected, setLinkedinConnected] = useState(false);
+  const [commentsLog, setCommentsLog] = useState<CommentRecord[]>([]);
   
   const [showAutoFetch, setShowAutoFetch] = useState(false);
+  const [showLinkedInConfig, setShowLinkedInConfig] = useState(false);
   const [showAutomailModal, setShowAutomailModal] = useState(false);
   const [showSmtpModal, setShowSmtpModal] = useState(false);
+  const [showAutoCommentModal, setShowAutoCommentModal] = useState(false);
   
   const [runTour, setRunTour] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
@@ -96,6 +107,8 @@ export default function Home() {
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [passwordLoading, setPasswordLoading] = useState(false);
+  
+  const [identityMatch, setIdentityMatch] = useState<{match: boolean | null, message?: string}>({match: null});
   
   // Track previous state for targeted saving
   const lastState = useRef({
@@ -105,6 +118,7 @@ export default function Home() {
     defaultTitle: "",
     autoFetch: defaultState().autoFetch,
     automail: defaultState().automail,
+    autoComment: defaultState().autoComment,
   });
   
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -162,7 +176,11 @@ export default function Home() {
       setSentLog(saved.sentLog);
       setAutoFetch(saved.autoFetch);
       setAutomail(saved.automail);
+      setAutoComment(saved.autoComment);
       setSending(saved.batchSendPending);
+      setAllowedProducts(saved.allowedProducts);
+      setLinkedinConnected(saved.linkedinConnected);
+      setCommentsLog(saved.commentsLog);
       
       lastState.current = {
         config: saved.config,
@@ -171,6 +189,7 @@ export default function Home() {
         defaultTitle: saved.defaultTitle,
         autoFetch: saved.autoFetch,
         automail: saved.automail,
+        autoComment: saved.autoComment,
       };
       
       setHydrated(true);
@@ -270,12 +289,34 @@ export default function Home() {
     };
   }, [userId, hydrated]);
 
+  // Verify Identity when LinkedIn tab opens
+  useEffect(() => {
+    if (activeTab === 'linkedin' && linkedinConnected && autoFetch.enabled) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+          fetch('http://localhost:4000/api/linkedin/verify-identity', {
+            headers: { 'Authorization': `Bearer ${session.access_token}` }
+          })
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              setIdentityMatch({ match: data.match, message: data.match === false ? `OAuth (${data.oauthName}) does not match Cookies (${data.cookieName})` : undefined });
+            }
+          })
+          .catch(err => console.error(err));
+        }
+      });
+    } else {
+      setIdentityMatch({ match: null });
+    }
+  }, [activeTab, linkedinConnected, autoFetch.enabled]);
+
   // Debounced auto-save for app_state
   useEffect(() => {
     if (!hydrated || !userId) return;
     
     // Only save if app_state parts changed
-    const currState = { config, delaySec, activeTemplateRole, defaultTitle, autoFetch, automail, batchSendPending: sending };
+    const currState = { config, delaySec, activeTemplateRole, defaultTitle, autoFetch, automail, autoComment, batchSendPending: sending };
     if (JSON.stringify(currState) === JSON.stringify(lastState.current)) {
       return;
     }
@@ -292,7 +333,11 @@ export default function Home() {
         sentLog, // not saved in app_state
         autoFetch,
         automail,
+        autoComment,
         batchSendPending: sending,
+        allowedProducts,
+        linkedinConnected,
+        commentsLog,
       }).then(() => {
          lastState.current = currState;
       }).catch(console.error);
@@ -301,7 +346,7 @@ export default function Home() {
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
-  }, [hydrated, userId, config, delaySec, activeTemplateRole, defaultTitle, autoFetch, automail, recipients, templates, sentLog]);
+  }, [hydrated, userId, config, delaySec, activeTemplateRole, defaultTitle, autoFetch, automail, autoComment, recipients, templates, sentLog, sending, allowedProducts, linkedinConnected, commentsLog]);
 
   function updateTemplate(role: Role, patch: Partial<RoleTemplate>) {
     const newTemplates = {
@@ -594,6 +639,14 @@ export default function Home() {
           >
             Emails CRM
           </button>
+          {allowedProducts.includes("linkedin") && (
+            <button 
+              className={`sidebar-tab ${activeTab === 'comments' ? 'active' : ''}`}
+              onClick={() => handleTabChange('comments')}
+            >
+              LinkedIn Comments
+            </button>
+          )}
           <button 
             className={`sidebar-tab ${activeTab === 'settings' ? 'active' : ''}`}
             onClick={() => handleTabChange('settings')}
@@ -729,6 +782,16 @@ export default function Home() {
             </div>
           )}
 
+          {activeTab === 'comments' && (
+            <div className="panel flex-col gap-4">
+              <div className="panel-header" style={{ marginBottom: "1rem" }}>
+                <h2 className="panel-title">LinkedIn Comments Log</h2>
+                <p className="hint">View the history of automated comments sent via LinkedIn OAuth.</p>
+              </div>
+              <CommentsTab comments={commentsLog} />
+            </div>
+          )}
+
           {activeTab === 'admin' && isAdmin && (
             <div className="panel flex-col gap-4">
               <AdminPortal />
@@ -758,19 +821,6 @@ export default function Home() {
                 </div>
                 <div className="smtp-bar-actions">
                   <button type="button" className="btn primary" onClick={() => setShowSmtpModal(true)}>
-                    Expand
-                  </button>
-                </div>
-              </div>
-              <div className="smtp-bar" style={{ marginTop: '0.5rem' }}>
-                <div className="smtp-bar-left">
-                  <span className="smtp-bar-title">LinkedIn Scraper Settings</span>
-                  <span className={autoFetch.enabled ? "badge ok" : "badge warn"}>
-                    {autoFetch.enabled ? "Active" : "Disabled"}
-                  </span>
-                </div>
-                <div className="smtp-bar-actions">
-                  <button type="button" className="btn primary" onClick={() => setShowAutoFetch(true)}>
                     Expand
                   </button>
                 </div>
@@ -826,17 +876,79 @@ export default function Home() {
                   </div>
                 )}
               </div>
+
+              {allowedProducts.includes("linkedin") && (
+                <>
+                  <div className="smtp-bar" style={{ marginTop: '0.5rem' }}>
+                    <div className="smtp-bar-left">
+                      <span className="smtp-bar-title">LinkedIn Configuration</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.25rem' }}>
+                        {linkedinConnected ? (
+                          <span className="badge ok">OAuth ✅</span>
+                        ) : (
+                          <span className="badge err">OAuth ❌</span>
+                        )}
+                        {autoComment.enabled && (
+                          <span className="badge ok">
+                            Commenter Active
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="smtp-bar-actions">
+                      <button type="button" className="btn primary" onClick={() => setShowLinkedInConfig(true)}>
+                        Configure
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="smtp-bar" style={{ marginTop: '0.5rem' }}>
+                    <div className="smtp-bar-left">
+                      <span className="smtp-bar-title">LinkedIn Scraper Settings</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.25rem' }}>
+                        <span className={autoFetch.enabled ? "badge ok" : "badge warn"}>
+                          {autoFetch.enabled ? "Scraper Active" : "Scraper Disabled"}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="smtp-bar-actions">
+                      <button type="button" className="btn primary" onClick={() => setShowAutoFetch(true)}>
+                        Configure
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
           {showAutoFetch && (
             <AutoFetchModal
               config={autoFetch}
-              onSave={setAutoFetch}
+              autoCommentConfig={autoComment}
+              onSave={(fConfig, cConfig) => {
+                setAutoFetch(fConfig);
+                setAutoComment(cConfig);
+              }}
               onClose={() => {
                 setShowAutoFetch(false);
                 if (runTour) setRunTour(false);
               }}
+            />
+          )}
+
+          {showLinkedInConfig && (
+            <LinkedInConfigModal
+              config={autoFetch}
+              autoCommentConfig={autoComment}
+              linkedinConnected={linkedinConnected}
+              identityMatch={identityMatch}
+              onSave={(fConfig, cConfig) => {
+                setAutoFetch(fConfig);
+                setAutoComment(cConfig);
+              }}
+              onClose={() => setShowLinkedInConfig(false)}
+              onLinkedinConnectedChange={setLinkedinConnected}
             />
           )}
 

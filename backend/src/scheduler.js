@@ -2,7 +2,7 @@ const pc = require("picocolors");
 const { supabase } = require("./config/supabase");
 const { processJob } = require("./workers/scraper.worker");
 const { runAutomailJobs } = require("./workers/automail.worker");
-
+const { runAutoCommentJobs } = require("./workers/autoComment.worker");
 const { processBatchSendJob } = require("./workers/batchSend.worker");
 const { getGlobalSettings } = require("./lib/globalSettings");
 
@@ -78,6 +78,21 @@ function startScheduler() {
       isBatchRunning = false;
     }
   }, batchTickSec * 1000);
+
+  console.log(pc.green(`🚀 Starting Auto-Comment Worker (checking every 30 seconds)...`));
+  let isAutoCommentRunning = false;
+  setInterval(async () => {
+    if (isAutoCommentRunning) return;
+    isAutoCommentRunning = true;
+    console.log(pc.dim(`[AutoComment Worker] Checking for pending comments...`));
+    try {
+      await runAutoCommentJobs(supabase);
+    } catch (err) {
+      console.error(pc.red(`[Scheduler] AutoComment worker error: ${err.message}`));
+    } finally {
+      isAutoCommentRunning = false;
+    }
+  }, 30 * 1000);
 
   setInterval(async () => {
     // or just log it so the user knows it's checking.

@@ -12,6 +12,22 @@ require("./workers/batchSend.worker");
 const { startScheduler } = require("./scheduler");
 const { supabase } = require("./config/supabase");
 
+const express = require("express");
+const cors = require("cors");
+const linkedinRoutes = require("./routes/linkedin");
+
+// Initialize Express Server
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+app.use("/api/linkedin", linkedinRoutes);
+
+const PORT = process.env.PORT || 4000;
+const server = app.listen(PORT, () => {
+  console.log(`🚀 Backend Express Server running on port ${PORT}`);
+});
+
 console.log("🚀 Backend Scraper Service Initialized");
 startScheduler();
 

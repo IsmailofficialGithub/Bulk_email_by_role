@@ -8,6 +8,8 @@ import {
   type Attachment,
   type AutoFetchConfig,
   type AutomailConfig,
+  type AutoCommentConfig,
+  type CommentRecord,
 } from "@/lib/types";
 
 export type PersistedState = {
@@ -21,6 +23,10 @@ export type PersistedState = {
   autoFetch: AutoFetchConfig;
   automail: AutomailConfig;
   batchSendPending: boolean;
+  allowedProducts: string[];
+  linkedinConnected: boolean;
+  commentsLog: CommentRecord[];
+  autoComment: AutoCommentConfig;
 };
 
 export function emptyTemplates(): Record<Role, RoleTemplate> {
@@ -61,6 +67,15 @@ export function defaultState(): PersistedState {
       aiPrompt: "You are an expert recruiter. Analyze the following LinkedIn post text. The author's email is {{email}}. Write a highly personalized, friendly, and concise email subject and body offering our services. CRITICAL: DO NOT use placeholders like [Name], [Company], etc. If you don't know a piece of information, either infer it from the context or rephrase to omit it. Always sign off with a proper name if available, never use placeholders or generic company names for the sender signature. Output ONLY valid JSON with 'subject' and 'body' keys.",
     },
     batchSendPending: false,
+    allowedProducts: [],
+    linkedinConnected: false,
+    commentsLog: [],
+    autoComment: {
+      enabled: false,
+      aiPrompt: "You are an insightful professional on LinkedIn. Write a short, encouraging comment for this post: {{post_text}}",
+      dailyLimit: 10,
+      intervalMin: 60,
+    },
   };
 }
 
@@ -147,6 +162,26 @@ export async function loadState(userId: string): Promise<PersistedState> {
       aiPrompt: appState.ai_prompt || defaultState().automail.aiPrompt,
     };
     state.batchSendPending = appState.batch_send_pending || false;
+    state.allowedProducts = appState.allowed_products || [];
+    
+    state.autoComment = {
+      enabled: appState.auto_comment_enabled || false,
+      aiPrompt: appState.auto_comment_prompt || defaultState().autoComment.aiPrompt,
+      dailyLimit: appState.auto_comment_limit || 10,
+      intervalMin: appState.auto_comment_interval_min || 60,
+      keywords: appState.auto_comment_keywords || "",
+    };
+  }
+
+  // Check if LinkedIn is connected
+  const { data: liAccount } = await supabase
+    .from("linkedin_accounts")
+    .select("id")
+    .eq("user_id", userId)
+    .maybeSingle();
+  
+  if (liAccount) {
+    state.linkedinConnected = true;
   }
 
   // Load recipients
@@ -204,6 +239,23 @@ export async function loadState(userId: string): Promise<PersistedState> {
     }));
   }
 
+  // Load comments log
+  const { data: commentsLog } = await supabase
+    .from("automailsend_linkedin_comments_log")
+    .select("*")
+    .eq("user_id", userId)
+    .order("sent_at", { ascending: false });
+  if (commentsLog) {
+    state.commentsLog = commentsLog.map((c) => ({
+      id: c.id,
+      postUrl: c.post_url,
+      commentText: c.comment_text,
+      status: c.status as "sent" | "failed",
+      error: c.error_message || undefined,
+      sentAt: c.sent_at,
+    }));
+  }
+
   return state;
 }
 
@@ -233,6 +285,11 @@ export async function saveAppState(userId: string, state: PersistedState) {
       ai_provider: state.automail.aiProvider,
       ai_api_key: state.automail.aiApiKey,
       ai_prompt: state.automail.aiPrompt,
+      auto_comment_enabled: state.autoComment.enabled,
+      auto_comment_prompt: state.autoComment.aiPrompt,
+      auto_comment_limit: state.autoComment.dailyLimit,
+      auto_comment_interval_min: state.autoComment.intervalMin,
+      auto_comment_keywords: state.autoComment.keywords,
     },
     { onConflict: "user_id" }
   );

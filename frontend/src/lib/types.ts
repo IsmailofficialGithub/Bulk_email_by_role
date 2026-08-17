@@ -94,3 +94,20 @@ export type AutomailConfig = {
   aiApiKey: string;
   aiPrompt: string;
 };
+
+export type CommentRecord = {
+  id: string;
+  postUrl: string;
+  commentText: string;
+  status: "sent" | "failed";
+  error?: string;
+  sentAt: string;
+};
+
+export type AutoCommentConfig = {
+  enabled: boolean;
+  aiPrompt: string;
+  dailyLimit: number;
+  intervalMin: number;
+  keywords?: string; // Optional niche keywords for searching posts (comma separated)
+};

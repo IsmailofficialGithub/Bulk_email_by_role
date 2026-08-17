@@ -31,7 +31,7 @@ export function AutomailModal({ config, smtpConfig, templates, sentTodayCount, o
     if (config.aiProvider && config.aiProvider.includes(":")) {
       return config.aiProvider.split(":")[1];
     }
-    if (config.aiProvider?.startsWith("groq")) return "llama-3.1-8b-instant";
+    if (config.aiProvider?.startsWith("groq")) return "openai/gpt-oss-120b";
     if (config.aiProvider?.startsWith("openai")) return "gpt-4o-mini";
     if (config.aiProvider?.startsWith("gemini")) return "gemini-1.5-flash";
     return "";
@@ -214,7 +214,7 @@ export function AutomailModal({ config, smtpConfig, templates, sentTodayCount, o
                   onChange={(e) => {
                     const newProvider = e.target.value;
                     setSelectedProvider(newProvider);
-                    if (newProvider === "groq") setSelectedModel("llama-3.1-8b-instant");
+                    if (newProvider === "groq") setSelectedModel("openai/gpt-oss-120b");
                     else if (newProvider === "openai") setSelectedModel("gpt-4o-mini");
                     else if (newProvider === "gemini") setSelectedModel("gemini-1.5-flash");
                   }}
@@ -235,10 +235,8 @@ export function AutomailModal({ config, smtpConfig, templates, sentTodayCount, o
                   >
                     {selectedProvider === "groq" && (
                       <>
-                        <option value="llama-3.1-8b-instant">Llama 3.1 8B</option>
-                        <option value="llama3-70b-8192">Llama 3 70B</option>
-                        <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
-                        <option value="gemma2-9b-it">Gemma 2 9B</option>
+                        <option value="openai/gpt-oss-120b">GPT OSS 120B</option>
+                        <option value="whisper-large-v3">Whisper Large v3</option>
                       </>
                     )}
                     {selectedProvider === "openai" && (

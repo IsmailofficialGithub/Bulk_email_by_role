@@ -42,7 +42,10 @@ export function AdminPortal() {
     setLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const headers: Record<string, string> = session ? { "Authorization": `Bearer ${session.access_token}` } : {};
+      const headers: Record<string, string> = {};
+      if (session) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+      }
       const [settingsRes, usersRes] = await Promise.all([
         fetch("/api/admin/global-settings", { headers }),
         fetch("/api/admin/users", { headers })
@@ -71,10 +74,12 @@ export function AdminPortal() {
   async function saveGlobalSettings() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const headers = { 
-        "Content-Type": "application/json",
-        ...(session ? { "Authorization": `Bearer ${session.access_token}` } : {})
+      const headers: Record<string, string> = { 
+        "Content-Type": "application/json"
       };
+      if (session) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+      }
 
       const res = await fetch("/api/admin/global-settings", {
         method: "POST",
@@ -101,10 +106,12 @@ export function AdminPortal() {
   async function toggleBlock(userId: string, currentBlocked: boolean) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const headers = { 
-        "Content-Type": "application/json",
-        ...(session ? { "Authorization": `Bearer ${session.access_token}` } : {})
+      const headers: Record<string, string> = { 
+        "Content-Type": "application/json"
       };
+      if (session) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+      }
 
       const res = await fetch("/api/admin/users", {
         method: "POST",
@@ -115,6 +122,38 @@ export function AdminPortal() {
       if (data.success) {
         toast.success(currentBlocked ? "User unblocked" : "User blocked");
         setUsers(users.map(u => u.user_id === userId ? { ...u, is_blocked: !currentBlocked } : u));
+      } else {
+        toast.error(data.error || "Failed to update user");
+      }
+    } catch (err) {
+      toast.error("Network error");
+    }
+  }
+
+  async function toggleLinkedInAccess(userId: string, currentAllowed: string[]) {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { 
+        "Content-Type": "application/json"
+      };
+      if (session) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+      }
+
+      const hasLinkedIn = currentAllowed.includes('linkedin');
+      const newAllowed = hasLinkedIn 
+        ? currentAllowed.filter(p => p !== 'linkedin') 
+        : [...currentAllowed, 'linkedin'];
+
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ user_id: userId, allowed_products: newAllowed })
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(hasLinkedIn ? "LinkedIn access revoked" : "LinkedIn access granted");
+        setUsers(users.map(u => u.user_id === userId ? { ...u, allowed_products: newAllowed } : u));
       } else {
         toast.error(data.error || "Failed to update user");
       }
@@ -227,6 +266,12 @@ export function AdminPortal() {
                         {u.is_blocked ? "Unblock" : "Block"}
                       </button>
                       <button 
+                        className={`btn small ${u.allowed_products?.includes('linkedin') ? "danger" : "ok"}`} 
+                        onClick={() => toggleLinkedInAccess(u.user_id, u.allowed_products || [])}
+                      >
+                        {u.allowed_products?.includes('linkedin') ? "Revoke LinkedIn" : "Grant LinkedIn"}
+                      </button>
+                      <button 
                         className="btn small primary" 
                         onClick={() => setViewUser(u)}
                       >
@@ -265,7 +310,10 @@ function UserDetailsModal({ user, onClose }: { user: UserState; onClose: () => v
     setLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const headers: Record<string, string> = session ? { "Authorization": `Bearer ${session.access_token}` } : {};
+      const headers: Record<string, string> = {};
+      if (session) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+      }
       
       const res = await fetch(`/api/admin/users/${user.user_id}`, { headers });
       const json = await res.json();
