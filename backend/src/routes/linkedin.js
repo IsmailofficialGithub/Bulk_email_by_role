@@ -52,11 +52,11 @@ router.get("/callback", async (req, res) => {
   const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
 
   if (error) {
-    return res.redirect(`${frontendUrl}/dashboard?error=${error}`);
+    return res.redirect(`${frontendUrl}/settings?openModel=ture&error=${error}`);
   }
 
   if (!code || !state) {
-    return res.redirect(`${frontendUrl}/dashboard?error=invalid_request`);
+    return res.redirect(`${frontendUrl}/settings?openModel=ture&error=invalid_request`);
   }
 
   const clientId = process.env.LINKEDIN_CLIENT_ID;
@@ -64,7 +64,7 @@ router.get("/callback", async (req, res) => {
   const redirectUri = process.env.LINKEDIN_REDIRECT_URI;
 
   if (!clientId || !clientSecret || !redirectUri) {
-    return res.redirect(`${frontendUrl}/dashboard?error=server_configuration_error`);
+    return res.redirect(`${frontendUrl}/settings?openModel=ture&error=server_configuration_error`);
   }
 
   try {
@@ -83,7 +83,7 @@ router.get("/callback", async (req, res) => {
     const tokenData = await tokenRes.json();
     if (!tokenRes.ok) {
       console.error("LinkedIn token error:", tokenData);
-      return res.redirect(`${frontendUrl}/dashboard?error=token_exchange_failed`);
+      return res.redirect(`${frontendUrl}/settings?openModel=ture&error=token_exchange_failed`);
     }
 
     const { access_token, refresh_token, expires_in } = tokenData;
@@ -95,7 +95,7 @@ router.get("/callback", async (req, res) => {
     const profileData = await profileRes.json();
     if (!profileRes.ok) {
       console.error("LinkedIn profile error:", profileData);
-      return res.redirect(`${frontendUrl}/dashboard?error=profile_fetch_failed`);
+      return res.redirect(`${frontendUrl}/settings?openModel=ture&error=profile_fetch_failed`);
     }
 
     const linkedinPersonUrn = `urn:li:person:${profileData.sub}`;
@@ -114,14 +114,14 @@ router.get("/callback", async (req, res) => {
 
     if (dbError) {
       console.error("Supabase upsert error:", dbError);
-      return res.redirect(`${frontendUrl}/dashboard?error=database_error`);
+      return res.redirect(`${frontendUrl}/settings?openModel=ture&error=database_error`);
     }
 
-    return res.redirect(`${frontendUrl}/dashboard?linkedin_connected=true`);
+    return res.redirect(`${frontendUrl}/settings?openModel=ture&linkedin_connected=true`);
 
   } catch (err) {
     console.error("LinkedIn OAuth Callback error:", err);
-    return res.redirect(`${frontendUrl}/dashboard?error=internal_server_error`);
+    return res.redirect(`${frontendUrl}/settings?openModel=ture&error=internal_server_error`);
   }
 });
 

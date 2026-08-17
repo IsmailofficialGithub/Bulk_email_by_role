@@ -53,6 +53,13 @@ export default function Home() {
         setActiveTab(currentTab as any);
       }
 
+      const searchParams = new URLSearchParams(window.location.search);
+      if (searchParams.get("openModel") === "ture" || searchParams.get("openModal") === "true") {
+        setShowLinkedInConfig(true);
+        // Clean up the URL without triggering a full page reload
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+
       const handlePopState = () => {
         const popTab = window.location.pathname.replace('/', '') || 'contacts';
         if (["contacts", "templates", "sending", "quicksend", "settings", "logs", "emails", "comments", "admin"].includes(popTab)) {
