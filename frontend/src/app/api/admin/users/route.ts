@@ -27,7 +27,21 @@ export async function GET(req: Request) {
       .order("created_at", { ascending: false });
 
     if (error) throw error;
-    return NextResponse.json({ success: true, data });
+    
+    const { data: { users }, error: authError } = await supabaseAdmin.auth.admin.listUsers();
+    const emailMap = new Map();
+    if (users) {
+      for (const u of users) {
+        emailMap.set(u.id, u.email);
+      }
+    }
+
+    const finalData = data.map((row: any) => ({
+      ...row,
+      email: emailMap.get(row.user_id) || "Unknown Email"
+    }));
+
+    return NextResponse.json({ success: true, data: finalData });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

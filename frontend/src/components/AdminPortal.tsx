@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 
 type UserState = {
   user_id: string;
+  email?: string;
   is_blocked: boolean;
   allowed_products: string[];
   config: any;
@@ -241,6 +242,7 @@ export function AdminPortal() {
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--line)", textAlign: "left" }}>
                   <th style={{ padding: "0.75rem 0.5rem" }}>User ID</th>
+                  <th style={{ padding: "0.75rem 0.5rem" }}>Email</th>
                   <th style={{ padding: "0.75rem 0.5rem" }}>Joined</th>
                   <th style={{ padding: "0.75rem 0.5rem" }}>Status</th>
                   <th style={{ padding: "0.75rem 0.5rem" }}>Actions</th>
@@ -249,8 +251,15 @@ export function AdminPortal() {
               <tbody>
                 {users.map(u => (
                   <tr key={u.user_id} style={{ borderBottom: "1px solid var(--line)" }}>
-                    <td style={{ padding: "0.75rem 0.5rem", fontFamily: "monospace" }}>{u.user_id}</td>
-                    <td style={{ padding: "0.75rem 0.5rem" }}>{new Date(u.created_at).toLocaleDateString()}</td>
+                    <td style={{ padding: "0.75rem 0.5rem" }}>
+                      <span className="badge ghost" style={{ fontFamily: "monospace", fontSize: "0.75rem" }}>{u.user_id.substring(0,8)}</span>
+                    </td>
+                    <td style={{ padding: "0.75rem 0.5rem", color: "var(--fg)", fontSize: "0.85rem" }}>
+                      {u.email || "-"}
+                    </td>
+                    <td style={{ padding: "0.75rem 0.5rem", color: "var(--muted)", fontSize: "0.85rem" }}>
+                      {new Date(u.created_at).toLocaleDateString()}
+                    </td>
                     <td style={{ padding: "0.75rem 0.5rem" }}>
                       {u.is_blocked ? (
                         <span className="badge err">Blocked</span>
