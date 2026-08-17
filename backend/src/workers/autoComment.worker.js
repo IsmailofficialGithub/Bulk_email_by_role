@@ -97,13 +97,14 @@ async function runAutoCommentJobs(supabase) {
 
       const rawKeywords = user.auto_comment_keywords ? user.auto_comment_keywords.split(",").map(k => k.trim()).filter(Boolean) : [];
       
-      let fetchUrl = "https://www.linkedin.com/feed/";
+      let fetchUrl = process.env.LINKEDIN_FEED_URL || "https://www.linkedin.com/feed/";
       let keywordUsed = null;
       if (rawKeywords.length > 0) {
         // pick a random keyword for variety
         keywordUsed = rawKeywords[Math.floor(Math.random() * rawKeywords.length)];
         const keywordsQuery = encodeURIComponent(keywordUsed);
-        fetchUrl = `https://www.linkedin.com/search/results/content/?keywords=${keywordsQuery}&origin=SWITCH_SEARCH_VERTICAL`;
+        const searchBase = process.env.LINKEDIN_SEARCH_CONTENT_BASE || "https://www.linkedin.com/search/results/content/";
+        fetchUrl = `${searchBase}?keywords=${keywordsQuery}&origin=SWITCH_SEARCH_VERTICAL`;
       }
 
       let parsedHeaders = {};
@@ -125,7 +126,8 @@ async function runAutoCommentJobs(supabase) {
       const urnMatches = rawText.match(/urn:li:activity:(\d{19})/g) || [];
       const uniqueUrns = [...new Set(urnMatches.map(m => m.match(/urn:li:activity:(\d{19})/)[1]))];
 
-      const candidatesUrls = uniqueUrns.map(id => `https://www.linkedin.com/feed/update/urn:li:activity:${id}/`);
+      const postBase = process.env.LINKEDIN_POST_BASE || "https://www.linkedin.com/feed/update/urn:li:activity:";
+      const candidatesUrls = uniqueUrns.map(id => `${postBase}${id}/`);
       
       const candidates = candidatesUrls.filter(u => !commentedUrls.has(u));
 
@@ -249,7 +251,7 @@ async function runAutoCommentJobs(supabase) {
             }
           };
 
-          const flagshipUrl = 'https://www.linkedin.com/flagship-web/rsc-action/actions/server-request?sduiid=com.linkedin.sdui.reactions.create';
+          const flagshipUrl = process.env.LINKEDIN_REACTION_FLAGSHIP_URL || 'https://www.linkedin.com/flagship-web/rsc-action/actions/server-request?sduiid=com.linkedin.sdui.reactions.create';
           
           // Must include specific headers for flagship-web requests
           const flagshipHeaders = { ...headers };
@@ -285,7 +287,8 @@ async function runAutoCommentJobs(supabase) {
                 }
               }
 
-              await axios.post('https://www.linkedin.com/voyager/api/voyagerSocialDashReactions?action=create', {
+              const fallbackReactionUrl = process.env.LINKEDIN_REACTION_FALLBACK_URL || 'https://www.linkedin.com/voyager/api/voyagerSocialDashReactions?action=create';
+              await axios.post(fallbackReactionUrl, {
                 threadUrn: activityUrn,
                 reactionType: "LIKE"
               }, { headers: dashHeaders });
@@ -450,7 +453,7 @@ async function runAutoCommentJobs(supabase) {
             }
 
             console.log(`[DEBUG] Sending Comment Request using fetch().`);
-            const dashUrl = `https://www.linkedin.com/voyager/api/voyagerSocialDashNormComments`;
+            const dashUrl = process.env.LINKEDIN_COMMENT_DASH_URL || `https://www.linkedin.com/voyager/api/voyagerSocialDashNormComments`;
             
             const dashRes = await fetch(dashUrl, {
               method: 'POST',
@@ -476,7 +479,7 @@ async function runAutoCommentJobs(supabase) {
           console.log(`[DEBUG] First request failed: ${err.message}. Status: ${err.response?.status}`);
           // Sometimes it's urn:li:ugcPost or the older endpoint (only if Voyager was used, or we just try anyway)
           try {
-            const fallbackUrl = `https://www.linkedin.com/voyager/api/feed/comments?action=create`;
+            const fallbackUrl = process.env.LINKEDIN_COMMENT_FALLBACK_URL || `https://www.linkedin.com/voyager/api/feed/comments?action=create`;
             const fbRes = await fetch(fallbackUrl, {
               method: 'POST',
               headers: headers, // Use full headers for generic fallback
@@ -491,7 +494,7 @@ async function runAutoCommentJobs(supabase) {
             try {
               // UGC URN fallback
               const ugcUrn = `urn:li:ugcPost:${activityId}`;
-              const fallbackUrl = `https://www.linkedin.com/voyager/api/feed/comments?action=create`;
+              const fallbackUrl = process.env.LINKEDIN_COMMENT_FALLBACK_URL || `https://www.linkedin.com/voyager/api/feed/comments?action=create`;
               const fbRes2 = await fetch(fallbackUrl, {
                 method: 'POST',
                 headers: headers,

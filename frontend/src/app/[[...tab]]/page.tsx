@@ -294,7 +294,8 @@ export default function Home() {
     if (activeTab === 'settings' && linkedinConnected && autoFetch.enabled) {
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (session) {
-          fetch('http://localhost:4000/api/linkedin/verify-identity', {
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+          fetch(`${apiUrl}/api/linkedin/verify-identity`, {
             headers: { 'Authorization': `Bearer ${session.access_token}` }
           })
           .then(res => res.json())

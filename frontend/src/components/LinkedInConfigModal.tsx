@@ -463,7 +463,8 @@ export function LinkedInConfigModal({ config, autoCommentConfig, linkedinConnect
                       if(confirm("Are you sure you want to disconnect LinkedIn?")) {
                         const { data: { session } } = await supabase.auth.getSession();
                         if (session) {
-                          await fetch('http://localhost:4000/api/linkedin/disconnect', {
+                          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+                          await fetch(`${apiUrl}/api/linkedin/disconnect`, {
                             method: 'POST',
                             headers: { 'Authorization': `Bearer ${session.access_token}` }
                           });
@@ -482,7 +483,8 @@ export function LinkedInConfigModal({ config, autoCommentConfig, linkedinConnect
                     onClick={async () => {
                       const { data: { session } } = await supabase.auth.getSession();
                       if (session) {
-                        const res = await fetch('http://localhost:4000/api/linkedin/connect', {
+                        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+                        const res = await fetch(`${apiUrl}/api/linkedin/connect`, {
                           headers: { 'Authorization': `Bearer ${session.access_token}` }
                         });
                         const json = await res.json();
