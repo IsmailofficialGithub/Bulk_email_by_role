@@ -289,9 +289,9 @@ export default function Home() {
     };
   }, [userId, hydrated]);
 
-  // Verify Identity when LinkedIn tab opens
+  // Verify Identity when Settings tab opens
   useEffect(() => {
-    if (activeTab === 'linkedin' && linkedinConnected && autoFetch.enabled) {
+    if (activeTab === 'settings' && linkedinConnected && autoFetch.enabled) {
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (session) {
           fetch('http://localhost:4000/api/linkedin/verify-identity', {
