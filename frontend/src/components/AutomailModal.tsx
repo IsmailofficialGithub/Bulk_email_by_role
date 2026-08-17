@@ -185,7 +185,7 @@ export function AutomailModal({ config, smtpConfig, templates, sentTodayCount, o
                     emails (Sent today: {sentTodayCount})
                   </span>
                 </div>
-                <span className="hint compact">Maximum emails to send automatically per day.</span>
+                  <span className="hint compact">Maximum emails Automail will send per day. Keep delay between emails to a few seconds (not hours) so this quota can actually fill. The worker sends continuously in the background until this number is reached.</span>
               </label>
 
               <hr />

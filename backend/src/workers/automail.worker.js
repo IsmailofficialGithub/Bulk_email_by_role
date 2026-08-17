@@ -21,6 +21,18 @@ function getStartOfDayUTC() {
   return d.toISOString();
 }
 
+/** Cap delay so a huge "seconds between emails" value cannot reduce a 50/day quota to 1–3 sends. */
+const MAX_AUTOMAIL_DELAY_SEC = 180;
+
+function resolveDelaySec(user) {
+  const envDefault = process.env.AUTOMAIL_WORKER_INTERVAL_SEC
+    ? parseInt(process.env.AUTOMAIL_WORKER_INTERVAL_SEC, 10)
+    : 10;
+  const raw = Number(user.send_delay_sec);
+  const delay = Number.isFinite(raw) && raw >= 0 ? raw : envDefault;
+  return Math.min(delay, MAX_AUTOMAIL_DELAY_SEC);
+}
+
 async function runAutomailJobs(supabase) {
   try {
     // 1. Fetch users with Automail enabled
@@ -39,8 +51,7 @@ async function runAutomailJobs(supabase) {
       const email = user.smtp_email;
       const appPassword = user.smtp_password;
       const limit = parseInt(user.daily_mail_limit, 10) || 50;
-      const defaultInterval = process.env.AUTOMAIL_WORKER_INTERVAL_SEC ? parseInt(process.env.AUTOMAIL_WORKER_INTERVAL_SEC, 10) : 3;
-      const delaySec = user.send_delay_sec || defaultInterval;
+      const delaySec = resolveDelaySec(user);
       
       const aiProvider = user.ai_provider || "none";
       const aiApiKey = user.ai_api_key;
@@ -55,9 +66,6 @@ async function runAutomailJobs(supabase) {
         console.log(pc.yellow(`[Automail] User ${userId.substring(0, 8)} enabled automail but missing SMTP creds. Skipping.`));
         continue;
       }
-
-      // Delay logger creation until we are sure there is work to do
-
 
       // 2. Determine how many emails they can send today
       const { count: sentToday, error: countErr } = await supabase
@@ -75,17 +83,55 @@ async function runAutomailJobs(supabase) {
       const remainingQuota = limit - (sentToday || 0);
       
       if (remainingQuota <= 0) {
-        // Silently skip to prevent log flooding every 3 seconds
         continue;
       }
 
-      // 3. Fetch pending recipients
+      // Pace by last successful send instead of sleeping for hours inside one locked run
+      const { data: lastSentRow } = await supabase
+        .from("automailsend_sent_log")
+        .select("sent_at")
+        .eq("user_id", userId)
+        .eq("status", "sent")
+        .order("sent_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (lastSentRow?.sent_at && delaySec > 0) {
+        const elapsedSec = (Date.now() - new Date(lastSentRow.sent_at).getTime()) / 1000;
+        if (elapsedSec < delaySec) {
+          continue;
+        }
+      }
+
+      // 3. Fetch templates first so we only pull pending contacts we can actually send
+      const { data: templates, error: tempErr } = await supabase
+        .from("automailsend_templates")
+        .select("*")
+        .eq("user_id", userId);
+
+      if (tempErr || !templates) {
+        console.error(pc.red(`Error fetching templates for user ${userId}`));
+        continue;
+      }
+
+      const templatesByRole = {};
+      templates.forEach(t => { templatesByRole[t.role] = t; });
+      const sendableRoles = templates
+        .filter((t) => t.subject && t.content)
+        .map((t) => t.role);
+
+      if (sendableRoles.length === 0) {
+        continue;
+      }
+
       const { data: rawPending, error: pendingErr } = await supabase
         .from("automailsend_recipients")
         .select("*")
         .eq("user_id", userId)
         .eq("status", "pending")
-        .limit(remainingQuota * 3); // fetch extra to account for duplicates
+        .in("role", sendableRoles)
+        .order("id", { ascending: true })
+        .limit(Math.max(remainingQuota * 3, 50));
 
       if (pendingErr) {
         console.error(pc.red(`Error fetching pending recipients for user ${userId}: ${pendingErr.message}`));
@@ -94,42 +140,23 @@ async function runAutomailJobs(supabase) {
       
       const uniquePendingMap = new Map();
       for (const r of (rawPending || [])) {
-        if (!r.email) {
-           uniquePendingMap.set(`id:${r.id}`, r); // keep ones without email
-           continue;
-        }
+        if (!r.email) continue;
         const key = r.email.toLowerCase();
         if (!uniquePendingMap.has(key)) {
           uniquePendingMap.set(key, r);
         }
       }
-      const pending = Array.from(uniquePendingMap.values()).slice(0, remainingQuota);
+      // One email per scheduler tick so the lock is not held for hours and quota can fill over the day
+      const pending = Array.from(uniquePendingMap.values()).slice(0, 10);
 
       if (!pending || pending.length === 0) {
-        // Silently skip if no emails to send
         continue;
       }
 
-      // We have work to do, initialize the logger
       const logger = new ExecutionLogger(userId, "automail");
       await logger.start(`Starting Automail batch process...`);
       await logger.append("INFO", `Checking Quota - Limit: ${limit}, Sent Today: ${sentToday || 0}, Remaining: ${remainingQuota}`);
-
-      await logger.append("INFO", `Quota: ${remainingQuota}, Pending: ${pending.length}`);
-
-      // 4. Fetch user templates
-      const { data: templates, error: tempErr } = await supabase
-        .from("automailsend_templates")
-        .select("*")
-        .eq("user_id", userId);
-
-      if (tempErr || !templates) {
-        await logger.finish("error", `Error fetching templates`);
-        continue;
-      }
-
-      const templatesByRole = {};
-      templates.forEach(t => { templatesByRole[t.role] = t; });
+      await logger.append("INFO", `Sending up to 1 email this tick (delay ${delaySec}s). Remaining quota: ${remainingQuota}.`);
 
       // 5. Setup Nodemailer
       const config = user.config || {};
@@ -157,6 +184,9 @@ async function runAutomailJobs(supabase) {
         host,
         port,
         secure,
+        connectionTimeout: 20000,
+        greetingTimeout: 20000,
+        socketTimeout: 30000,
         auth: {
           user: email,
           pass: passwordToUse,
@@ -305,13 +335,8 @@ async function runAutomailJobs(supabase) {
             sent_at: new Date().toISOString(),
           });
 
-        if (delaySec > 0) {
-          // Anti-ban Jitter: Randomize delay by +/- 20%
-          const jitter = Math.random() * 0.4 - 0.2; 
-          const actualDelayMs = (delaySec * 1000) * (1 + jitter);
-          await logger.append("INFO", `Waiting ${Math.round(actualDelayMs / 1000)}s before next email...`);
-          await sleep(actualDelayMs);
-        }
+        // One SMTP send per tick; delay is enforced on the next tick via last-sent timestamp
+        break;
       }
       
       await logger.finish("success", `Finished batch. Sent: ${sentCount}`);
