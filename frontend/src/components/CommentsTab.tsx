@@ -20,11 +20,11 @@ export function CommentsTab({ comments }: CommentsTabProps) {
         <table className="table">
           <thead>
             <tr>
-              <th>Sent At</th>
-              <th>Status</th>
-              <th>Post URL</th>
-              <th>Comment Text</th>
-              <th>Error</th>
+              <th style={{ width: "15%", minWidth: "140px" }}>Sent At</th>
+              <th style={{ width: "10%", minWidth: "80px" }}>Status</th>
+              <th style={{ width: "10%", minWidth: "100px" }}>Post URL</th>
+              <th style={{ width: "35%", minWidth: "250px" }}>Comment Text</th>
+              <th style={{ width: "30%", minWidth: "200px" }}>Error</th>
             </tr>
           </thead>
           <tbody>
@@ -44,7 +44,7 @@ export function CommentsTab({ comments }: CommentsTabProps) {
                 <td style={{ maxWidth: "400px", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
                   {c.commentText}
                 </td>
-                <td style={{ color: "var(--err)", fontSize: "0.85rem" }}>
+                <td style={{ maxWidth: "300px", whiteSpace: "pre-wrap", wordBreak: "break-word", color: "var(--err)", fontSize: "0.85rem" }}>
                   {c.error || "-"}
                 </td>
               </tr>
