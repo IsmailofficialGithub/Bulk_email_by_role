@@ -47,55 +47,57 @@ export function AutomailModal({ config, smtpConfig, templates, sentTodayCount, o
   }, []);
 
   async function handleSave() {
-    if (enabled) {
+    let finalEnabled = enabled;
+
+    if (finalEnabled) {
       // 1. Verify SMTP is configured
       if (!smtpConfig.email || !smtpConfig.appPassword) {
-        toast.error("Please configure SMTP settings first!");
+        toast.error("SMTP not configured. Automail disabled, but saving AI settings.");
+        finalEnabled = false;
         setEnabled(false);
-        return;
-      }
+      } else {
+        // 2. Verify SMTP credentials work
+        setLoading(true);
+        try {
+          let defaultHost = 'smtp.gmail.com';
+          let defaultPort = 465;
+          if (smtpConfig.email.includes('@outlook.com') || smtpConfig.email.includes('@hotmail.com')) {
+            defaultHost = 'smtp-mail.outlook.com';
+            defaultPort = 587;
+          }
 
-      // 2. Verify SMTP credentials work
-      setLoading(true);
-      try {
-        let defaultHost = 'smtp.gmail.com';
-        let defaultPort = 465;
-        if (smtpConfig.email.includes('@outlook.com') || smtpConfig.email.includes('@hotmail.com')) {
-          defaultHost = 'smtp-mail.outlook.com';
-          defaultPort = 587;
-        }
-
-        const res = await fetch("/api/verify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            email: smtpConfig.email, 
-            appPassword: smtpConfig.appPassword,
-            host: smtpConfig.host || defaultHost,
-            port: smtpConfig.port || defaultPort
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok || !data.success) {
-          toast.error(data.error || "SMTP Verification failed. Please check your credentials.");
+          const res = await fetch("/api/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              email: smtpConfig.email, 
+              appPassword: smtpConfig.appPassword,
+              host: smtpConfig.host || defaultHost,
+              port: smtpConfig.port || defaultPort
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok || !data.success) {
+            toast.error(data.error || "SMTP Verification failed. Automail disabled, but saving AI settings.");
+            finalEnabled = false;
+            setEnabled(false);
+          }
+        } catch {
+          toast.error("Network error verifying SMTP. Automail disabled, but saving AI settings.");
+          finalEnabled = false;
           setEnabled(false);
-          setLoading(false);
-          return;
         }
-      } catch {
-        toast.error("Network error verifying SMTP credentials.");
-        setEnabled(false);
         setLoading(false);
-        return;
-      }
-      setLoading(false);
 
-      // 3. Verify at least one template exists
-      const hasTemplate = Object.values(templates).some(t => t.subject.trim() !== "" && t.content.trim() !== "");
-      if (!hasTemplate) {
-        toast.error("Please create at least one email template before enabling Automail!");
-        setEnabled(false);
-        return;
+        // 3. Verify at least one template exists
+        if (finalEnabled) {
+          const hasTemplate = Object.values(templates).some(t => t.subject.trim() !== "" && t.content.trim() !== "");
+          if (!hasTemplate) {
+            toast.error("No email templates found. Automail disabled, but saving AI settings.");
+            finalEnabled = false;
+            setEnabled(false);
+          }
+        }
       }
     }
 
@@ -105,7 +107,7 @@ export function AutomailModal({ config, smtpConfig, templates, sentTodayCount, o
     }
 
     onSave({
-      enabled,
+      enabled: finalEnabled,
       dailyLimit,
       aiProvider: finalAiProvider,
       aiApiKey,
