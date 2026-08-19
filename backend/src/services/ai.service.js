@@ -101,7 +101,12 @@ async function generateAiPersonalizedEmail(provider, apiKey, promptTemplate, rec
 }
 
 async function generateAiComment(provider, apiKey, promptTemplate, contextText) {
-  const prompt = promptTemplate.replaceAll("{{post_text}}", contextText || "No context provided.");
+  let prompt = promptTemplate;
+  if (promptTemplate.includes("{{post_text}}")) {
+    prompt = promptTemplate.replaceAll("{{post_text}}", contextText || "No context provided.");
+  } else {
+    prompt = promptTemplate + "\n\n--- POST TEXT ---\n" + (contextText || "No context provided.");
+  }
   
   let retries = 3;
   let delay = 2000;

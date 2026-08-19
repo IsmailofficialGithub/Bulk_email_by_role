@@ -13,6 +13,69 @@ function getStartOfDayUTC() {
   return d.toISOString();
 }
 
+function mapUrnsToTexts(rawText) {
+  const urnToText = {};
+  if (!rawText) return urnToText;
+  
+  const rawString = typeof rawText === "string" ? rawText : JSON.stringify(rawText);
+  const jsonBlocks = [];
+  
+  const codeBlocks = rawString.match(/<code[^>]*>([\s\S]*?)<\/code>/gi) || [];
+  for (const block of codeBlocks) {
+    const content = block.replace(/<code[^>]*>/i, '').replace(/<\/code>/i, '').trim();
+    try {
+      const decoded = content
+        .replace(/&quot;/g, '"')
+        .replace(/&amp;/g, '&')
+        .replace(/&#39;/g, "'")
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>');
+      jsonBlocks.push(JSON.parse(decoded));
+    } catch (e) {}
+  }
+  
+  try {
+    jsonBlocks.push(JSON.parse(rawString));
+  } catch (e) {}
+  
+  function traverse(obj) {
+    if (!obj || typeof obj !== "object") return;
+    if (Array.isArray(obj)) {
+      obj.forEach(traverse);
+      return;
+    }
+    
+    let urn = null;
+    if (typeof obj.urn === "string" && obj.urn.includes("urn:li:activity:")) {
+      urn = obj.urn;
+    } else if (obj.updateMetadata && typeof obj.updateMetadata.urn === "string" && obj.updateMetadata.urn.includes("urn:li:activity:")) {
+      urn = obj.updateMetadata.urn;
+    }
+    
+    if (urn) {
+      const activityId = urn.match(/urn:li:activity:(\d{19})/)?.[1];
+      if (activityId) {
+        let text = "";
+        if (obj.commentary && obj.commentary.text && typeof obj.commentary.text.text === "string") {
+          text = obj.commentary.text.text;
+        } else if (obj.updateMetadata && obj.updateMetadata.commentary && typeof obj.updateMetadata.commentary.text === "string") {
+          text = obj.updateMetadata.commentary.text;
+        }
+        if (text) {
+          urnToText[activityId] = text;
+        }
+      }
+    }
+    
+    for (const key of Object.keys(obj)) {
+      traverse(obj[key]);
+    }
+  }
+  
+  jsonBlocks.forEach(traverse);
+  return urnToText;
+}
+
 async function runAutoCommentJobs(supabase) {
   try {
     const { data: users, error: usersErr } = await supabase
@@ -154,6 +217,7 @@ async function runAutoCommentJobs(supabase) {
       }
 
       const rawText = response.data;
+      const urnToTextMap = mapUrnsToTexts(rawText);
       const urnMatches = rawText.match(/urn:li:activity:(\d{19})/g) || [];
       const uniqueUrns = [...new Set(urnMatches.map(m => m.match(/urn:li:activity:(\d{19})/)[1]))];
 
@@ -364,51 +428,56 @@ async function runAutoCommentJobs(supabase) {
         let skipReason = null;
         let postText = "A LinkedIn post";
         
-        try {
-          await logger.append("INFO", `Fetching post content for AI context...`);
-          // Use the authenticated headers, but modify accept for HTML
-          const fetchHeaders = { ...headers, "Accept": "text/html,application/xhtml+xml,application/xml" };
-          const postRes = await axios.get(targetUrl, { headers: fetchHeaders, responseType: 'text' });
-          const postHtml = postRes.data;
-          
-          const ogMatch = postHtml.match(/<meta property="og:description"\s+content="([^"]+)"/i) || postHtml.match(/<meta property='og:description'\s+content='([^']+)'/i) || postHtml.match(/<meta name="description"\s+content="([^"]+)"/i);
-          if (ogMatch) {
-            postText = ogMatch[1];
-          } else {
-            const titleMatch = postHtml.match(/<title>([^<]+)<\/title>/i);
-            if (titleMatch) postText = titleMatch[1];
+        if (urnToTextMap && urnToTextMap[activityId]) {
+          postText = urnToTextMap[activityId];
+          await logger.append("INFO", `Using pre-extracted post content from feed.`);
+        } else {
+          try {
+            await logger.append("INFO", `Fetching post content for AI context...`);
+            // Use the authenticated headers, but modify accept for HTML
+            const fetchHeaders = { ...headers, "Accept": "text/html,application/xhtml+xml,application/xml" };
+            const postRes = await axios.get(targetUrl, { headers: fetchHeaders, responseType: 'text' });
+            const postHtml = postRes.data;
+            
+            const ogMatch = postHtml.match(/<meta property="og:description"\s+content="([^"]+)"/i) || postHtml.match(/<meta property='og:description'\s+content='([^']+)'/i) || postHtml.match(/<meta name="description"\s+content="([^"]+)"/i);
+            if (ogMatch) {
+              postText = ogMatch[1];
+            } else {
+              const titleMatch = postHtml.match(/<title>([^<]+)<\/title>/i);
+              if (titleMatch) postText = titleMatch[1];
+            }
+            
+            // Decode HTML entities if needed
+            postText = postText.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+            
+            // If LinkedIn puts generic "Post | LinkedIn", dig into the JSON state payload for the real post text
+            if (postText.includes("Post | LinkedIn") || postText === "LinkedIn" || postText.length < 25) {
+               let possibleTexts = [];
+               
+               // Match unescaped JSON text fields
+               const rawMatches = postHtml.matchAll(/"text":"(.*?)"/g);
+               for (const m of rawMatches) {
+                   if (m[1].length > 30 && !m[1].includes("urn:li:")) possibleTexts.push(m[1]);
+               }
+               
+               // Match escaped JSON text fields
+               const escMatches = postHtml.matchAll(/&quot;text&quot;:&quot;(.*?)&quot;/g);
+               for (const m of escMatches) {
+                   if (m[1].length > 30 && !m[1].includes("urn:li:")) possibleTexts.push(m[1]);
+               }
+               
+               if (possibleTexts.length > 0) {
+                   // The longest text block in the payload is almost always the main post text
+                   possibleTexts.sort((a, b) => b.length - a.length);
+                   postText = possibleTexts[0];
+               }
+               
+               // Final clean up of escaped json chars
+               postText = postText.replace(/\\n/g, '\n').replace(/\\"/g, '"');
+            }
+          } catch (e) {
+            await logger.append("WARN", `Could not fetch post HTML for context: ${e.message}`);
           }
-          
-          // Decode HTML entities if needed
-          postText = postText.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>');
-          
-          // If LinkedIn puts generic "Post | LinkedIn", dig into the JSON state payload for the real post text
-          if (postText.includes("Post | LinkedIn") || postText === "LinkedIn" || postText.length < 25) {
-             let possibleTexts = [];
-             
-             // Match unescaped JSON text fields
-             const rawMatches = postHtml.matchAll(/"text":"(.*?)"/g);
-             for (const m of rawMatches) {
-                 if (m[1].length > 30 && !m[1].includes("urn:li:")) possibleTexts.push(m[1]);
-             }
-             
-             // Match escaped JSON text fields
-             const escMatches = postHtml.matchAll(/&quot;text&quot;:&quot;(.*?)&quot;/g);
-             for (const m of escMatches) {
-                 if (m[1].length > 30 && !m[1].includes("urn:li:")) possibleTexts.push(m[1]);
-             }
-             
-             if (possibleTexts.length > 0) {
-                 // The longest text block in the payload is almost always the main post text
-                 possibleTexts.sort((a, b) => b.length - a.length);
-                 postText = possibleTexts[0];
-             }
-             
-             // Final clean up of escaped json chars
-             postText = postText.replace(/\\n/g, '\n').replace(/\\"/g, '"');
-          }
-        } catch (e) {
-          await logger.append("WARN", `Could not fetch post HTML for context: ${e.message}`);
         }
         
         try {
