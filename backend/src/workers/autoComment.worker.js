@@ -97,7 +97,8 @@ async function runAutoCommentJobs(supabase) {
 
       const rawKeywords = user.auto_comment_keywords ? user.auto_comment_keywords.split(",").map(k => k.trim()).filter(Boolean) : [];
       
-      let fetchUrl = process.env.LINKEDIN_FEED_URL || "https://www.linkedin.com/feed/";
+      const cleanJsession = jsessionid ? jsessionid.replace(/"/g, '') : '';
+      let fetchUrl = process.env.LINKEDIN_FEED_URL || "https://www.linkedin.com/voyager/api/feed/updatesV2?count=20&q=feed";
       let keywordUsed = null;
       if (rawKeywords.length > 0) {
         // pick a random keyword for variety
@@ -111,12 +112,42 @@ async function runAutoCommentJobs(supabase) {
       try {
         parsedHeaders = JSON.parse(rawHeaders);
       } catch (e) {}
+      
+      let headers = {};
+      try {
+        if (parsedHeaders && Object.keys(parsedHeaders).length > 0) {
+          headers = parsedHeaders; // Use the exact headers the user stored in the DB
+        } else {
+          throw new Error("Empty headers");
+        }
+      } catch (e) {
+        // Fallback if raw_headers is missing or empty
+        headers = {
+          "Accept": "application/json",
+          "User-Agent": "Mozilla/5.0",
+          "x-restli-protocol-version": "2.0.0",
+          "csrf-token": cleanJsession,
+          "Cookie": `li_at=${liAt}; JSESSIONID="${cleanJsession}";`
+        };
+      }
+      
+      // Enforce latest tokens
+      headers['csrf-token'] = cleanJsession;
+      if (headers['cookie'] || headers['Cookie']) {
+         let cookieStr = headers['cookie'] || headers['Cookie'];
+         cookieStr = cookieStr.replace(/li_at=[^;]+/, `li_at=${liAt}`);
+         cookieStr = cookieStr.replace(/JSESSIONID="?[^;]+"?/, `JSESSIONID="${cleanJsession}"`);
+         headers['cookie'] = cookieStr;
+         delete headers['Cookie'];
+      } else {
+         headers['cookie'] = `li_at=${liAt}; JSESSIONID="${cleanJsession}"`;
+      }
 
       console.log(`[AutoComment Worker] User ${userId.substring(0,8)} fetching posts from: ${fetchUrl}`);
 
       let response;
       try {
-        response = await axios.get(fetchUrl, { headers: parsedHeaders, responseType: 'text' });
+        response = await axios.get(fetchUrl, { headers: headers, responseType: 'text' });
       } catch (err) {
         console.error(`[AutoComment Worker] Error fetching posts: ${err.message}`);
         continue;
@@ -335,15 +366,46 @@ async function runAutoCommentJobs(supabase) {
         
         try {
           await logger.append("INFO", `Fetching post content for AI context...`);
-          const postRes = await axios.get(targetUrl, { headers: parsedHeaders, responseType: 'text' });
+          // Use the authenticated headers, but modify accept for HTML
+          const fetchHeaders = { ...headers, "Accept": "text/html,application/xhtml+xml,application/xml" };
+          const postRes = await axios.get(targetUrl, { headers: fetchHeaders, responseType: 'text' });
           const postHtml = postRes.data;
           
-          const ogMatch = postHtml.match(/<meta property="og:description"\s+content="([^"]+)"/i) || postHtml.match(/<meta property='og:description'\s+content='([^']+)'/i);
+          const ogMatch = postHtml.match(/<meta property="og:description"\s+content="([^"]+)"/i) || postHtml.match(/<meta property='og:description'\s+content='([^']+)'/i) || postHtml.match(/<meta name="description"\s+content="([^"]+)"/i);
           if (ogMatch) {
             postText = ogMatch[1];
           } else {
             const titleMatch = postHtml.match(/<title>([^<]+)<\/title>/i);
             if (titleMatch) postText = titleMatch[1];
+          }
+          
+          // Decode HTML entities if needed
+          postText = postText.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+          
+          // If LinkedIn puts generic "Post | LinkedIn", dig into the JSON state payload for the real post text
+          if (postText.includes("Post | LinkedIn") || postText === "LinkedIn" || postText.length < 25) {
+             let possibleTexts = [];
+             
+             // Match unescaped JSON text fields
+             const rawMatches = postHtml.matchAll(/"text":"(.*?)"/g);
+             for (const m of rawMatches) {
+                 if (m[1].length > 30 && !m[1].includes("urn:li:")) possibleTexts.push(m[1]);
+             }
+             
+             // Match escaped JSON text fields
+             const escMatches = postHtml.matchAll(/&quot;text&quot;:&quot;(.*?)&quot;/g);
+             for (const m of escMatches) {
+                 if (m[1].length > 30 && !m[1].includes("urn:li:")) possibleTexts.push(m[1]);
+             }
+             
+             if (possibleTexts.length > 0) {
+                 // The longest text block in the payload is almost always the main post text
+                 possibleTexts.sort((a, b) => b.length - a.length);
+                 postText = possibleTexts[0];
+             }
+             
+             // Final clean up of escaped json chars
+             postText = postText.replace(/\\n/g, '\n').replace(/\\"/g, '"');
           }
         } catch (e) {
           await logger.append("WARN", `Could not fetch post HTML for context: ${e.message}`);

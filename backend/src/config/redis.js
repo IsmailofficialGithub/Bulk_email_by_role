@@ -9,8 +9,12 @@ connection.on("connect", () => {
   console.log("Redis connected");
 });
 
+let errorLogged = false;
 connection.on("error", (error) => {
-  console.log("Redis connection error", error);
+  if (!errorLogged) {
+    console.log("Redis connection error (logging once to prevent spam):", error.message);
+    errorLogged = true;
+  }
 });
 
 module.exports = { connection };

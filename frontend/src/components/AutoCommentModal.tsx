@@ -20,6 +20,7 @@ export function AutoCommentModal({ config, linkedinConnected, autoFetchConfig, o
   const [dailyLimit, setDailyLimit] = useState(config.dailyLimit);
   const [intervalMin, setIntervalMin] = useState(config.intervalMin);
   const [aiPrompt, setAiPrompt] = useState(config.aiPrompt);
+  const [keywords, setKeywords] = useState(config.keywords || "");
   
   const [mounted, setMounted] = useState(false);
 
@@ -40,6 +41,7 @@ export function AutoCommentModal({ config, linkedinConnected, autoFetchConfig, o
       dailyLimit,
       intervalMin,
       aiPrompt,
+      keywords,
     });
     onClose();
   }
@@ -112,6 +114,17 @@ export function AutoCommentModal({ config, linkedinConnected, autoFetchConfig, o
               />
             </label>
           </div>
+
+          <label className="field" style={{ marginTop: '1rem' }}>
+            <span>Target Keywords (Optional, comma-separated)</span>
+            <input
+              type="text"
+              value={keywords}
+              onChange={(e) => setKeywords(e.target.value)}
+              placeholder="e.g. software engineer, hiring, next.js"
+            />
+            <span className="hint compact">Leave empty to comment on your home feed.</span>
+          </label>
 
           <label className="field" style={{ marginTop: '1rem' }}>
             <span>AI Prompt (Context: {"{post_text}"} will be replaced with the actual post)</span>

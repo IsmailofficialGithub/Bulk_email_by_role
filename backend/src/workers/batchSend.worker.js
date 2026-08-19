@@ -41,7 +41,9 @@ async function processBatchSendJob(job) {
 
     const config = userState.config || {};
     const defaultInterval = process.env.BATCH_INTERVAL_SEC ? parseInt(process.env.BATCH_INTERVAL_SEC, 10) : 3;
-    const delaySec = userState.delay_sec || defaultInterval;
+    const delaySec = userState.send_delay_sec !== undefined && userState.send_delay_sec !== null
+      ? Number(userState.send_delay_sec)
+      : defaultInterval;
 
     if (!config.email || !config.appPassword) {
       throw new Error("SMTP config missing");
