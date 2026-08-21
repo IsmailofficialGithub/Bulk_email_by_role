@@ -90,6 +90,8 @@ export type AutoFetchConfig = {
 export type AutomailConfig = {
   enabled: boolean;
   dailyLimit: number;
+  /** Seconds to wait between each automail send */
+  perMailDelaySec: number;
   aiProvider: string;
   aiApiKey: string;
   aiPrompt: string;

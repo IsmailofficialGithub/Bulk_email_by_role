@@ -130,7 +130,44 @@ export default function Home() {
   
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const sentTodayCount = sentLog.filter(s => s.status === 'sent' && new Date(s.sentAt).toDateString() === new Date().toDateString()).length;
+  function isSentToday(sentAt?: string) {
+    if (!sentAt) return false;
+    const d = new Date(sentAt);
+    if (Number.isNaN(d.getTime())) return false;
+    const now = new Date();
+    return (
+      d.getFullYear() === now.getFullYear() &&
+      d.getMonth() === now.getMonth() &&
+      d.getDate() === now.getDate()
+    );
+  }
+
+  const sentTodayCount = sentLog.filter(
+    (s) => s.status === "sent" && isSentToday(s.sentAt)
+  ).length;
+
+  async function refreshSentLogFromDb() {
+    if (!userId) return;
+    const { data } = await supabase
+      .from("automailsend_sent_log")
+      .select("*")
+      .eq("user_id", userId)
+      .order("sent_at", { ascending: false })
+      .limit(500);
+    if (!data) return;
+    setSentLog(
+      data.map((s) => ({
+        email: s.email,
+        role: s.role as Role,
+        title: s.title || "",
+        subject: s.subject || undefined,
+        body: s.body || undefined,
+        status: s.status || "sent",
+        error: s.error_message || undefined,
+        sentAt: s.sent_at,
+      }))
+    );
+  }
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -295,6 +332,16 @@ export default function Home() {
       supabase.removeChannel(channel);
     };
   }, [userId, hydrated]);
+
+  // Keep Sent today counter fresh while Automail is running (realtime + poll fallback)
+  useEffect(() => {
+    if (!userId || !hydrated || !automail.enabled) return;
+    refreshSentLogFromDb();
+    const id = setInterval(() => {
+      refreshSentLogFromDb();
+    }, 5000);
+    return () => clearInterval(id);
+  }, [userId, hydrated, automail.enabled]);
 
   // Verify Identity when Settings tab opens
   useEffect(() => {
@@ -716,6 +763,9 @@ export default function Home() {
                 background: sentTodayCount >= automail.dailyLimit ? '#ef4444' : '#10b981' 
               }}></div>
               {sentTodayCount} / {automail.dailyLimit}
+              <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: '0.8rem' }}>
+                today
+              </span>
             </div>
           </div>
         </header>
@@ -762,7 +812,10 @@ export default function Home() {
                 recipients={recipients}
                 templates={templates}
                 delaySec={delaySec}
-                onDelayChange={setDelaySec}
+                onDelayChange={(sec) => {
+                  setDelaySec(sec);
+                  setAutomail((prev) => ({ ...prev, perMailDelaySec: sec }));
+                }}
                 sending={sending}
                 onSendingChange={setSending}
                 sentLog={sentLog}
@@ -966,7 +1019,10 @@ export default function Home() {
               smtpConfig={config}
               templates={templates}
               sentTodayCount={sentTodayCount}
-              onSave={setAutomail}
+              onSave={(next) => {
+                setAutomail(next);
+                setDelaySec(next.perMailDelaySec ?? 60);
+              }}
               onClose={() => {
                 setShowAutomailModal(false);
                 if (runTour) setRunTour(false);

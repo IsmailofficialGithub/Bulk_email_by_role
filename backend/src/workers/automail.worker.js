@@ -21,13 +21,13 @@ function getStartOfDayUTC() {
   return d.toISOString();
 }
 
-/** Cap delay so a huge "seconds between emails" value cannot reduce a 50/day quota to 1–3 sends. */
-const MAX_AUTOMAIL_DELAY_SEC = 180;
+/** Cap delay so extreme values cannot stall forever; UI allows up to 1 hour. */
+const MAX_AUTOMAIL_DELAY_SEC = 3600;
 
 function resolveDelaySec(user) {
   const envDefault = process.env.AUTOMAIL_WORKER_INTERVAL_SEC
     ? parseInt(process.env.AUTOMAIL_WORKER_INTERVAL_SEC, 10)
-    : 10;
+    : 60;
   const raw = Number(user.send_delay_sec);
   const delay = Number.isFinite(raw) && raw >= 0 ? raw : envDefault;
   return Math.min(delay, MAX_AUTOMAIL_DELAY_SEC);
@@ -314,26 +314,50 @@ async function runAutomailJobs(supabase) {
         }
 
         // Update recipient status
-        await supabase
+        const { error: recipErr } = await supabase
           .from("automailsend_recipients")
           .update({ status })
           .eq("user_id", userId)
           .eq("email", recipient.email);
+        if (recipErr) {
+          await logger.append("ERROR", `Failed updating recipient status: ${recipErr.message}`);
+        }
 
-        // Log to sent_log
-        await supabase
+        // Log to sent_log (must succeed for quota + delay tracking)
+        const { error: logErr } = await supabase
           .from("automailsend_sent_log")
           .insert({
             user_id: userId,
             email: recipient.email,
             role: recipient.role,
-            title: recipient.title,
-            subject: subject,
-            body: text,
+            title: recipient.title || "",
+            subject: subject || "",
+            body: text || "",
             status,
             error_message: errorMsg,
             sent_at: new Date().toISOString(),
           });
+
+        if (logErr) {
+          // Retry without optional columns in case DB schema is older
+          const { error: logErr2 } = await supabase
+            .from("automailsend_sent_log")
+            .insert({
+              user_id: userId,
+              email: recipient.email,
+              role: recipient.role,
+              title: recipient.title || "",
+              status,
+              error_message: errorMsg,
+              sent_at: new Date().toISOString(),
+            });
+          if (logErr2) {
+            await logger.append(
+              "ERROR",
+              `Failed writing sent_log (quota/delay will break): ${logErr.message} | retry: ${logErr2.message}`
+            );
+          }
+        }
 
         // One SMTP send per tick; delay is enforced on the next tick via last-sent timestamp
         break;

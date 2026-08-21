@@ -62,6 +62,7 @@ export function defaultState(): PersistedState {
     automail: {
       enabled: false,
       dailyLimit: 50,
+      perMailDelaySec: 60,
       aiProvider: "none",
       aiApiKey: "",
       aiPrompt: "You are an expert recruiter. Analyze the following LinkedIn post text. The author's email is {{email}}. Write a highly personalized, friendly, and concise email subject and body offering our services. CRITICAL: DO NOT use placeholders like [Name], [Company], etc. If you don't know a piece of information, either infer it from the context or rephrase to omit it. Always sign off with a proper name if available, never use placeholders or generic company names for the sender signature. Output ONLY valid JSON with 'subject' and 'body' keys.",
@@ -138,7 +139,7 @@ export async function loadState(userId: string): Promise<PersistedState> {
       port: parseInt(dbConfig.port || "465", 10),
       configured: !!appState.smtp_password,
     };
-    state.delaySec = appState.send_delay_sec || 3;
+    state.delaySec = appState.send_delay_sec ?? 60;
     state.defaultTitle = appState.default_title || "";
     
     state.autoFetch = {
@@ -157,6 +158,7 @@ export async function loadState(userId: string): Promise<PersistedState> {
     state.automail = {
       enabled: appState.automail_enabled || false,
       dailyLimit: appState.daily_mail_limit || 50,
+      perMailDelaySec: appState.send_delay_sec ?? 60,
       aiProvider: appState.ai_provider || "none",
       aiApiKey: appState.ai_api_key || "",
       aiPrompt: appState.ai_prompt || defaultState().automail.aiPrompt,
@@ -267,7 +269,7 @@ export async function saveAppState(userId: string, state: PersistedState) {
       smtp_email: state.config.email,
       smtp_password: state.config.appPassword,
       config: state.config,
-      send_delay_sec: state.delaySec,
+      send_delay_sec: state.automail?.perMailDelaySec ?? state.delaySec,
       active_template_role: state.activeTemplateRole,
       default_title: state.defaultTitle,
       auto_fetch_enabled: state.autoFetch.enabled,

@@ -18,6 +18,9 @@ type Props = {
 export function AutomailModal({ config, smtpConfig, templates, sentTodayCount, onSave, onClose }: Props) {
   const [enabled, setEnabled] = useState(config.enabled);
   const [dailyLimit, setDailyLimit] = useState(config.dailyLimit);
+  const [perMailDelaySec, setPerMailDelaySec] = useState(
+    config.perMailDelaySec ?? 60
+  );
   
   const [selectedProvider, setSelectedProvider] = useState<string>(() => {
     if (!config.aiProvider || config.aiProvider === "none") return "none";
@@ -45,6 +48,12 @@ export function AutomailModal({ config, smtpConfig, templates, sentTodayCount, o
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    setEnabled(config.enabled);
+    setDailyLimit(config.dailyLimit);
+    setPerMailDelaySec(config.perMailDelaySec ?? 60);
+  }, [config.enabled, config.dailyLimit, config.perMailDelaySec]);
 
   async function handleSave() {
     let finalEnabled = enabled;
@@ -109,6 +118,7 @@ export function AutomailModal({ config, smtpConfig, templates, sentTodayCount, o
     onSave({
       enabled: finalEnabled,
       dailyLimit,
+      perMailDelaySec: Math.max(0, Math.min(3600, Number(perMailDelaySec) || 0)),
       aiProvider: finalAiProvider,
       aiApiKey,
       aiPrompt,
@@ -184,10 +194,42 @@ export function AutomailModal({ config, smtpConfig, templates, sentTodayCount, o
                     style={{ width: "100px" }}
                   />
                   <span style={{ fontSize: "1.05rem", fontWeight: "500", color: "var(--muted)" }}>
-                    emails (Sent today: {sentTodayCount})
+                    emails (Sent today: <strong style={{ color: "var(--ink)" }}>{sentTodayCount}</strong>)
                   </span>
                 </div>
-                  <span className="hint compact">Maximum emails Automail will send per day. Keep delay between emails to a few seconds (not hours) so this quota can actually fill. The worker sends continuously in the background until this number is reached.</span>
+                  <span className="hint compact">Maximum emails Automail will send per day. This counter updates as soon as each mail is sent.</span>
+              </label>
+
+              <label className="field">
+                <span>
+                  Per-mail delay (seconds)
+                  <HelpTooltip
+                    title="Per-mail delay"
+                    content={
+                      <>
+                        <p>How long Automail waits after sending one email before sending the next.</p>
+                        <p><strong>Recommendation:</strong> 60–180 seconds to reduce spam risk. Example: delay 120 with limit 50 ≈ ~2.5 hours of sending.</p>
+                      </>
+                    }
+                  />
+                </span>
+                <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                  <input
+                    type="number"
+                    min={0}
+                    max={3600}
+                    step={1}
+                    value={perMailDelaySec}
+                    onChange={(e) => setPerMailDelaySec(Number(e.target.value) || 0)}
+                    style={{ width: "100px" }}
+                  />
+                  <span style={{ fontSize: "0.95rem", color: "var(--muted)" }}>
+                    sec between emails
+                  </span>
+                </div>
+                <span className="hint compact">
+                  Automail waits this many seconds after each successful send before the next one.
+                </span>
               </label>
 
               <hr />

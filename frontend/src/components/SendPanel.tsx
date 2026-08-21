@@ -333,13 +333,14 @@ export function SendPanel({
             <input
               type="number"
               min={0}
+              max={3600}
               step={1}
               value={delaySec}
               onChange={(e) => onDelayChange(Number(e.target.value) || 0)}
               disabled={sending}
             />
             <span style={{ fontSize: "0.8rem", color: "var(--muted)" }}>
-              Recommended: 60-120s to avoid spam bans
+              Same as Automail per-mail delay · recommended 60–180s
             </span>
           </label>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
