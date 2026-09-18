@@ -873,6 +873,7 @@ export default function Home() {
           {activeTab === 'settings' && (
             <div className="panel flex-col gap-4">
               <h2 className="panel-title">Application Settings</h2>
+              
               <div className="smtp-bar" style={{ marginTop: '0.5rem' }}>
                 <div className="smtp-bar-left">
                   <span className="smtp-bar-title">Account & SMTP Settings</span>
@@ -897,6 +898,45 @@ export default function Home() {
                 <div className="smtp-bar-actions">
                   <button type="button" className="btn primary" onClick={() => setShowAutomailModal(true)}>
                     Expand
+                  </button>
+                </div>
+              </div>
+
+              <div className="smtp-bar" style={{ marginTop: '0.5rem' }}>
+                <div className="smtp-bar-left">
+                  <span className="smtp-bar-title">LinkedIn Configuration</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.25rem' }}>
+                    {linkedinConnected ? (
+                      <span className="badge ok">OAuth ✅</span>
+                    ) : (
+                      <span className="badge err">OAuth ❌</span>
+                    )}
+                    {autoComment.enabled && (
+                      <span className="badge ok">
+                        Commenter Active
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="smtp-bar-actions">
+                  <button type="button" className="btn primary" onClick={() => setShowLinkedInConfig(true)}>
+                    Configure
+                  </button>
+                </div>
+              </div>
+
+              <div className="smtp-bar" style={{ marginTop: '0.5rem' }}>
+                <div className="smtp-bar-left">
+                  <span className="smtp-bar-title">LinkedIn Scraper Settings</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.25rem' }}>
+                    <span className={autoFetch.enabled ? "badge ok" : "badge warn"}>
+                      {autoFetch.enabled ? "Scraper Active" : "Scraper Disabled"}
+                    </span>
+                  </div>
+                </div>
+                <div className="smtp-bar-actions">
+                  <button type="button" className="btn primary" onClick={() => setShowAutoFetch(true)}>
+                    Configure
                   </button>
                 </div>
               </div>
@@ -938,44 +978,25 @@ export default function Home() {
                 )}
               </div>
 
-                  <div className="smtp-bar" style={{ marginTop: '0.5rem' }}>
-                    <div className="smtp-bar-left">
-                      <span className="smtp-bar-title">LinkedIn Configuration</span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.25rem' }}>
-                        {linkedinConnected ? (
-                          <span className="badge ok">OAuth ✅</span>
-                        ) : (
-                          <span className="badge err">OAuth ❌</span>
-                        )}
-                        {autoComment.enabled && (
-                          <span className="badge ok">
-                            Commenter Active
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="smtp-bar-actions">
-                      <button type="button" className="btn primary" onClick={() => setShowLinkedInConfig(true)}>
-                        Configure
-                      </button>
-                    </div>
+              <div className="smtp-bar" style={{ marginTop: '0.5rem', display: 'block', backgroundColor: 'var(--danger-dim)', borderColor: 'var(--danger)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div className="smtp-bar-left">
+                    <span className="smtp-bar-title" style={{ color: 'var(--danger)' }}>Reset Application</span>
+                    <p className="hint compact" style={{ color: 'var(--danger)', opacity: 0.8, marginTop: '0.25rem' }}>
+                      Clear all SMTP, templates, recipients, and settings.
+                    </p>
                   </div>
-
-                  <div className="smtp-bar" style={{ marginTop: '0.5rem' }}>
-                    <div className="smtp-bar-left">
-                      <span className="smtp-bar-title">LinkedIn Scraper Settings</span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.25rem' }}>
-                        <span className={autoFetch.enabled ? "badge ok" : "badge warn"}>
-                          {autoFetch.enabled ? "Scraper Active" : "Scraper Disabled"}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="smtp-bar-actions">
-                      <button type="button" className="btn primary" onClick={() => setShowAutoFetch(true)}>
-                        Configure
-                      </button>
-                    </div>
+                  <div className="smtp-bar-actions">
+                    <button type="button" className="btn danger" onClick={() => {
+                      if (window.confirm("Reset all settings? Clears SMTP, recipients, templates, and delay.")) {
+                        resetAll();
+                      }
+                    }}>
+                      Reset All Settings
+                    </button>
                   </div>
+                </div>
+              </div>
             </div>
           )}
 
