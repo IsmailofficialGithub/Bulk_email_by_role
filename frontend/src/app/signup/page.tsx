@@ -43,52 +43,32 @@ export default function SignUpPage() {
       return;
     }
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+      const siteUrl = window.location.origin;
 
-    if (error) {
-      setError(error.message);
-      setLoading(false);
-    } else {
-      // Send confirmation email via our backend endpoint
-      try {
-        const apiUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
-        const siteUrl = window.location.origin;
-        
-        await fetch(`${apiUrl}/api/email/send-confirmation`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            to: email,
-            subject: "Welcome to Viddr - Please confirm your email",
-            text: `Thank you for signing up to Viddr! Your account has been created successfully. Visit ${siteUrl}/login to access your account.`,
-            html: `
-              <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                <h2 style="color: #2563eb;">Welcome to Viddr!</h2>
-                <p>Hello,</p>
-                <p>Thank you for signing up. Your account has been successfully created.</p>
-                <p>Please click the button below to log in and get started:</p>
-                <br/>
-                <a href="${siteUrl}/login" style="display: inline-block; background-color: #2563eb; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Log in to your account</a>
-                <br/><br/>
-                <p>If you need to verify your email via Supabase, please follow any additional instructions provided separately.</p>
-                <br/>
-                <p>Best regards,<br/>The Viddr Team</p>
-              </div>
-            `
-          })
-        });
-      } catch (emailErr) {
-        console.error("Failed to send welcome email:", emailErr);
-        // We do not block the signup success flow on email failure
+      const res = await fetch(`${apiUrl}/api/auth/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, siteUrl })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to sign up.");
       }
 
-      setSuccess("Account created successfully! You can now log in.");
+      setSuccess("Account created! Please check your email for the verification link to log in.");
       setLoading(false);
+      
       // Optional: automatically redirect to login after a few seconds
-      setTimeout(() => router.push("/login"), 3000);
+      setTimeout(() => router.push("/login"), 5000);
+
+    } catch (err: any) {
+      console.error("Signup failed:", err);
+      setError(err.message || "An unexpected error occurred.");
+      setLoading(false);
     }
   }
 
@@ -113,71 +93,71 @@ export default function SignUpPage() {
           </div>
         ) : (
           <form onSubmit={handleSignUp} className="space-y-5">
-          <label className="field">
-            <span>Email</span>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              placeholder="you@example.com"
-            />
-          </label>
-          <div className="field">
-            <span>Password</span>
-            <div className="relative flex items-center">
+            <label className="field">
+              <span>Email</span>
               <input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
-                placeholder="••••••••"
-                className="w-full pr-10"
+                placeholder="you@example.com"
               />
+            </label>
+            <div className="field">
+              <span>Password</span>
+              <div className="relative flex items-center">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  placeholder="••••••••"
+                  className="w-full pr-10"
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 text-[var(--muted)] hover:text-[var(--accent)] transition-colors"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            <div className="field">
+              <span>Confirm Password</span>
+              <div className="relative flex items-center">
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  placeholder="••••••••"
+                  className="w-full pr-10"
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 text-[var(--muted)] hover:text-[var(--accent)] transition-colors"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                >
+                  {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            {error && <p className="text-[var(--danger)] text-sm">{error}</p>}
+            {success && <p className="text-[var(--ok)] text-sm">{success}</p>}
+
+            <div className="pt-2">
               <button
-                type="button"
-                className="absolute right-3 text-[var(--muted)] hover:text-[var(--accent)] transition-colors"
-                onClick={() => setShowPassword(!showPassword)}
+                type="submit"
+                disabled={loading}
+                className="btn primary w-full justify-center py-3 text-base"
               >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                {loading ? "Creating Account..." : "Sign Up"}
               </button>
             </div>
-          </div>
-          
-          <div className="field">
-            <span>Confirm Password</span>
-            <div className="relative flex items-center">
-              <input
-                type={showConfirmPassword ? "text" : "password"}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                placeholder="••••••••"
-                className="w-full pr-10"
-              />
-              <button
-                type="button"
-                className="absolute right-3 text-[var(--muted)] hover:text-[var(--accent)] transition-colors"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              >
-                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
-          </div>
-
-          {error && <p className="text-[var(--danger)] text-sm">{error}</p>}
-          {success && <p className="text-[var(--ok)] text-sm">{success}</p>}
-
-          <div className="pt-2">
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn primary w-full justify-center py-3 text-base"
-            >
-              {loading ? "Creating Account..." : "Sign Up"}
-            </button>
-          </div>
-        </form>
+          </form>
         )}
 
         <p className="mt-6 text-center text-sm text-[var(--muted)]">
