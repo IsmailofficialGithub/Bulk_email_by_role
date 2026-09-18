@@ -938,8 +938,6 @@ export default function Home() {
                 )}
               </div>
 
-              {allowedProducts.includes("linkedin") && (
-                <>
                   <div className="smtp-bar" style={{ marginTop: '0.5rem' }}>
                     <div className="smtp-bar-left">
                       <span className="smtp-bar-title">LinkedIn Configuration</span>
@@ -978,8 +976,6 @@ export default function Home() {
                       </button>
                     </div>
                   </div>
-                </>
-              )}
             </div>
           )}
 
