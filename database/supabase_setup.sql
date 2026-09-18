@@ -43,6 +43,12 @@ create table if not exists public.automailsend_recipients (
   email text not null,
   role text not null,
   title text default '',
+  context_text text default '',
+  status text default 'pending',
+  phone text default '',
+  source text default 'scraper',
+  source_url text default '',
+  scraped_at timestamp with time zone default timezone('utc'::text, now()),
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
 
