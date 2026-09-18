@@ -12,11 +12,14 @@ router.post("/signup", async (req, res) => {
   }
 
   try {
-    // 1. Generate Signup Link via Supabase Admin API (This creates the user but doesn't send the built-in email)
+    // 1. Generate Signup Link via Supabase Admin API
     const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
       type: 'signup',
       email: email,
       password: password,
+      options: {
+        redirectTo: `${siteUrl}/login`
+      }
     });
 
     if (linkError) {
@@ -40,8 +43,9 @@ router.post("/signup", async (req, res) => {
     if (!smtpUser || !smtpPass) {
       // Rollback user if no SMTP
       await supabase.auth.admin.deleteUser(userId);
+      console.error("[Auth Route] Server SMTP configuration is missing. Please set SMTP_EMAIL and SMTP_PASSWORD in backend environment.");
       return res.status(500).json({ 
-        error: "Server SMTP configuration is missing. Please set SMTP_EMAIL and SMTP_PASSWORD in backend environment." 
+        error: "We are unable to send the welcome email at this time. Please try again later." 
       });
     }
 
