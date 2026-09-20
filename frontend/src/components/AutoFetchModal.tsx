@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
+import { supabase } from "@/lib/supabase";
 import type { AutoFetchConfig, AutoCommentConfig, Role } from "@/lib/types";
 import { ROLE_LABELS, ROLES } from "@/lib/types";
 import { HelpTooltip } from "./HelpTooltip";
@@ -36,12 +37,13 @@ export function AutoFetchModal({ config, autoCommentConfig, onSave, onClose }: P
   const [newKeyword, setNewKeyword] = useState("");
   const [newRole, setNewRole] = useState<Role>("fullstack");
 
-  const [intervalMin, setIntervalMin] = useState(config.intervalMin || 180);
+  const [intervalMin, setIntervalMin] = useState(Math.max(30, config.intervalMin || 30));
   const [paginationLimit, setPaginationLimit] = useState(config.paginationLimit || 3);
   const [paginationDelaySec, setPaginationDelaySec] = useState(config.paginationDelaySec || 10);
   const [postAgeFilter, setPostAgeFilter] = useState<AutoFetchConfig["postAgeFilter"]>(config.postAgeFilter || "any");
 
   const [mounted, setMounted] = useState(false);
+  const [isScraping, setIsScraping] = useState(false);
   
   useEffect(() => {
     setMounted(true);
@@ -52,11 +54,11 @@ export function AutoFetchModal({ config, autoCommentConfig, onSave, onClose }: P
   // Basic validation to enable
   const canEnable = Boolean(hasKeywords && config.liAt && config.jsessionid && config.rawHeaders);
 
-  async function handleSave() {
+  function prepareConfig(): AutoFetchConfig {
     const finalEnabled = enabled && canEnable;
-    const finalInterval = Math.max(180, intervalMin || 180);
+    const finalInterval = Math.max(30, intervalMin || 30);
 
-    onSave({
+    return {
       ...config,
       enabled: finalEnabled,
       keywords: JSON.stringify(keywordMappings),
@@ -65,10 +67,73 @@ export function AutoFetchModal({ config, autoCommentConfig, onSave, onClose }: P
       paginationLimit: Math.max(3, paginationLimit || 3),
       paginationDelaySec: Math.max(1, paginationDelaySec || 10),
       postAgeFilter,
-    }, autoCommentConfig);
+    };
+  }
+
+  async function handleSave() {
+    if (enabled && !canEnable) {
+      if (!hasKeywords) {
+        toast.error("Please add at least one search keyword before enabling.");
+        return;
+      }
+      if (!config.liAt || !config.jsessionid || !config.rawHeaders) {
+        toast.error("LinkedIn cookies missing! Please set up cookies under LinkedIn Configuration first.");
+        return;
+      }
+    }
+
+    const updatedConfig = prepareConfig();
+    onSave(updatedConfig, autoCommentConfig);
     
     toast.success("Auto-fetch configuration saved!");
     onClose();
+  }
+
+  async function handleRunScraperNow() {
+    if (!hasKeywords) {
+      toast.error("Please add at least one search keyword first.");
+      return;
+    }
+    if (!config.liAt || !config.jsessionid || !config.rawHeaders) {
+      toast.error("LinkedIn browser cookies missing! Please set up cookies in LinkedIn Configuration.");
+      return;
+    }
+
+    const updatedConfig = prepareConfig();
+    onSave(updatedConfig, autoCommentConfig);
+
+    setIsScraping(true);
+    const toastId = toast.loading("Executing scraper API call...");
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("User session expired. Please log in again.", { id: toastId });
+        setIsScraping(false);
+        return;
+      }
+
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const res = await fetch(`${apiUrl}/api/linkedin/trigger-scrape`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`
+        }
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success(data.message || `Scraper executed! Found ${data.inserted} new contacts.`, { id: toastId });
+        onClose();
+      } else {
+        toast.error(data.error || "Failed to execute scraper API call.", { id: toastId });
+      }
+    } catch (err: any) {
+      toast.error(`API Call failed: ${err.message}`, { id: toastId });
+    } finally {
+      setIsScraping(false);
+    }
   }
 
   if (!mounted) return null;
@@ -199,17 +264,17 @@ export function AutoFetchModal({ config, autoCommentConfig, onSave, onClose }: P
                     content={
                       <>
                         <p>How often should the background worker wake up and search LinkedIn for new posts?</p>
-                        <p><strong>Recommendation:</strong> Set this to <strong>5 or 10 minutes</strong>. If you set it too low (like 1 minute), LinkedIn might temporarily block your account for searching too quickly.</p>
+                        <p><strong>Recommendation:</strong> Set this to <strong>30 minutes or more</strong> (Minimum allowed: 30 minutes).</p>
                       </>
                     } 
                   />
                 </span>
                 <input
                   type="number"
-                  min={180}
+                  min={30}
                   max={1440}
                   value={intervalMin}
-                  onChange={(e) => setIntervalMin(Number(e.target.value) || 180)}
+                  onChange={(e) => setIntervalMin(Number(e.target.value) || 30)}
                 />
               </label>
 
@@ -286,15 +351,25 @@ export function AutoFetchModal({ config, autoCommentConfig, onSave, onClose }: P
             </label>
           </div>
           
-          <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--line)', flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
+          <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--line)', flexShrink: 0, display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+            <button
+              type="button"
+              className="btn secondary large"
+              onClick={handleRunScraperNow}
+              disabled={isScraping}
+            >
+              {isScraping ? "Scraping..." : "⚡ Run Scraper Now"}
+            </button>
             <button
               type="button"
               className="btn primary large"
               onClick={handleSave}
+              disabled={isScraping}
             >
               Save Configuration
             </button>
           </div>
+
         </div>
       </div>
     </>,

@@ -51,7 +51,7 @@ export function defaultState(): PersistedState {
       enabled: false,
       keywords: "",
       targetRole: "fullstack",
-      intervalMin: 5,
+      intervalMin: 30,
       paginationLimit: 5,
       paginationDelaySec: 10,
       liAt: "",

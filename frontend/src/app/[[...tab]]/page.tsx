@@ -447,7 +447,36 @@ export default function Home() {
     }
   }
 
-  async function handleLogout() {
+  async function handleTriggerScrape() {
+    if (!userId) return;
+    const toastId = toast.loading("Executing LinkedIn scraper API call...");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("User session expired.", { id: toastId });
+        return;
+      }
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const res = await fetch(`${apiUrl}/api/linkedin/trigger-scrape`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`
+        }
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success(data.message || `Scraper completed! Found ${data.inserted} contacts.`, { id: toastId });
+      } else {
+        toast.error(data.error || "Scraper execution failed.", { id: toastId });
+      }
+    } catch (err: any) {
+      toast.error(`API Call failed: ${err.message}`, { id: toastId });
+    }
+  }
+
+  function handleLogout() {
+
     await supabase.auth.signOut();
   }
 
@@ -934,7 +963,10 @@ export default function Home() {
                     </span>
                   </div>
                 </div>
-                <div className="smtp-bar-actions">
+                <div className="smtp-bar-actions" style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button type="button" className="btn secondary" onClick={handleTriggerScrape}>
+                    ⚡ Run Scraper Now
+                  </button>
                   <button type="button" className="btn primary" onClick={() => setShowAutoFetch(true)}>
                     Configure
                   </button>
@@ -1007,8 +1039,27 @@ export default function Home() {
               onSave={(fConfig, cConfig) => {
                 setAutoFetch(fConfig);
                 setAutoComment(cConfig);
+                if (userId) {
+                  saveAppState(userId, {
+                    config,
+                    recipients,
+                    templates,
+                    delaySec,
+                    activeTemplateRole,
+                    defaultTitle,
+                    sentLog,
+                    autoFetch: fConfig,
+                    automail,
+                    autoComment: cConfig,
+                    batchSendPending: sending,
+                    allowedProducts,
+                    linkedinConnected,
+                    commentsLog,
+                  }).catch(console.error);
+                }
               }}
               onClose={() => {
+
                 setShowAutoFetch(false);
                 if (runTour) setRunTour(false);
               }}

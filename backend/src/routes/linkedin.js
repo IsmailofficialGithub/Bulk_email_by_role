@@ -200,4 +200,42 @@ router.get("/verify-identity", verifyAuth, async (req, res) => {
   }
 });
 
+// POST /api/linkedin/trigger-scrape
+router.post("/trigger-scrape", verifyAuth, async (req, res) => {
+  try {
+    const { data: appState, error } = await supabase
+      .from("automailsend_app_state")
+      .select("*")
+      .eq("user_id", req.user.id)
+      .single();
+
+    if (error || !appState) {
+      return res.status(404).json({ success: false, error: "Configuration not found" });
+    }
+
+    if (!appState.auto_fetch_keywords || appState.auto_fetch_keywords === "[]") {
+      return res.status(400).json({ success: false, error: "No search keywords configured. Please add keywords first." });
+    }
+
+    if (!appState.cookie_li_at || !appState.cookie_jsessionid || !appState.auto_fetch_raw_headers) {
+      return res.status(400).json({ success: false, error: "LinkedIn cookies missing. Please configure browser cookies first." });
+    }
+
+    const { processJob } = require("../workers/scraper.worker");
+    const result = await processJob({ data: appState });
+
+    res.json({
+      success: true,
+      inserted: result.inserted,
+      emails: result.emails,
+      phones: result.phones,
+      message: `Scraper executed successfully! Found ${result.inserted} new contacts.`
+    });
+  } catch (err) {
+    console.error("Trigger Scrape Error:", err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;
+
