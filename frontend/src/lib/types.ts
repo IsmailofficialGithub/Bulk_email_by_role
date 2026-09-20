@@ -84,7 +84,7 @@ export type AutoFetchConfig = {
   liAt: string;
   jsessionid: string;
   rawHeaders: string;
-  postAgeFilter: "any" | "past-24h" | "past-week" | "past-month";
+  postAgeFilter: "any" | "24h" | "1w" | "1m" | "all" | "past-24h" | "past-week" | "past-month";
 };
 
 export type AutomailConfig = {
