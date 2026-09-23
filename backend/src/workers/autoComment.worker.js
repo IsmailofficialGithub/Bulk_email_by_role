@@ -20,9 +20,14 @@ function mapUrnsToTexts(rawText) {
   const rawString = typeof rawText === "string" ? rawText : JSON.stringify(rawText);
   const jsonBlocks = [];
   
+  // Extract LinkedIn BigPipe code blocks
   const codeBlocks = rawString.match(/<code[^>]*>([\s\S]*?)<\/code>/gi) || [];
   for (const block of codeBlocks) {
-    const content = block.replace(/<code[^>]*>/i, '').replace(/<\/code>/i, '').trim();
+    let content = block.replace(/<code[^>]*>/i, '').replace(/<\/code>/i, '').trim();
+    // Strip HTML comments <!-- and -->
+    if (content.startsWith('<!--')) {
+      content = content.replace(/^<!--\s*/, '').replace(/\s*-->$/, '');
+    }
     try {
       const decoded = content
         .replace(/&quot;/g, '"')
@@ -33,11 +38,23 @@ function mapUrnsToTexts(rawText) {
       jsonBlocks.push(JSON.parse(decoded));
     } catch (e) {}
   }
+
+  // Extract application/json script blocks
+  const scriptBlocks = rawString.match(/<script[^>]*type=["']application\/(?:ld\+)?json["'][^>]*>([\s\S]*?)<\/script>/gi) || [];
+  for (const block of scriptBlocks) {
+    const content = block.replace(/<script[^>]*>/i, '').replace(/<\/script>/i, '').trim();
+    try {
+      jsonBlocks.push(JSON.parse(content));
+    } catch (e) {}
+  }
   
   try {
     jsonBlocks.push(JSON.parse(rawString));
   } catch (e) {}
   
+  // Map of standalone commentary URNs for normalized payloads
+  const commentaryMap = {};
+
   function traverse(obj) {
     if (!obj || typeof obj !== "object") return;
     if (Array.isArray(obj)) {
@@ -45,25 +62,49 @@ function mapUrnsToTexts(rawText) {
       return;
     }
     
-    let urn = null;
-    if (typeof obj.urn === "string" && obj.urn.includes("urn:li:activity:")) {
-      urn = obj.urn;
-    } else if (obj.updateMetadata && typeof obj.updateMetadata.urn === "string" && obj.updateMetadata.urn.includes("urn:li:activity:")) {
-      urn = obj.updateMetadata.urn;
+    // Check if this is a commentary entity in normalized JSON
+    const entityUrn = obj.entityUrn || obj.urn;
+    if (typeof entityUrn === "string" && entityUrn.includes("commentary")) {
+      const cText = obj.text?.text || obj.text;
+      if (typeof cText === "string" && cText.trim()) {
+        commentaryMap[entityUrn] = cText.trim();
+      }
     }
     
-    if (urn) {
-      const activityId = urn.match(/urn:li:activity:(\d{19})/)?.[1];
-      if (activityId) {
-        let text = "";
-        if (obj.commentary && obj.commentary.text && typeof obj.commentary.text.text === "string") {
-          text = obj.commentary.text.text;
-        } else if (obj.updateMetadata && obj.updateMetadata.commentary && typeof obj.updateMetadata.commentary.text === "string") {
-          text = obj.updateMetadata.commentary.text;
+    let activityId = null;
+    for (const key of ['urn', 'entityUrn', 'trackingId', 'id']) {
+      if (typeof obj[key] === 'string') {
+        const m = obj[key].match(/urn:li:activity:(\d{19})/);
+        if (m) {
+          activityId = m[1];
+          break;
         }
-        if (text) {
-          urnToText[activityId] = text;
-        }
+      }
+    }
+    if (!activityId && obj.updateMetadata && typeof obj.updateMetadata.urn === "string") {
+      const m = obj.updateMetadata.urn.match(/urn:li:activity:(\d{19})/);
+      if (m) activityId = m[1];
+    }
+    
+    if (activityId) {
+      let text = "";
+      if (obj.commentary && obj.commentary.text && typeof obj.commentary.text.text === "string") {
+        text = obj.commentary.text.text;
+      } else if (obj.commentary && typeof obj.commentary.text === "string") {
+        text = obj.commentary.text;
+      } else if (typeof obj.commentary === "string" && commentaryMap[obj.commentary]) {
+        text = commentaryMap[obj.commentary];
+      } else if (obj.updateMetadata && obj.updateMetadata.commentary && typeof obj.updateMetadata.commentary.text === "string") {
+        text = obj.updateMetadata.commentary.text;
+      } else if (obj.specificContent && obj.specificContent['com.linkedin.ugc.ShareContent']?.shareCommentary?.text) {
+        text = obj.specificContent['com.linkedin.ugc.ShareContent'].shareCommentary.text;
+      } else if (obj.text && typeof obj.text.text === "string") {
+        text = obj.text.text;
+      } else if (typeof obj.text === "string" && obj.text.length > 20) {
+        text = obj.text;
+      }
+      if (text && text.trim() && text.trim() !== "Post | LinkedIn") {
+        urnToText[activityId] = text.trim();
       }
     }
     
@@ -73,6 +114,26 @@ function mapUrnsToTexts(rawText) {
   }
   
   jsonBlocks.forEach(traverse);
+
+  // Second pass to resolve any commentaries that were traversed before their definition
+  if (Object.keys(commentaryMap).length > 0) {
+    jsonBlocks.forEach(function resolveComments(obj) {
+      if (!obj || typeof obj !== "object") return;
+      if (Array.isArray(obj)) { obj.forEach(resolveComments); return; }
+      let activityId = null;
+      for (const key of ['urn', 'entityUrn', 'trackingId']) {
+        if (typeof obj[key] === 'string') {
+          const m = obj[key].match(/urn:li:activity:(\d{19})/);
+          if (m) { activityId = m[1]; break; }
+        }
+      }
+      if (activityId && !urnToText[activityId] && typeof obj.commentary === "string" && commentaryMap[obj.commentary]) {
+        urnToText[activityId] = commentaryMap[obj.commentary];
+      }
+      for (const key of Object.keys(obj)) resolveComments(obj[key]);
+    });
+  }
+
   return urnToText;
 }
 
@@ -426,58 +487,92 @@ async function runAutoCommentJobs(supabase) {
         
         let commentText = "";
         let skipReason = null;
-        let postText = "A LinkedIn post";
+        let postText = "";
         
-        if (urnToTextMap && urnToTextMap[activityId]) {
+        if (urnToTextMap && urnToTextMap[activityId] && urnToTextMap[activityId].length > 15) {
           postText = urnToTextMap[activityId];
-          await logger.append("INFO", `Using pre-extracted post content from feed.`);
+          await logger.append("INFO", `Using pre-extracted post content from search results.`);
         } else {
           try {
             await logger.append("INFO", `Fetching post content for AI context...`);
-            // Use the authenticated headers, but modify accept for HTML
-            const fetchHeaders = { ...headers, "Accept": "text/html,application/xhtml+xml,application/xml" };
-            const postRes = await axios.get(targetUrl, { headers: fetchHeaders, responseType: 'text' });
-            const postHtml = postRes.data;
             
-            const ogMatch = postHtml.match(/<meta property="og:description"\s+content="([^"]+)"/i) || postHtml.match(/<meta property='og:description'\s+content='([^']+)'/i) || postHtml.match(/<meta name="description"\s+content="([^"]+)"/i);
-            if (ogMatch) {
-              postText = ogMatch[1];
-            } else {
-              const titleMatch = postHtml.match(/<title>([^<]+)<\/title>/i);
-              if (titleMatch) postText = titleMatch[1];
+            // 1. Try Voyager API first for clean structured JSON
+            let fetchedContent = false;
+            try {
+              const voyagerUrl = `https://www.linkedin.com/voyager/api/feed/updatesV2/urn:li:activity:${activityId}`;
+              const vHeaders = {
+                ...headers,
+                "Accept": "application/vnd.linkedin.normalized+json+2.1,application/json"
+              };
+              const vRes = await axios.get(voyagerUrl, { headers: vHeaders, timeout: 8000 });
+              if (vRes.data) {
+                const vMap = mapUrnsToTexts(vRes.data);
+                if (vMap[activityId] && vMap[activityId].length > 15) {
+                  postText = vMap[activityId];
+                  fetchedContent = true;
+                  await logger.append("INFO", `Extracted post text via Voyager API.`);
+                }
+              }
+            } catch (vErr) {
+              // Proceed to HTML fetch if Voyager direct fetch fails
             }
-            
-            // Decode HTML entities if needed
-            postText = postText.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>');
-            
-            // If LinkedIn puts generic "Post | LinkedIn", dig into the JSON state payload for the real post text
-            if (postText.includes("Post | LinkedIn") || postText === "LinkedIn" || postText.length < 25) {
-               let possibleTexts = [];
-               
-               // Match unescaped JSON text fields
-               const rawMatches = postHtml.matchAll(/"text":"(.*?)"/g);
-               for (const m of rawMatches) {
-                   if (m[1].length > 30 && !m[1].includes("urn:li:")) possibleTexts.push(m[1]);
-               }
-               
-               // Match escaped JSON text fields
-               const escMatches = postHtml.matchAll(/&quot;text&quot;:&quot;(.*?)&quot;/g);
-               for (const m of escMatches) {
-                   if (m[1].length > 30 && !m[1].includes("urn:li:")) possibleTexts.push(m[1]);
-               }
-               
-               if (possibleTexts.length > 0) {
-                   // The longest text block in the payload is almost always the main post text
-                   possibleTexts.sort((a, b) => b.length - a.length);
-                   postText = possibleTexts[0];
-               }
-               
-               // Final clean up of escaped json chars
-               postText = postText.replace(/\\n/g, '\n').replace(/\\"/g, '"');
+
+            // 2. Fallback to HTML fetch if Voyager didn't get text
+            if (!fetchedContent) {
+              const fetchHeaders = { ...headers, "Accept": "text/html,application/xhtml+xml,application/xml" };
+              const postRes = await axios.get(targetUrl, { headers: fetchHeaders, responseType: 'text', timeout: 10000 });
+              const postHtml = postRes.data;
+
+              // Parse HTML with mapUrnsToTexts
+              const htmlMap = mapUrnsToTexts(postHtml);
+              if (htmlMap[activityId] && htmlMap[activityId].length > 15) {
+                postText = htmlMap[activityId];
+                fetchedContent = true;
+              } else {
+                const ogMatch = postHtml.match(/<meta property="og:description"\s+content="([^"]+)"/i) || postHtml.match(/<meta property='og:description'\s+content='([^']+)'/i) || postHtml.match(/<meta name="description"\s+content="([^"]+)"/i);
+                if (ogMatch && ogMatch[1] && !ogMatch[1].includes("Post | LinkedIn") && ogMatch[1].length > 20) {
+                  postText = ogMatch[1];
+                  fetchedContent = true;
+                }
+              }
+
+              // Deep regex scan if still not resolved
+              if (!fetchedContent) {
+                let possibleTexts = [];
+                const rawMatches = postHtml.matchAll(/"text":"(.*?)"/g);
+                for (const m of rawMatches) {
+                  if (m[1].length > 30 && !m[1].includes("urn:li:") && !m[1].includes("Post | LinkedIn")) {
+                    possibleTexts.push(m[1]);
+                  }
+                }
+                const escMatches = postHtml.matchAll(/&quot;text&quot;:&quot;(.*?)&quot;/g);
+                for (const m of escMatches) {
+                  if (m[1].length > 30 && !m[1].includes("urn:li:") && !m[1].includes("Post | LinkedIn")) {
+                    possibleTexts.push(m[1]);
+                  }
+                }
+                if (possibleTexts.length > 0) {
+                  possibleTexts.sort((a, b) => b.length - a.length);
+                  postText = possibleTexts[0].replace(/\\n/g, '\n').replace(/\\"/g, '"');
+                  fetchedContent = true;
+                }
+              }
             }
           } catch (e) {
             await logger.append("WARN", `Could not fetch post HTML for context: ${e.message}`);
           }
+        }
+
+        // Clean up entities
+        if (postText) {
+          postText = postText.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+        }
+
+        // 3. Fallback Topic Context: If postText is still generic "Post | LinkedIn", short, or empty, use keyword topic context so AI does not skip
+        if (!postText || postText.includes("Post | LinkedIn") || postText === "LinkedIn" || postText.trim().length < 15) {
+          const topic = keywordUsed ? `the topic of "${keywordUsed}"` : "professional achievements, networking, and industry insights";
+          postText = `A trending LinkedIn post discussing ${topic} and shared career experiences.`;
+          await logger.append("INFO", `Applied topic fallback context for AI: "${postText}"`);
         }
         
         try {
