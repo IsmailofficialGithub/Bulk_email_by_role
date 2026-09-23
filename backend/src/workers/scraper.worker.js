@@ -137,8 +137,16 @@ async function processJobLogic(job, logger) {
     const searchBase = process.env.LINKEDIN_SEARCH_BASE_URL || "https://www.linkedin.com/search/results/content/";
     let searchUrl = `${searchBase}?keywords=${keywordsQuery}&origin=SWITCH_SEARCH_VERTICAL`;
     
-    if (post_age_filter && post_age_filter !== 'any') {
-      searchUrl += `&datePosted=%22${encodeURIComponent(post_age_filter)}%22`;
+    let normalizedDateFilter = null;
+    if (post_age_filter && post_age_filter !== 'any' && post_age_filter !== 'all') {
+      if (post_age_filter === '24h' || post_age_filter === 'past-24h') normalizedDateFilter = 'past-24h';
+      else if (post_age_filter === '1w' || post_age_filter === 'past-week') normalizedDateFilter = 'past-week';
+      else if (post_age_filter === '1m' || post_age_filter === 'past-month') normalizedDateFilter = 'past-month';
+      else normalizedDateFilter = post_age_filter;
+    }
+
+    if (normalizedDateFilter) {
+      searchUrl += `&datePosted=%22${encodeURIComponent(normalizedDateFilter)}%22`;
     }
 
     await logger.append("INFO", `Fetching Initial Search Page for "${currentKeyword}"...`);
@@ -164,50 +172,55 @@ async function processJobLogic(job, logger) {
     await saveContacts(initialContacts, currentRole);
 
     // Extract Pagination info
+    const crypto = require("crypto");
     let raw = rawText.replace(/\\+"/g, '"').replace(/&quot;/g, '"');
-    const searchId = (raw.match(/"searchId"\s*:\s*"([0-9a-fA-F-]{36})"/) || [])[1];
-    
+    let searchId = (raw.match(/["']searchId["']\s*:\s*["']([0-9a-fA-F-]{36})["']/) || [])[1];
     if (!searchId) {
-      await logger.append("WARN", `No searchId found, cannot paginate for "${currentKeyword}".`);
-    } else {
-      const rawKeywords = ((raw.match(/"keywords"\s*:\s*"((?:\\.|[^"\\])*)"/) || [])[1] || currentKeyword).replace(/\\"/g, '"');
-      let startIndex = Number((raw.match(/"startIndex"\s*:\s*(\d+)/) || [])[1] || 12);
-      const count = Number((raw.match(/"count"\s*:\s*(\d+)/) || [])[1] || 3);
-      let clusterStartPosition = Number((raw.match(/"clusterStartPosition"\s*:\s*(\d+)/) || [])[1] || 9);
-      
-      const globalSettings = await getGlobalSettings();
-      let maxPages = auto_fetch_pagination_limit || 1;
-      maxPages = Math.min(maxPages, globalSettings.max_pagination_limit || 10);
+      searchId = (raw.match(/["']searchId["']\s*:\s*["']([^"']+)["']/) || [])[1];
+    }
+    if (!searchId) {
+      searchId = crypto.randomUUID();
+      await logger.append("INFO", `Using generated searchId for pagination: ${searchId}`);
+    }
 
-      const defaultInterval = process.env.SCRAPER_INTERVAL_SEC ? parseInt(process.env.SCRAPER_INTERVAL_SEC, 10) : 10;
-      let delayMs = (auto_fetch_pagination_delay_sec || defaultInterval) * 1000;
-      delayMs = Math.max(delayMs, (globalSettings.min_pagination_delay || 5) * 1000);
+    const rawKeywords = ((raw.match(/"keywords"\s*:\s*"((?:\\.|[^"\\])*)"/) || [])[1] || currentKeyword).replace(/\\"/g, '"');
+    let startIndex = Number((raw.match(/"startIndex"\s*:\s*(\d+)/) || [])[1] || 10);
+    const count = Number((raw.match(/"count"\s*:\s*(\d+)/) || [])[1] || 10);
+    let clusterStartPosition = Number((raw.match(/"clusterStartPosition"\s*:\s*(\d+)/) || [])[1] || 10);
+    
+    const globalSettings = await getGlobalSettings();
+    let maxPages = auto_fetch_pagination_limit || 1;
+    maxPages = Math.min(maxPages, globalSettings.max_pagination_limit || 10);
 
-      await logger.append("INFO", `Pagination details found for "${currentKeyword}". Max Pages: ${maxPages}, Delay: ${delayMs/1000}s`);
+    const defaultInterval = process.env.SCRAPER_INTERVAL_SEC ? parseInt(process.env.SCRAPER_INTERVAL_SEC, 10) : 10;
+    let delayMs = (auto_fetch_pagination_delay_sec || defaultInterval) * 1000;
+    delayMs = Math.max(delayMs, (globalSettings.min_pagination_delay || 5) * 1000);
 
-      for (let page = 1; page <= maxPages; page++) {
-        await logger.append("INFO", `Fetching page ${page} of ${maxPages}... (waiting ${delayMs/1000}s)`);
-        await sleep(delayMs);
+    await logger.append("INFO", `Pagination details found for "${currentKeyword}". Max Pages: ${maxPages}, Delay: ${delayMs/1000}s`);
 
-        const payload = {
-          startIndex,
-          keywords: rawKeywords,
-          count,
-          sortBy: [],
-          postedBy: [],
-          datePosted: post_age_filter && post_age_filter !== 'any' ? [post_age_filter] : [],
-          contentType: [],
-          fromMember: [],
-          mentionsOrganization: [],
-          mentionsMember: [],
-          fromOrganization: [],
-          authorCompany: [],
-          authorIndustry: [],
-          authorJobTitle: [],
-          spellCheckEnabled: true,
-          clusterStartPosition,
-          searchId,
-        };
+    for (let page = 1; page <= maxPages; page++) {
+      await logger.append("INFO", `Fetching page ${page} of ${maxPages}... (waiting ${delayMs/1000}s)`);
+      await sleep(delayMs);
+
+      const payload = {
+        startIndex,
+        keywords: rawKeywords,
+        count,
+        sortBy: [],
+        postedBy: [],
+        datePosted: normalizedDateFilter ? [normalizedDateFilter] : [],
+        contentType: [],
+        fromMember: [],
+        mentionsOrganization: [],
+        mentionsMember: [],
+        fromOrganization: [],
+        authorCompany: [],
+        authorIndustry: [],
+        authorJobTitle: [],
+        spellCheckEnabled: true,
+        clusterStartPosition,
+        searchId,
+      };
 
         const body = {
           pagerId: 'com.linkedin.sdui.search.contentSearchResults',
@@ -275,7 +288,6 @@ async function processJobLogic(job, logger) {
         clusterStartPosition += 2;
       }
     }
-  }
 
   if (totalInserted === 0) {
     await logger.append("WARN", "No new records to insert.");
