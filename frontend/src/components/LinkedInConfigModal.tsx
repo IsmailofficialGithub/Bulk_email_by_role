@@ -13,12 +13,24 @@ type Props = {
   autoCommentConfig: AutoCommentConfig;
   linkedinConnected: boolean;
   identityMatch: { match: boolean | null, message?: string };
+  aiConfig?: { provider?: string; apiKey?: string };
+  onOpenAiSettings?: () => void;
   onSave: (newConfig: AutoFetchConfig, newCommentConfig: AutoCommentConfig) => void;
   onClose: () => void;
   onLinkedinConnectedChange: (connected: boolean) => void;
 };
 
-export function LinkedInConfigModal({ config, autoCommentConfig, linkedinConnected, identityMatch, onSave, onClose, onLinkedinConnectedChange }: Props) {
+export function LinkedInConfigModal({
+  config,
+  autoCommentConfig,
+  linkedinConnected,
+  identityMatch,
+  aiConfig,
+  onOpenAiSettings,
+  onSave,
+  onClose,
+  onLinkedinConnectedChange,
+}: Props) {
   // Auto Comment States
   const [commentEnabled, setCommentEnabled] = useState(autoCommentConfig.enabled);
   const [commentDailyLimit, setCommentDailyLimit] = useState(autoCommentConfig.dailyLimit);
@@ -503,6 +515,30 @@ export function LinkedInConfigModal({ config, autoCommentConfig, linkedinConnect
             </div>
 
             <h3 style={{ margin: "2rem 0 0.5rem", borderBottom: "1px solid var(--line)", paddingBottom: "0.25rem" }}>3. AI Auto-Comment Config</h3>
+
+            {aiConfig?.provider && aiConfig.provider !== "none" && aiConfig.apiKey ? (
+              <div style={{ margin: "0.75rem 0", padding: "0.6rem 0.85rem", background: "rgba(34, 197, 94, 0.1)", border: "1px solid var(--ok)", borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "0.85rem", color: "var(--ok)", fontWeight: 500 }}>
+                  ✓ AI Engine Configured ({aiConfig.provider})
+                </span>
+                {onOpenAiSettings && (
+                  <button type="button" className="btn ghost compact" onClick={onOpenAiSettings} style={{ fontSize: "0.75rem", padding: "0.2rem 0.5rem" }}>
+                    Change AI
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div style={{ margin: "0.75rem 0", padding: "0.65rem 0.85rem", background: "rgba(234, 179, 8, 0.1)", border: "1px solid var(--warn)", borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
+                <span style={{ fontSize: "0.85rem", color: "var(--warn)", fontWeight: 500 }}>
+                  ⚠️ AI Provider / API Key not configured. Auto-comments require an AI engine.
+                </span>
+                {onOpenAiSettings && (
+                  <button type="button" className="btn secondary compact" onClick={onOpenAiSettings} style={{ fontSize: "0.75rem", padding: "0.25rem 0.6rem", whiteSpace: "nowrap" }}>
+                    Configure AI
+                  </button>
+                )}
+              </div>
+            )}
             <label className="field">
               <span>Enable Auto Commenting</span>
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.25rem" }}>

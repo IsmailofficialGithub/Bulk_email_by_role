@@ -919,9 +919,16 @@ export default function Home() {
               <div className="smtp-bar" style={{ marginTop: '0.5rem' }}>
                 <div className="smtp-bar-left">
                   <span className="smtp-bar-title">AI & Automail Settings</span>
-                  <span className={automail.enabled ? "badge ok" : "badge warn"}>
-                    {automail.enabled ? "Active" : "Disabled"}
-                  </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <span className={automail.enabled ? "badge ok" : "badge warn"}>
+                      {automail.enabled ? "Mail Send Active" : "Mail Send Disabled"}
+                    </span>
+                    {automail.aiProvider && automail.aiProvider !== "none" && automail.aiApiKey && (
+                      <span className="badge ok">
+                        AI: {automail.aiProvider.split(":")[0]}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="smtp-bar-actions">
                   <button type="button" className="btn primary" onClick={() => setShowAutomailModal(true)}>
@@ -1071,6 +1078,11 @@ export default function Home() {
               autoCommentConfig={autoComment}
               linkedinConnected={linkedinConnected}
               identityMatch={identityMatch}
+              aiConfig={{ provider: automail.aiProvider, apiKey: automail.aiApiKey }}
+              onOpenAiSettings={() => {
+                setShowLinkedInConfig(false);
+                setShowAutomailModal(true);
+              }}
               onSave={(fConfig, cConfig) => {
                 setAutoFetch(fConfig);
                 setAutoComment(cConfig);

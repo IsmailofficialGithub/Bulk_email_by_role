@@ -123,7 +123,7 @@ export function AutomailModal({ config, smtpConfig, templates, sentTodayCount, o
       aiApiKey,
       aiPrompt,
     });
-    toast.success("Automail settings saved!");
+    toast.success(finalEnabled ? "Automail & AI settings saved!" : "AI settings saved (Automail is disabled)!");
     onClose();
   }
 
@@ -231,113 +231,108 @@ export function AutomailModal({ config, smtpConfig, templates, sentTodayCount, o
                   Automail waits this many seconds after each successful send before the next one.
                 </span>
               </label>
+          </div>
 
-              <hr />
-              <h3>AI Personalization (Optional)</h3>
-              <p className="hint compact">
-                Generate highly personalized emails based on the LinkedIn post content using AI.
-              </p>
+          <hr style={{ border: "0", borderTop: "1px solid var(--line)", margin: "1.5rem 0 1rem" }} />
 
+          <div>
+            <h3>AI Engine Settings (Shared Service)</h3>
+            <p className="hint compact" style={{ marginBottom: "1rem" }}>
+              Configure your AI credentials. This AI engine powers both <strong>LinkedIn AI Auto-Comments</strong> and <strong>Automail AI Personalization</strong>.
+            </p>
+
+            <label className="field">
+              <span>
+                AI Provider
+                <HelpTooltip 
+                  title="AI Provider" 
+                  content={
+                    <>
+                      <p>Choose an Artificial Intelligence service to power your LinkedIn comments and automated emails.</p>
+                      <p>Used by LinkedIn Auto-Comment to generate contextual comments, and by Automail to personalize cold emails.</p>
+                      <p>Select <strong>None</strong> to disable AI features.</p>
+                    </>
+                  } 
+                />
+              </span>
+              <select 
+                id="tour-automail-provider"
+                value={selectedProvider} 
+                onChange={(e) => {
+                  const newProvider = e.target.value;
+                  setSelectedProvider(newProvider);
+                  if (newProvider === "groq") setSelectedModel("openai/gpt-oss-120b");
+                  else if (newProvider === "openai") setSelectedModel("gpt-4o-mini");
+                  else if (newProvider === "gemini") setSelectedModel("gemini-1.5-flash");
+                }}
+              >
+                <option value="none">None (Disabled)</option>
+                <option value="openai">OpenAI (ChatGPT)</option>
+                <option value="groq">Groq</option>
+                <option value="gemini">Google Gemini</option>
+              </select>
+            </label>
+
+            <div style={{ opacity: selectedProvider !== "none" ? 1 : 0.4, pointerEvents: selectedProvider !== "none" ? "auto" : "none", transition: "opacity 0.2s" }}>
               <label className="field">
-                <span>
-                  AI Provider
-                  <HelpTooltip 
-                    title="AI Provider" 
-                    content={
-                      <>
-                        <p>Choose an Artificial Intelligence service to write personalized emails for you.</p>
-                        <p>When the scraper finds an email in a LinkedIn post, the AI will read the actual post and write a unique, relevant email to the author before sending it.</p>
-                        <p>Select <strong>None</strong> to just use your static email templates.</p>
-                      </>
-                    } 
-                  />
-                </span>
+                <span>AI Model</span>
                 <select 
-                  id="tour-automail-provider"
-                  value={selectedProvider} 
-                  onChange={(e) => {
-                    const newProvider = e.target.value;
-                    setSelectedProvider(newProvider);
-                    if (newProvider === "groq") setSelectedModel("openai/gpt-oss-120b");
-                    else if (newProvider === "openai") setSelectedModel("gpt-4o-mini");
-                    else if (newProvider === "gemini") setSelectedModel("gemini-1.5-flash");
-                  }}
+                  value={selectedModel} 
+                  onChange={(e) => setSelectedModel(e.target.value)}
                 >
-                  <option value="none">None (Use Default Templates)</option>
-                  <option value="openai">OpenAI (ChatGPT)</option>
-                  <option value="groq">Groq</option>
-                  <option value="gemini">Google Gemini</option>
+                  {selectedProvider === "groq" && (
+                    <>
+                      <option value="openai/gpt-oss-120b">GPT OSS 120B</option>
+                      <option value="whisper-large-v3">Whisper Large v3</option>
+                    </>
+                  )}
+                  {selectedProvider === "openai" && (
+                    <>
+                      <option value="gpt-4o-mini">GPT-4o Mini</option>
+                      <option value="gpt-4o">GPT-4o</option>
+                      <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                    </>
+                  )}
+                  {selectedProvider === "gemini" && (
+                    <>
+                      <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                      <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                      <option value="gemini-1.0-pro">Gemini 1.0 Pro</option>
+                    </>
+                  )}
                 </select>
               </label>
 
-              <div style={{ opacity: selectedProvider !== "none" ? 1 : 0.4, pointerEvents: selectedProvider !== "none" ? 'auto' : 'none', transition: 'opacity 0.2s' }}>
-                <label className="field">
-                  <span>AI Model</span>
-                  <select 
-                    value={selectedModel} 
-                    onChange={(e) => setSelectedModel(e.target.value)}
-                  >
-                    {selectedProvider === "groq" && (
-                      <>
-                        <option value="openai/gpt-oss-120b">GPT OSS 120B</option>
-                        <option value="whisper-large-v3">Whisper Large v3</option>
-                      </>
-                    )}
-                    {selectedProvider === "openai" && (
-                      <>
-                        <option value="gpt-4o-mini">GPT-4o Mini</option>
-                        <option value="gpt-4o">GPT-4o</option>
-                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-                      </>
-                    )}
-                    {selectedProvider === "gemini" && (
-                      <>
-                        <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
-                        <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
-                        <option value="gemini-1.0-pro">Gemini 1.0 Pro</option>
-                      </>
-                    )}
-                    </select>
-                  </label>
+              <label className="field">
+                <span>API Key</span>
+                <input
+                  id="tour-automail-key"
+                  type="password"
+                  placeholder={`Enter your ${selectedProvider} API Key`}
+                  value={aiApiKey}
+                  onChange={(e) => setAiApiKey(e.target.value)}
+                />
+              </label>
 
-                  <label className="field">
-                    <span>API Key</span>
-                    <input
-                      id="tour-automail-key"
-                      type="password"
-                      placeholder={`Enter your ${selectedProvider} API Key`}
-                      value={aiApiKey}
-                      onChange={(e) => setAiApiKey(e.target.value)}
-                    />
-                  </label>
-                  
-                  <label className="field">
-                    <span>
-                      AI Prompt
-                      <HelpTooltip 
-                        title="AI Prompt" 
-                        content={
-                          <>
-                            <p>The instructions you give to the AI.</p>
-                            <p>Tell the AI how to act, what tone to use, and what your company does. The system will automatically inject the LinkedIn post at the end of your prompt so the AI has context.</p>
-                            <p><strong>Note:</strong> The AI <em>must</em> return JSON format with a <code>subject</code> and <code>body</code>.</p>
-                          </>
-                        } 
-                      />
-                    </span>
-                    <textarea
-                      rows={5}
-                      value={aiPrompt}
-                      onChange={(e) => setAiPrompt(e.target.value)}
-                    />
-                    <span className="hint compact">
-                      Available placeholders: {"{{email}}"}, {"{{title}}"}. 
-                      The post text will be automatically appended to the end of your prompt.
-                    </span>
-                  </label>
+              <div style={{ marginTop: "1rem", padding: "0.75rem", background: "var(--bg-elevated)", borderRadius: "6px", border: "1px solid var(--line)", opacity: enabled ? 1 : 0.6 }}>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--ink)" }}>
+                  Email AI Personalization Prompt (Automail Only)
+                </span>
+                <p className="hint compact" style={{ margin: "0.25rem 0 0.5rem" }}>
+                  Used only when background email sending is enabled. For LinkedIn comment prompts, configure them in the LinkedIn Configuration modal.
+                </p>
+                <textarea
+                  rows={4}
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  disabled={!enabled}
+                />
+                <span className="hint compact">
+                  Available placeholders: {"{{email}}"}, {"{{title}}"}.
+                </span>
               </div>
+            </div>
           </div>
-
         </div>
         
         <hr style={{ border: "0", borderTop: "1px solid var(--line)", margin: "1rem 0" }} />
