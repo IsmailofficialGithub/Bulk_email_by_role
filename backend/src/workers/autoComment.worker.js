@@ -137,6 +137,56 @@ function mapUrnsToTexts(rawText) {
   return urnToText;
 }
 
+// Extract underlying attributed URNs (ugcPost or share) from search or feed results
+function extractAttributedUrns(rawText) {
+  const urnMap = {};
+  if (!rawText) return urnMap;
+  
+  const rawString = typeof rawText === "string" ? rawText : JSON.stringify(rawText);
+  
+  // 1. HTML data attributes: data-activity-urn and data-attributed-urn
+  const regex1 = /data-activity-urn=["']urn:li:activity:(\d{19})["'][^>]*?data-attributed-urn=["'](urn:li:(?:ugcPost|share):\d+)["']/gi;
+  for (const match of rawString.matchAll(regex1)) {
+    urnMap[match[1]] = match[2];
+  }
+  const regex2 = /data-attributed-urn=["'](urn:li:(?:ugcPost|share):\d+)["'][^>]*?data-activity-urn=["']urn:li:activity:(\d{19})["']/gi;
+  for (const match of rawString.matchAll(regex2)) {
+    urnMap[match[2]] = match[1];
+  }
+
+  // 2. Semaphore comment anchors
+  const regexSem = /urn:li:activity:(\d{19})[\s\S]{0,500}?data-semaphore-content-urn=["']urn:li:comment:\(((?:urn:li:)?(?:ugcPost|share):\d+)/gi;
+  for (const match of rawString.matchAll(regexSem)) {
+    const urn = match[2].startsWith('urn:li:') ? match[2] : `urn:li:${match[2]}`;
+    if (!urnMap[match[1]]) urnMap[match[1]] = urn;
+  }
+
+  return urnMap;
+}
+
+// Extract true commentable entity URN (ugcPost or share) from post HTML
+function resolveAttributedUrnFromHtml(html, activityId) {
+  if (!html) return null;
+  
+  // 1. Card containing the target activityId
+  const cardMatch = html.match(new RegExp(`data-activity-urn=["']urn:li:activity:${activityId}["'][^>]*data-attributed-urn=["']([^"']+)["']`, 'i')) ||
+                    html.match(new RegExp(`data-attributed-urn=["']([^"']+)["'][^>]*data-activity-urn=["']urn:li:activity:${activityId}["']`, 'i'));
+  if (cardMatch && cardMatch[1]) return cardMatch[1];
+
+  // 2. Semaphore comment container
+  const semMatch = html.match(/data-semaphore-content-urn=["']urn:li:comment:\(((?:urn:li:)?(?:ugcPost|share):\d+)/i) ||
+                   html.match(/urn:li:comment:\(((?:urn:li:(?:ugcPost|share):\d+))/i);
+  if (semMatch && semMatch[1]) {
+    return semMatch[1].startsWith('urn:li:') ? semMatch[1] : `urn:li:${semMatch[1]}`;
+  }
+
+  // 3. Fallback to any attributed URN on page
+  const attrMatch = html.match(/data-attributed-urn=["'](urn:li:(?:ugcPost|share):\d+)["']/i);
+  if (attrMatch && attrMatch[1]) return attrMatch[1];
+
+  return null;
+}
+
 async function runAutoCommentJobs(supabase) {
   try {
     const { data: users, error: usersErr } = await supabase
@@ -279,6 +329,7 @@ async function runAutoCommentJobs(supabase) {
 
       const rawText = response.data;
       const urnToTextMap = mapUrnsToTexts(rawText);
+      const urnToAttributedMap = extractAttributedUrns(rawText);
       const urnMatches = rawText.match(/urn:li:activity:(\d{19})/g) || [];
       const uniqueUrns = [...new Set(urnMatches.map(m => m.match(/urn:li:activity:(\d{19})/)[1]))];
 
@@ -308,8 +359,9 @@ async function runAutoCommentJobs(supabase) {
         }
         
         const activityId = idMatch[1];
-        // Assume URN is activity. Can also be ugcPost.
+        // Activity URN for feed actions, attributed URN for comment threads
         const activityUrn = `urn:li:activity:${activityId}`;
+        let targetAttributedUrn = (urnToAttributedMap && urnToAttributedMap[activityId]) || null;
 
         await logger.append("INFO", `Attempting to Like post to check for duplicates: ${targetUrl}`);
         
@@ -523,6 +575,11 @@ async function runAutoCommentJobs(supabase) {
               const postRes = await axios.get(targetUrl, { headers: fetchHeaders, responseType: 'text', timeout: 10000 });
               const postHtml = postRes.data;
 
+              // Extract true attributed URN (ugcPost or share) if not already known
+              if (!targetAttributedUrn) {
+                targetAttributedUrn = resolveAttributedUrnFromHtml(postHtml, activityId);
+              }
+
               // Parse HTML with mapUrnsToTexts
               const htmlMap = mapUrnsToTexts(postHtml);
               if (htmlMap[activityId] && htmlMap[activityId].length > 15) {
@@ -614,24 +671,40 @@ async function runAutoCommentJobs(supabase) {
         let success = false;
         let apiError = null;
 
+        // Resolve attributed URN on-demand from post HTML if not already known
+        if (!targetAttributedUrn) {
+          try {
+            const fetchHeaders = { ...headers, "Accept": "text/html,application/xhtml+xml,application/xml" };
+            const postRes = await axios.get(targetUrl, { headers: fetchHeaders, responseType: 'text', timeout: 8000 });
+            targetAttributedUrn = resolveAttributedUrnFromHtml(postRes.data, activityId);
+            if (targetAttributedUrn) {
+              await logger.append("INFO", `Resolved attributed URN before posting: ${targetAttributedUrn}`);
+            }
+          } catch (e) {}
+        }
+
+        // Target URN candidates in prioritized order
+        const targetUrns = [];
+        if (targetAttributedUrn) {
+          targetUrns.push(targetAttributedUrn);
+        }
+        targetUrns.push(activityUrn);
+
         try {
           if (linkedinAuth && linkedinAuth.access_token && linkedinAuth.linkedin_person_urn) {
             console.log(`[DEBUG] Using Official LinkedIn OAuth API for commenting.`);
             
-            // The Official API requires urn:li:share or urn:li:ugcPost, NOT urn:li:activity
-            const possibleUrns = [];
-            if (targetUrl.includes('-share-')) possibleUrns.push(`urn:li:share:${activityId}`);
-            if (targetUrl.includes('-ugcPost-')) possibleUrns.push(`urn:li:ugcPost:${activityId}`);
-            // Fallbacks just in case
-            possibleUrns.push(`urn:li:activity:${activityId}`);
-            if (possibleUrns.length === 1 || !targetUrl.includes('-share-')) possibleUrns.push(`urn:li:share:${activityId}`);
-            if (possibleUrns.length === 2 || !targetUrl.includes('-ugcPost-')) possibleUrns.push(`urn:li:ugcPost:${activityId}`);
+            // Official API strictly requires urn:li:share or urn:li:ugcPost
+            const oauthUrns = targetUrns.filter(u => u.startsWith('urn:li:share:') || u.startsWith('urn:li:ugcPost:'));
+            if (oauthUrns.length === 0) {
+              oauthUrns.push(`urn:li:share:${activityId}`, `urn:li:ugcPost:${activityId}`);
+            }
 
             let oauthSuccess = false;
             let oauthErrText = '';
             let oauthStatus = 0;
 
-            for (const urn of possibleUrns) {
+            for (const urn of oauthUrns) {
               const oauthUrl = `https://api.linkedin.com/v2/socialActions/${encodeURIComponent(urn)}/comments`;
               const oauthRes = await fetch(oauthUrl, {
                 method: 'POST',
@@ -652,8 +725,7 @@ async function runAutoCommentJobs(supabase) {
               } else {
                 oauthErrText = await oauthRes.text();
                 oauthStatus = oauthRes.status;
-                if (oauthStatus !== 404) {
-                  // If it's a 400 or 401, don't keep trying URNs
+                if (oauthStatus !== 404 && oauthStatus !== 400) {
                   break;
                 }
               }
@@ -678,66 +750,78 @@ async function runAutoCommentJobs(supabase) {
               }
             }
 
-            console.log(`[DEBUG] Sending Comment Request using fetch().`);
+            console.log(`[DEBUG] Sending Comment Request using fetch(). Candidates: ${targetUrns.join(', ')}`);
             const dashUrl = process.env.LINKEDIN_COMMENT_DASH_URL || `https://www.linkedin.com/voyager/api/voyagerSocialDashNormComments`;
-            
-            const dashRes = await fetch(dashUrl, {
-              method: 'POST',
-              headers: dashHeaders,
-              body: JSON.stringify({
-                objectUrn: activityUrn,
-                threadUrn: activityUrn,
-                comment: {
-                  text: commentText,
-                  attributesV2: [],
-                  $type: "com.linkedin.voyager.dash.common.text.TextViewModel"
-                }
-              })
-            });
+            let lastErr = null;
 
-            if (!dashRes.ok) {
-              const errText = await dashRes.text();
-              throw { response: { status: dashRes.status, data: errText }, message: `Voyager API failed with status ${dashRes.status}` };
+            // 1. Try Voyager Dash Norm Comments with candidate URNs
+            for (const urn of targetUrns) {
+              try {
+                const dashRes = await fetch(dashUrl, {
+                  method: 'POST',
+                  headers: dashHeaders,
+                  body: JSON.stringify({
+                    objectUrn: urn,
+                    threadUrn: urn,
+                    comment: {
+                      text: commentText,
+                      attributesV2: [],
+                      $type: "com.linkedin.voyager.dash.common.text.TextViewModel"
+                    }
+                  })
+                });
+
+                if (dashRes.ok) {
+                  success = true;
+                  break;
+                } else {
+                  const errText = await dashRes.text();
+                  lastErr = { status: dashRes.status, data: errText };
+                  console.log(`[DEBUG] Dash norm comments failed for ${urn} with status ${dashRes.status}: ${errText}`);
+                }
+              } catch (e) {
+                lastErr = { status: 0, data: e.message };
+              }
             }
-            success = true;
+
+            // 2. If Dash Norm Comments failed, try fallback feed/comments endpoint
+            if (!success) {
+              const fallbackUrl = process.env.LINKEDIN_COMMENT_FALLBACK_URL || `https://www.linkedin.com/voyager/api/feed/comments?action=create`;
+              for (const urn of targetUrns) {
+                try {
+                  const fbRes = await fetch(fallbackUrl, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                      socialDetailEntity: urn,
+                      text: commentText
+                    })
+                  });
+
+                  if (fbRes.ok) {
+                    success = true;
+                    break;
+                  } else {
+                    const fbErrText = await fbRes.text();
+                    lastErr = { status: fbRes.status, data: fbErrText };
+                    console.log(`[DEBUG] Fallback comments failed for ${urn} with status ${fbRes.status}: ${fbErrText}`);
+                  }
+                } catch (fbErr) {
+                  lastErr = { status: 0, data: fbErr.message };
+                }
+              }
+            }
+
+            if (!success) {
+              const errPayload = lastErr?.data || `Status ${lastErr?.status || 400}`;
+              throw { response: { status: lastErr?.status || 400, data: errPayload }, message: errPayload };
+            }
           }
         } catch (err) {
-          console.log(`[DEBUG] First request failed: ${err.message}. Status: ${err.response?.status}`);
-          // Sometimes it's urn:li:ugcPost or the older endpoint (only if Voyager was used, or we just try anyway)
-          try {
-            const fallbackUrl = process.env.LINKEDIN_COMMENT_FALLBACK_URL || `https://www.linkedin.com/voyager/api/feed/comments?action=create`;
-            const fbRes = await fetch(fallbackUrl, {
-              method: 'POST',
-              headers: headers, // Use full headers for generic fallback
-              body: JSON.stringify({
-                socialDetailEntity: activityUrn,
-                text: commentText
-              })
-            });
-            if (!fbRes.ok) throw { response: { data: await fbRes.text() }, message: `Fallback status ${fbRes.status}` };
-            success = true;
-          } catch (err2) {
-            try {
-              // UGC URN fallback
-              const ugcUrn = `urn:li:ugcPost:${activityId}`;
-              const fallbackUrl = process.env.LINKEDIN_COMMENT_FALLBACK_URL || `https://www.linkedin.com/voyager/api/feed/comments?action=create`;
-              const fbRes2 = await fetch(fallbackUrl, {
-                method: 'POST',
-                headers: headers,
-                body: JSON.stringify({
-                  socialDetailEntity: ugcUrn,
-                  text: commentText
-                })
-              });
-              if (!fbRes2.ok) throw { response: { data: await fbRes2.text() }, message: `Fallback 2 status ${fbRes2.status}` };
-              success = true;
-            } catch (err3) {
-              const dataStr = typeof err3.response?.data === 'string' ? err3.response.data : JSON.stringify(err3.response?.data);
-              const origDataStr = typeof err.response?.data === 'string' ? err.response.data : JSON.stringify(err.response?.data);
-              apiError = (dataStr && dataStr !== '""') ? dataStr : ((origDataStr && origDataStr !== '""') ? origDataStr : err3.message);
-              console.log(`[DEBUG] Fallback failed: ${err3.message}. Response: ${dataStr}`);
-            }
-          }
+          const rawData = err.response?.data;
+          const dataStr = typeof rawData === 'string' ? rawData : JSON.stringify(rawData || {});
+          apiError = (dataStr && dataStr !== '""' && dataStr !== '{}') ? dataStr : err.message;
+          console.log(`[DEBUG] Comment posting failed: ${err.message}. Response: ${dataStr}`);
         }
 
         if (success) {
