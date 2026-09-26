@@ -45,16 +45,22 @@ async function processBatchSendJob(job) {
       ? Number(userState.send_delay_sec)
       : defaultInterval;
 
-    if (!config.email || !config.appPassword) {
+    const emailToUse = config.email || userState.smtp_email;
+    const rawAppPassword = config.appPassword || userState.smtp_password;
+
+    if (!emailToUse || !rawAppPassword) {
       throw new Error("SMTP config missing");
     }
 
-    let decryptedPassword;
-    try {
-      decryptedPassword = decryptPassword(config.appPassword);
-    } catch {
-      throw new Error("Failed to decrypt app password");
+    let decryptedPassword = rawAppPassword;
+    if (decryptedPassword.startsWith("enc:")) {
+      try {
+        decryptedPassword = decryptPassword(decryptedPassword);
+      } catch {
+        throw new Error("Failed to decrypt app password");
+      }
     }
+    decryptedPassword = decryptedPassword.replace(/\s+/g, "");
 
     const { data: templatesArray } = await supabase
       .from("automailsend_templates")
@@ -67,9 +73,13 @@ async function processBatchSendJob(job) {
     }
 
     const templates = {};
-    for (const t of templatesArray) {
-      templates[t.role] = t;
-    }
+    const validTemplates = templatesArray.filter((t) => t.subject && t.content);
+    validTemplates.forEach(t => {
+      templates[t.role.toLowerCase()] = t;
+    });
+
+    const activeRole = (userState.active_template_role || "fullstack").toLowerCase();
+    const defaultTemplate = templates[activeRole] || validTemplates[0];
 
     // 2. Fetch sent logs to filter out what has already been sent
     const { data: sentLog } = await supabase
@@ -104,17 +114,19 @@ async function processBatchSendJob(job) {
     const { data: recipients } = await supabase
       .from("automailsend_recipients")
       .select("*")
-      .eq("user_id", user_id);
+      .eq("user_id", user_id)
+      .neq("email", "")
+      .not("email", "is", null);
 
     const uniqueMap = new Map();
     for (const r of (recipients || [])) {
-      if (!r.email) continue;
+      if (!r.email || !r.email.trim()) continue;
       // If target IDs are specified, ignore others
       if (config.batchTargetIds && Array.isArray(config.batchTargetIds) && config.batchTargetIds.length > 0) {
         if (!config.batchTargetIds.includes(r.id)) continue;
       }
       
-      const key = `${r.email.toLowerCase()}::${r.role}`;
+      const key = `${r.email.toLowerCase().trim()}::${r.role}`;
       if (!sentKeys.has(key) && !uniqueMap.has(key)) {
         uniqueMap.set(key, r);
       }
@@ -130,20 +142,29 @@ async function processBatchSendJob(job) {
       return;
     }
 
-    // 4. Setup Transporter
+    // 5. Setup Transporter
+    let host = config.host || "smtp.gmail.com";
+    let port = config.port || 465;
+    let secure = port === 465;
+    if (emailToUse.includes('@outlook.com') || emailToUse.includes('@hotmail.com')) {
+      host = 'smtp-mail.outlook.com';
+      port = 587;
+      secure = false;
+    }
+
     const transporter = nodemailer.createTransport({
-      host: config.host || "smtp.gmail.com",
-      port: config.port || 465,
-      secure: (config.port || 465) === 465,
+      host,
+      port,
+      secure,
       auth: {
-        user: config.email,
+        user: emailToUse,
         pass: decryptedPassword,
       },
     });
 
     const delayMs = delaySec * 1000;
 
-    // 5. Send loop
+    // 6. Send loop
     for (let i = 0; i < toProcess.length; i++) {
       // Check cancellation flag in DB
       const { data: checkState } = await supabase
@@ -158,7 +179,8 @@ async function processBatchSendJob(job) {
       }
 
       const recipient = toProcess[i];
-      const tpl = templates[recipient.role];
+      const recipRole = (recipient.role || "").toLowerCase();
+      const tpl = templates[recipRole] || defaultTemplate;
       if (!tpl) continue;
 
       let subject = applyPlaceholders(tpl.subject, recipient);

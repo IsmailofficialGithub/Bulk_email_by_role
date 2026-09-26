@@ -7,6 +7,125 @@ const { getGlobalSettings } = require("../lib/globalSettings");
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+function isCookieExpiredOrAuthError(err, responseData) {
+  if (err) {
+    const status = err.response?.status;
+    if (status === 401 || status === 403 || status === 999) return true;
+    const body = String(err.response?.data || "");
+    if (body.includes("authwall") || body.includes("/uas/login") || body.includes("checkpoint/challenge") || body.includes("SIGN_IN")) return true;
+  }
+  if (responseData) {
+    const text = String(responseData);
+    if (text.includes("/uas/login") || text.includes("authwall") || text.includes("checkpoint/challenge") || text.includes("sign-in-form")) return true;
+    if (text.length < 2500 && (text.includes("Join LinkedIn") || text.includes("sign-in-button"))) return true;
+  }
+  return false;
+}
+
+async function notifyUserCookieExpired(userId, logger, errorMsg) {
+  try {
+    const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
+    const { data: recentAlert } = await supabase
+      .from("automailsend_sent_log")
+      .select("sent_at")
+      .eq("user_id", userId)
+      .eq("status", "cookie_expired_alert")
+      .gte("sent_at", twelveHoursAgo)
+      .limit(1);
+
+    if (recentAlert && recentAlert.length > 0) {
+      if (logger) await logger.append("INFO", "Cookie expiration notification already sent within the last 12 hours. Skipping duplicate email.");
+      return;
+    }
+
+    const { data: userState } = await supabase
+      .from("automailsend_app_state")
+      .select("*")
+      .eq("user_id", userId)
+      .single();
+
+    if (!userState) return;
+
+    const email = userState.smtp_email || userState.config?.email;
+    const appPassword = userState.smtp_password || userState.config?.appPassword;
+
+    if (!email || !appPassword) {
+      if (logger) await logger.append("WARN", "Cannot send cookie expiration alert email: User SMTP credentials missing.");
+      return;
+    }
+
+    const config = userState.config || {};
+    let host = config.host || "smtp.gmail.com";
+    let port = config.port || 465;
+    let secure = port === 465;
+    if (email.includes('@outlook.com') || email.includes('@hotmail.com')) {
+      host = 'smtp-mail.outlook.com';
+      port = 587;
+      secure = false;
+    }
+
+    let passwordToUse = appPassword;
+    if (passwordToUse.startsWith("enc:")) {
+      try {
+        const { decryptPassword } = require("../lib/crypto");
+        passwordToUse = decryptPassword(passwordToUse);
+      } catch (e) {}
+    }
+    passwordToUse = passwordToUse.replace(/\s+/g, "");
+
+    const nodemailer = require("nodemailer");
+    const transporter = nodemailer.createTransport({
+      host,
+      port,
+      secure,
+      auth: { user: email, pass: passwordToUse }
+    });
+
+    const subject = "⚠️ Action Required: Your LinkedIn Session Cookies Have Expired";
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+        <h2 style="color: #d9534f; margin-top: 0;">⚠️ LinkedIn Session Cookies Expired</h2>
+        <p>Hello,</p>
+        <p>The <strong>AutoMail Scraper</strong> background worker attempted to execute your automated keyword search batch, but the request failed because your LinkedIn session cookies (<code>li_at</code> / <code>JSESSIONID</code>) have expired or are invalid.</p>
+        <div style="background-color: #f8d7da; color: #721c24; padding: 12px; border-radius: 6px; border: 1px solid #f5c6cb; margin: 15px 0;">
+          <strong>Error Details:</strong> ${errorMsg || 'Authentication Failed (HTTP 401/403/Authwall)'}
+        </div>
+        <p><strong>How to fix this:</strong></p>
+        <ol>
+          <li>Log into your LinkedIn account in your web browser.</li>
+          <li>Copy your fresh <code>li_at</code> and <code>JSESSIONID</code> cookies (or raw headers).</li>
+          <li>Open your <strong>AutoMail Settings</strong> dashboard and update your browser cookies.</li>
+        </ol>
+        <p style="color: #666; font-size: 13px; margin-top: 25px;">This is an automated notification sent by your AutoMail backend worker.</p>
+      </div>
+    `;
+
+    await transporter.sendMail({
+      from: email,
+      to: email,
+      subject,
+      html
+    });
+
+    if (logger) await logger.append("SUCCESS", `Sent cookie expiration alert email to ${email}`);
+
+    await supabase.from("automailsend_sent_log").insert({
+      user_id: userId,
+      email: email,
+      role: "system",
+      title: "System Notification",
+      subject: subject,
+      body: "Cookie expiration email sent to user",
+      status: "cookie_expired_alert",
+      error_message: errorMsg,
+      sent_at: new Date().toISOString()
+    });
+
+  } catch (err) {
+    if (logger) await logger.append("ERROR", `Failed sending cookie expiration alert email: ${err.message}`);
+  }
+}
+
 async function processJobLogic(job, logger) {
   const { 
     user_id, 
@@ -43,12 +162,32 @@ async function processJobLogic(job, logger) {
   let headers;
   try {
     headers = typeof auto_fetch_raw_headers === 'string' 
-      ? JSON.parse(auto_fetch_raw_headers) 
-      : auto_fetch_raw_headers;
+      ? JSON.parse(auto_fetch_raw_headers || '{}') 
+      : (auto_fetch_raw_headers || {});
     await logger.append("SUCCESS", "Parsed Headers Successfully");
   } catch (err) {
     await logger.append("ERROR", `Failed to parse raw headers: ${err.message}`);
-    throw new Error(`Failed to parse raw headers: ${err.message}`);
+    headers = {};
+  }
+
+  // Ensure essential LinkedIn headers are present if available in job data
+  const liAt = job.data.cookie_li_at || job.data.auto_fetch_li_at;
+  const jsessionid = job.data.cookie_jsessionid || job.data.auto_fetch_jsessionid;
+  
+  if (!headers.cookie && (liAt || jsessionid)) {
+    const cookieParts = [];
+    if (liAt) cookieParts.push(`li_at=${liAt}`);
+    if (jsessionid) cookieParts.push(`JSESSIONID="${jsessionid}"`);
+    headers.cookie = cookieParts.join("; ");
+  }
+
+  const rawJsession = jsessionid || (headers.cookie?.match(/JSESSIONID="?([^";]+)"?/) || [])[1];
+  if (rawJsession && !headers['csrf-token'] && !headers['Csrf-Token']) {
+    headers['csrf-token'] = rawJsession.replace(/"/g, '');
+  }
+
+  if (!headers['user-agent'] && !headers['User-Agent']) {
+    headers['user-agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
   }
 
   const allEmails = new Set();
@@ -84,8 +223,8 @@ async function processJobLogic(job, logger) {
   await logger.append("SUCCESS", `Loaded ${allEmails.size} emails and ${allPhones.size} phones to skip (including sent log).`);
 
   const saveContacts = async (contacts, roleToAssign) => {
-    const newEmails = contacts.emails.filter(e => !allEmails.has(e.toLowerCase()));
-    const newPhones = contacts.phones.filter(p => !allPhones.has(p));
+    const newEmails = contacts.emails.filter(e => e && !allEmails.has(e.toLowerCase()));
+    const newPhones = contacts.phones.filter(p => p && !allPhones.has(p));
     
     if (newEmails.length === 0 && newPhones.length === 0) return;
 
@@ -97,8 +236,10 @@ async function processJobLogic(job, logger) {
 
     await logger.append("INFO", `Inserting ${newContactsToInsert.length} new records into Supabase for role '${roleToAssign}'...`);
     for (const entry of newContactsToInsert) {
-      const emailToInsert = entry.email ? entry.email.toLowerCase() : "";
+      const emailToInsert = entry.email ? entry.email.toLowerCase().trim() : "";
       const phoneToInsert = entry.phone || "";
+      const initialStatus = emailToInsert ? "pending" : "no_email";
+
       const { error } = await supabase.from("automailsend_recipients").insert({
         user_id,
         email: emailToInsert,
@@ -109,7 +250,7 @@ async function processJobLogic(job, logger) {
         context_text: contacts.contextText || null,
         source_url: contacts.source_urls || null,
         scraped_at: new Date().toISOString(),
-        status: "pending",
+        status: initialStatus,
       });
       if (error) {
          await logger.append("ERROR", `Supabase insert error: ${error.message}`);
@@ -156,10 +297,20 @@ async function processJobLogic(job, logger) {
     } catch (err) {
       const errorDetails = err.response ? `HTTP ${err.response.status}` : err.message;
       await logger.append("ERROR", `Search request failed for "${currentKeyword}": ${errorDetails}`);
+      if (isCookieExpiredOrAuthError(err, err.response?.data)) {
+        await logger.append("ERROR", "LinkedIn session cookies are expired or invalid. Triggering alert email.");
+        await notifyUserCookieExpired(user_id, logger, `Search request failed: ${errorDetails}`);
+      }
       continue; // Skip to next keyword
     }
 
     const rawText = response.data;
+    if (isCookieExpiredOrAuthError(null, rawText)) {
+      await logger.append("ERROR", "Initial search page returned LinkedIn Login/Authwall redirect. Cookies are expired!");
+      await notifyUserCookieExpired(user_id, logger, "Search page redirected to LinkedIn Login/Authwall");
+      continue;
+    }
+
     await logger.append("SUCCESS", `Initial Search Page Loaded (HTTP ${response.status}) [${rawText.length} bytes]`);
 
     await logger.append("INFO", `Extracting Contacts from Initial Page for "${currentKeyword}"...`);
@@ -282,6 +433,10 @@ async function processJobLogic(job, logger) {
         } catch (err) {
           const errorDetails = err.response ? `HTTP ${err.response.status}` : err.message;
           await logger.append("ERROR", `Paginated request error: ${errorDetails}`);
+          if (isCookieExpiredOrAuthError(err, err.response?.data)) {
+            await logger.append("ERROR", "Pagination request failed due to expired session cookies. Triggering alert email.");
+            await notifyUserCookieExpired(user_id, logger, `Paginated request failed: ${errorDetails}`);
+          }
         }
 
         startIndex += count;

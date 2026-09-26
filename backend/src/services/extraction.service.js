@@ -54,6 +54,36 @@ function extractLineTexts(chunk) {
   return lines;
 }
 
+function isValidEmail(email) {
+  if (!email || typeof email !== 'string') return false;
+  const e = email.toLowerCase().trim();
+  if (e.length < 5 || e.length > 100) return false;
+  
+  // Exclude static asset paths or file extensions
+  if (/\.(png|jpg|jpeg|gif|svg|webp|css|js|html|json|ico|woff|woff2|ttf|eot|mp4|mp3|avi)$/i.test(e)) return false;
+  
+  // Exclude common platform/system domains or internal emails
+  const parts = e.split('@');
+  if (parts.length !== 2) return false;
+  const local = parts[0];
+  const domain = parts[1];
+
+  const ignoredDomains = [
+    'linkedin.com', 'licdn.com', 'schema.org', 'example.com', 'domain.com',
+    'w3.org', 'sentry.io', 'github.com', 'npmjs.com', 'webpack.js.org',
+    'google.com', 'facebook.com', 'twitter.com', 'instagram.com'
+  ];
+  if (ignoredDomains.some((d) => domain === d || domain.endsWith('.' + d))) return false;
+  
+  const ignoredLocals = ['noreply', 'no-reply', 'donotreply', 'privacy', 'security', 'abuse', 'postmaster'];
+  if (ignoredLocals.includes(local)) return false;
+  
+  // Exclude non-standard email structures
+  if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(e)) return false;
+
+  return true;
+}
+
 function extractInitialContacts(rawStr) {
   const decodedBuffers = decodeBufferData(rawStr);
   const cleanText = unescapePayload(rawStr + ' ' + decodedBuffers);
@@ -66,7 +96,7 @@ function extractInitialContacts(rawStr) {
   }
   const standardEmails = cleanText.match(EMAIL_RE) || [];
   for (const e of standardEmails) foundEmails.push(e.toLowerCase());
-  const uniqueEmails = [...new Set(foundEmails)];
+  const uniqueEmails = [...new Set(foundEmails)].filter(isValidEmail);
 
   const candidatePhones = [];
   const localMatches = cleanText.match(LOCAL_MOBILE_RE) || [];
@@ -99,7 +129,7 @@ function extractPaginatedContacts(rawStr) {
   const standardEmails = cleanText.match(EMAIL_RE) || [];
   for (const e of standardEmails) foundEmails.push(e.toLowerCase());
   
-  const emails = [...new Set(foundEmails)];
+  const emails = [...new Set(foundEmails)].filter(isValidEmail);
 
   // 2. Extract phones only from human-readable text nodes to avoid random JSON numbers
   const text = extractLineTexts(rawStr).join('\n').replace(/\n{3,}/g, '\n\n').trim();
@@ -133,5 +163,6 @@ function extractPaginatedContacts(rawStr) {
 
 module.exports = {
   extractInitialContacts,
-  extractPaginatedContacts
+  extractPaginatedContacts,
+  isValidEmail
 };

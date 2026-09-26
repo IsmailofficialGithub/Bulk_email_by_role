@@ -21,20 +21,27 @@ function getStartOfDayUTC() {
   return d.toISOString();
 }
 
-/** Cap delay so extreme values cannot stall forever; UI allows up to 1 hour. */
+// Cap delay so extreme values cannot stall forever; UI allows up to 1 hour.
 const MAX_AUTOMAIL_DELAY_SEC = 3600;
 
 function resolveDelaySec(user) {
   const envDefault = process.env.AUTOMAIL_WORKER_INTERVAL_SEC
     ? parseInt(process.env.AUTOMAIL_WORKER_INTERVAL_SEC, 10)
     : 60;
-  const raw = Number(user.send_delay_sec);
+  const raw = Number(user.send_delay_sec ?? user.delay_sec);
   const delay = Number.isFinite(raw) && raw >= 0 ? raw : envDefault;
   return Math.min(delay, MAX_AUTOMAIL_DELAY_SEC);
 }
 
 async function runAutomailJobs(supabase) {
   try {
+    // Clean up any corrupt pending records with empty/null email to prevent queue blocking
+    await supabase
+      .from("automailsend_recipients")
+      .update({ status: "no_email" })
+      .or("email.eq.,email.is.null")
+      .eq("status", "pending");
+
     // 1. Fetch users with Automail enabled
     const { data: users, error: usersErr } = await supabase
       .from("automailsend_app_state")
@@ -48,8 +55,8 @@ async function runAutomailJobs(supabase) {
 
     for (const user of users) {
       const userId = user.user_id;
-      const email = user.smtp_email;
-      const appPassword = user.smtp_password;
+      const email = user.smtp_email || user.config?.email || user.config?.smtp_email;
+      const appPassword = user.smtp_password || user.config?.appPassword || user.config?.smtp_password;
       const limit = parseInt(user.daily_mail_limit, 10) || 50;
       const delaySec = resolveDelaySec(user);
       
@@ -109,27 +116,32 @@ async function runAutomailJobs(supabase) {
         .select("*")
         .eq("user_id", userId);
 
-      if (tempErr || !templates) {
+      if (tempErr || !templates || templates.length === 0) {
         console.error(pc.red(`Error fetching templates for user ${userId}`));
         continue;
       }
 
       const templatesByRole = {};
-      templates.forEach(t => { templatesByRole[t.role] = t; });
-      const sendableRoles = templates
-        .filter((t) => t.subject && t.content)
-        .map((t) => t.role);
-
-      if (sendableRoles.length === 0) {
+      const validTemplates = templates.filter((t) => t.subject && t.content);
+      if (validTemplates.length === 0) {
         continue;
       }
 
+      validTemplates.forEach(t => { 
+        templatesByRole[t.role.toLowerCase()] = t; 
+      });
+
+      const activeRole = (user.active_template_role || "fullstack").toLowerCase();
+      const defaultTemplate = templatesByRole[activeRole] || validTemplates[0];
+
+      // 4. Fetch pending recipients with non-empty emails
       const { data: rawPending, error: pendingErr } = await supabase
         .from("automailsend_recipients")
         .select("*")
         .eq("user_id", userId)
         .eq("status", "pending")
-        .in("role", sendableRoles)
+        .neq("email", "")
+        .not("email", "is", null)
         .order("id", { ascending: true })
         .limit(Math.max(remainingQuota * 3, 50));
 
@@ -140,14 +152,14 @@ async function runAutomailJobs(supabase) {
       
       const uniquePendingMap = new Map();
       for (const r of (rawPending || [])) {
-        if (!r.email) continue;
-        const key = r.email.toLowerCase();
+        if (!r.email || !r.email.trim()) continue;
+        const key = r.email.toLowerCase().trim();
         if (!uniquePendingMap.has(key)) {
           uniquePendingMap.set(key, r);
         }
       }
-      // One email per scheduler tick so the lock is not held for hours and quota can fill over the day
-      const pending = Array.from(uniquePendingMap.values()).slice(0, 10);
+      
+      const pending = Array.from(uniquePendingMap.values());
 
       if (!pending || pending.length === 0) {
         continue;
@@ -196,23 +208,18 @@ async function runAutomailJobs(supabase) {
       // 6. Send loop
       let sentCount = 0;
       for (const recipient of pending) {
-        const template = templatesByRole[recipient.role];
+        const recipRole = (recipient.role || "").toLowerCase();
+        const template = templatesByRole[recipRole] || defaultTemplate;
+        
         if (!template || !template.subject || !template.content) {
           await logger.append("WARN", `Missing template for role ${recipient.role}. Skipping recipient ${recipient.email}.`);
+          await supabase.from("automailsend_recipients").update({ status: "no_template" }).eq("id", recipient.id);
           continue;
         }
 
-        if (!recipient.email) {
+        if (!recipient.email || !recipient.email.trim()) {
           await logger.append("WARN", `Recipient ${recipient.id} has no email address. Skipping.`);
-          await supabase.from("automailsend_recipients").update({ status: "failed" }).eq("id", recipient.id);
-          await supabase.from("automailsend_sent_log").insert({
-            user_id: userId,
-            email: recipient.phone || "No Email",
-            role: recipient.role,
-            title: recipient.title,
-            status: "failed",
-            error_message: "No email address found",
-          });
+          await supabase.from("automailsend_recipients").update({ status: "no_email" }).eq("id", recipient.id);
           continue;
         }
 
