@@ -84,6 +84,26 @@ function isValidEmail(email) {
   return true;
 }
 
+
+// Readable post text around one contact (email/phone): the page holds many posts, so the
+// AI must see the post that contains this contact, not the start of the page.
+function postContextAround(cleanText, needle) {
+  const i = needle ? cleanText.toLowerCase().indexOf(String(needle).toLowerCase()) : -1;
+  if (i < 0) return null;
+  const win = cleanText.slice(Math.max(0, i - 6000), i + 1500).replace(/<[^>]+>/g, " ");
+  const seen = new Set();
+  const parts = win.split(/["{}\[\]]/).map((t) => t.replace(/\s+/g, " ").trim()).filter((t) => {
+    if (t.length < 20 || (t.match(/ /g) || []).length < 3) return false;
+    if (/^(proto\.|com\.linkedin|https?:|\$|urn:)/i.test(t) || /\$type|requestId|stateKey/.test(t)) return false;
+    if (seen.has(t)) return false;
+    seen.add(t);
+    return true;
+  });
+  const text = parts.join("\n");
+  const at = Math.max(0, text.toLowerCase().indexOf(String(needle).toLowerCase()));
+  return text.length > 80 ? text.slice(Math.max(0, at - 3000), at + 1000) : null;
+}
+
 function extractInitialContacts(rawStr) {
   const decodedBuffers = decodeBufferData(rawStr);
   const cleanText = unescapePayload(rawStr + ' ' + decodedBuffers);
@@ -112,7 +132,9 @@ function extractInitialContacts(rawStr) {
   const uniqueUrls = [...new Set(urlMatches.map(m => m.match(/"postSlugUrl"\s*:\s*"([^"]+)"/)[1]))];
   const source_urls = uniqueUrls.join(", ");
 
-  return { emails: uniqueEmails, phones: uniquePhones, source_urls, contextText: cleanText.substring(0, 5000) };
+  const contextByContact = {};
+  for (const c of [...uniqueEmails, ...uniquePhones]) contextByContact[c] = postContextAround(cleanText, c);
+  return { emails: uniqueEmails, phones: uniquePhones, source_urls, contextText: cleanText.substring(0, 5000), contextByContact };
 }
 
 function extractPaginatedContacts(rawStr) {
@@ -158,10 +180,14 @@ function extractPaginatedContacts(rawStr) {
   const uniqueUrls = [...new Set(urlMatches.map(m => m.match(/"postSlugUrl"\s*:\s*"([^"]+)"/)[1]))];
   const source_urls = uniqueUrls.join(", ");
 
-  return { emails, phones: [...new Set([...wa, ...phones])], source_urls, contextText: text.substring(0, 5000) };
+  const allPhones = [...new Set([...wa, ...phones])];
+  const contextByContact = {};
+  for (const c of [...emails, ...allPhones]) contextByContact[c] = postContextAround(text, c) || postContextAround(cleanText, c);
+  return { emails, phones: allPhones, source_urls, contextText: text.substring(0, 5000), contextByContact };
 }
 
 module.exports = {
+  postContextAround,
   extractInitialContacts,
   extractPaginatedContacts,
   isValidEmail

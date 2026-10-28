@@ -247,7 +247,7 @@ async function processJobLogic(job, logger) {
         role: roleToAssign, 
         title: "",
         source: "auto_fetch",
-        context_text: contacts.contextText || null,
+        context_text: contacts.contextByContact?.[entry.email] || contacts.contextByContact?.[entry.phone] || contacts.contextText || null,
         source_url: contacts.source_urls || null,
         scraped_at: new Date().toISOString(),
         status: initialStatus,
