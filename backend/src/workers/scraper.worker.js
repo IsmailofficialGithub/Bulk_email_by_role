@@ -134,7 +134,8 @@ async function processJobLogic(job, logger) {
     auto_fetch_pagination_limit, 
     auto_fetch_pagination_delay_sec,
     post_age_filter,
-    auto_fetch_template_role
+    auto_fetch_template_role,
+    keyword_limit
   } = job.data;
 
   let mappings = [];
@@ -150,6 +151,9 @@ async function processJobLogic(job, logger) {
       }));
     }
   }
+
+  // Admin-set per-user cap; enforced here too, since the UI limit can be bypassed.
+  mappings = mappings.slice(0, keyword_limit || 3);
 
   if (mappings.length === 0) {
     // Silently skip if no keywords to prevent log flooding

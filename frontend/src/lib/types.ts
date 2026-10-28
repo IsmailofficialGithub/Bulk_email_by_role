@@ -85,6 +85,7 @@ export type AutoFetchConfig = {
   jsessionid: string;
   rawHeaders: string;
   postAgeFilter: "any" | "24h" | "1w" | "1m" | "all" | "past-24h" | "past-week" | "past-month";
+  keywordLimit?: number; // set by admin only, never saved from the user's settings
 };
 
 export type AutomailConfig = {

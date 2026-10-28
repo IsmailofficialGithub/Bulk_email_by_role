@@ -29,7 +29,7 @@ export function CookieHelpModal({ onClose }: Props) {
             <ul style={{ color: "var(--fg)", fontSize: "0.9rem", lineHeight: "1.6", paddingLeft: "1.5rem" }}>
               <li><strong>Keyword:</strong> What to search for (e.g., "startup founder", "react developer").</li>
               <li><strong>Role:</strong> The category to assign to these leads. This determines which email template will be automatically sent to them.</li>
-              <li><strong>Limit:</strong> You can add a maximum of 3 keywords to keep your searches safe and targeted.</li>
+              <li><strong>Limit:</strong> You can add up to 3 keywords by default (your admin can raise this) to keep your searches safe and targeted.</li>
             </ul>
           </section>
 

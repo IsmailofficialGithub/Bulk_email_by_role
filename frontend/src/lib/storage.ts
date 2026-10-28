@@ -148,6 +148,7 @@ export async function loadState(userId: string): Promise<PersistedState> {
       targetRole: (appState.auto_fetch_template_role as any) || "fullstack",
       intervalMin: appState.auto_fetch_interval_min || 5,
       paginationLimit: appState.auto_fetch_pagination_limit || 5,
+      keywordLimit: appState.keyword_limit || 3,
       paginationDelaySec: appState.auto_fetch_pagination_delay_sec || 10,
       liAt: appState.cookie_li_at || "",
       jsessionid: appState.cookie_jsessionid || "",

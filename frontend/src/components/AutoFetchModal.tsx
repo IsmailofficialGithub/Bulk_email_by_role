@@ -216,8 +216,8 @@ export function AutoFetchModal({ config, autoCommentConfig, onSave, onClose }: P
                   type="button"
                   onClick={() => {
                     if (newKeyword.trim()) {
-                      if (keywordMappings.length >= 3) {
-                        toast.error("You can only add up to 3 keywords.");
+                      if (keywordMappings.length >= (config.keywordLimit || 3)) {
+                        toast.error(`You can only add up to ${config.keywordLimit || 3} keywords.`);
                         return;
                       }
                       setKeywordMappings([...keywordMappings, { keyword: newKeyword.trim(), role: newRole }]);

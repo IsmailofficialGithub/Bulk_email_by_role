@@ -7,6 +7,7 @@ type UserState = {
   email?: string;
   is_blocked: boolean;
   allowed_products: string[];
+  keyword_limit?: number;
   config: any;
   auto_fetch: any;
   automail: any;
@@ -131,6 +132,33 @@ export function AdminPortal() {
     }
   }
 
+  async function saveKeywordLimit(userId: string, value: string) {
+    const limit = Number(value);
+    if (!Number.isInteger(limit) || limit < 1 || limit > 50) {
+      toast.error("Keyword limit must be a whole number from 1 to 50");
+      return;
+    }
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (session) headers["Authorization"] = `Bearer ${session.access_token}`;
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ user_id: userId, keyword_limit: limit })
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Keyword limit set to ${limit}`);
+        setUsers(users.map(u => u.user_id === userId ? { ...u, keyword_limit: limit } : u));
+      } else {
+        toast.error(data.error || "Failed to update user");
+      }
+    } catch (err) {
+      toast.error("Network error");
+    }
+  }
+
   async function toggleLinkedInAccess(userId: string, currentAllowed: string[]) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -245,6 +273,7 @@ export function AdminPortal() {
                   <th style={{ padding: "0.75rem 0.5rem" }}>Email</th>
                   <th style={{ padding: "0.75rem 0.5rem" }}>Joined</th>
                   <th style={{ padding: "0.75rem 0.5rem" }}>Status</th>
+                  <th style={{ padding: "0.75rem 0.5rem" }}>Keyword limit</th>
                   <th style={{ padding: "0.75rem 0.5rem" }}>Actions</th>
                 </tr>
               </thead>
@@ -266,6 +295,19 @@ export function AdminPortal() {
                       ) : (
                         <span className="badge ok">Active</span>
                       )}
+                    </td>
+                    <td style={{ padding: "0.75rem 0.5rem" }}>
+                      <input
+                        type="number"
+                        min={1}
+                        max={50}
+                        aria-label={`Keyword limit for ${u.email || u.user_id}`}
+                        defaultValue={u.keyword_limit || 3}
+                        onBlur={(e) => {
+                          if (Number(e.target.value) !== (u.keyword_limit || 3)) saveKeywordLimit(u.user_id, e.target.value);
+                        }}
+                        style={{ width: "4.5rem" }}
+                      />
                     </td>
                     <td style={{ padding: "0.75rem 0.5rem", display: "flex", gap: "0.5rem" }}>
                       <button 

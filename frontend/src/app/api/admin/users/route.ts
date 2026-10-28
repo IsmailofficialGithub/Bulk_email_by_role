@@ -53,12 +53,17 @@ export async function POST(req: Request) {
   if (!(await verifyAdmin(req))) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   
   try {
-    const { user_id, is_blocked, allowed_products } = await req.json();
+    const { user_id, is_blocked, allowed_products, keyword_limit } = await req.json();
     if (!user_id) throw new Error("user_id is required");
 
     const updateData: any = {};
     if (is_blocked !== undefined) updateData.is_blocked = is_blocked;
     if (allowed_products !== undefined) updateData.allowed_products = allowed_products;
+    if (keyword_limit !== undefined) {
+      const n = Number(keyword_limit);
+      if (!Number.isInteger(n) || n < 1 || n > 50) throw new Error("keyword_limit must be a whole number from 1 to 50");
+      updateData.keyword_limit = n;
+    }
 
     const { data, error } = await supabaseAdmin
       .from("automailsend_app_state")
