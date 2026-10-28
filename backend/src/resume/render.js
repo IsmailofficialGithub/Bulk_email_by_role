@@ -69,47 +69,56 @@ function renderHtml(v) {
   const bullets = (bs) => `<ul>${bs.map((b) => `<li>${esc(b.text)}</li>`).join("")}</ul>`;
 
   return `<!doctype html><html><head><meta charset="utf-8"><style>
-  @page { size: Letter; margin: 0.45in 0.55in; }
-  body { font-family: Calibri, Carlito, "Segoe UI", Arial, sans-serif; font-size: 10.5pt; color: #222; line-height: 1.32; margin: 0; }
-  a { color: #1155cc; }
-  header { text-align: center; border-bottom: 1.5px solid #1f3864; padding-bottom: 8px; margin-bottom: 6px; }
-  h1 { color: #1f3864; font-size: 21pt; margin: 0; letter-spacing: .5px; }
-  .headline { color: #555; font-size: 11pt; margin: 2px 0; }
-  .contact { color: #555; font-size: 9.5pt; }
-  h2 { color: #1f3864; font-size: 11pt; text-transform: uppercase; border-bottom: 1.5px solid #1f3864; margin: 12px 0 5px; padding-bottom: 2px; }
+  @page { size: Letter; margin: 0.4in 0.5in; }
+  :root { --ink: #1d2433; --muted: #5b6475; --accent: #0f766e; --tint: #effaf8; --rule: #d9dee7; }
+  body { font-family: "Source Sans 3", "Helvetica Neue", Carlito, Calibri, Arial, sans-serif; font-size: 10.2pt; color: var(--ink); line-height: 1.34; margin: 0; }
+  a { color: inherit; text-decoration: none; }
+  header { border-left: 5px solid var(--accent); padding: 2px 0 2px 12px; margin-bottom: 4px; }
+  h1 { font-size: 23pt; margin: 0; letter-spacing: -.3px; font-weight: 700; }
+  .headline { color: var(--accent); font-size: 11.5pt; font-weight: 600; margin: 1px 0 3px; }
+  .contact { color: var(--muted); font-size: 9pt; }
+  .contact a { color: var(--accent); }
+  h2 { color: var(--accent); font-size: 9.5pt; letter-spacing: 1.6px; text-transform: uppercase; margin: 11px 0 5px; display: flex; align-items: center; gap: 8px; }
+  h2::after { content: ""; flex: 1; border-top: 1px solid var(--rule); }
   h2, .row { break-after: avoid; }
   p { margin: 0; }
-  .skills div { margin: 1px 0; }
-  .row { display: flex; justify-content: space-between; margin-top: 7px; font-weight: bold; }
-  .when { font-style: italic; color: #555; font-size: 9.5pt; }
-  .proj { margin-top: 9px; break-inside: avoid; }
-  .meta { font-style: italic; color: #555; font-size: 9.5pt; }
-  ul { margin: 2px 0 0; padding-left: 16px; }
+  .skills { display: grid; grid-template-columns: 1.75in 1fr; gap: 2px 10px; }
+  .skills b { color: var(--muted); font-weight: 600; }
+  .job { margin-top: 7px; break-inside: avoid; }
+  .row { display: flex; justify-content: space-between; align-items: baseline; }
+  .title { font-weight: 700; font-size: 10.6pt; }
+  .org { color: var(--accent); font-weight: 600; }
+  .when { color: var(--muted); font-size: 9pt; white-space: nowrap; }
+  .proj { margin-top: 8px; break-inside: avoid; }
+  .meta { color: var(--muted); font-size: 8.8pt; }
+  .impact { background: var(--tint); border-left: 3px solid var(--accent); padding: 3px 8px; margin: 3px 0 2px; font-size: 9.6pt; }
+  ul { margin: 2px 0 0; padding-left: 15px; }
   li { margin: 1px 0; }
+  li::marker { color: var(--accent); }
+  .plain { list-style: none; padding: 0; }
 </style></head><body>
 <header>
-  <h1>${esc(p.name.toUpperCase())}</h1>
+  <h1>${esc(p.name)}</h1>
   <div class="headline">${esc(p.headline)}</div>
   <div class="contact">${contact}</div>
 </header>
-<h2>Professional Summary</h2>
+<h2>Summary</h2>
 <p>${esc(v.summary)}</p>
-<h2>Technical Skills</h2>
-<div class="skills">${v.skills.map((s) => `<div><b>${esc(s.category)}:</b> ${esc(s.items.join(", "))}</div>`).join("")}</div>
-<h2>Professional Experience</h2>
-${v.experience.map((e) => `<div class="row"><span>${esc(e.company)} — ${esc(e.title)}</span><span class="when">${esc(e.type)} - ${esc(e.dates)}</span></div>${bullets(e.bullets)}`).join("")}
-<h2>Key Projects</h2>
+<h2>Skills</h2>
+<div class="skills">${v.skills.map((s) => `<b>${esc(s.category)}</b><span>${esc(s.items.join(" · "))}</span>`).join("")}</div>
+<h2>Experience</h2>
+${v.experience.map((e) => `<div class="job"><div class="row"><span class="title">${esc(e.title)} <span class="org">· ${esc(e.company)}</span></span><span class="when">${esc(e.dates)}${e.type ? ` · ${esc(e.type)}` : ""}</span></div>${bullets(e.bullets)}</div>`).join("")}
+<h2>Selected Projects</h2>
 ${v.projects.map((pr) => `<div class="proj">
-  <div><b>${pr.link ? `<a href="${esc(pr.link)}">${esc(pr.name)}</a>` : esc(pr.name)} - ${esc(pr.subtitle)}</b></div>
-  ${pr.login ? `<div class="meta"><b>Login : ${esc(pr.login)}</b></div>` : ""}
-  <div class="meta">${esc(pr.tags.join(", "))}${pr.note ? ` (${esc(pr.note)})` : ""}</div>
-  ${pr.description ? `<p>${esc(pr.description)}</p>` : ""}
+  <div class="row"><span class="title">${pr.link ? `<a href="${esc(pr.link)}">${esc(pr.name)}</a>` : esc(pr.name)} <span class="org">· ${esc(pr.subtitle)}</span></span>${pr.link ? `<span class="when"><a href="${esc(pr.link)}">${esc(pr.link.replace(/^https?:\/\//, "").replace(/\/$/, ""))}</a></span>` : ""}</div>
+  <div class="meta">${esc(pr.tags.join(" · "))}${pr.note ? ` — ${esc(pr.note)}` : ""}${pr.login ? ` — ${esc(pr.login)}` : ""}</div>
+  ${pr.description ? `<div class="impact">${esc(pr.description).replace(/\b(Problem|Fix|Result):/g, "<b>$1:</b>")}</div>` : ""}
   ${bullets(pr.bullets)}
 </div>`).join("")}
 <h2>Certifications</h2>
-<ul>${v.certifications.map((c) => `<li>${esc(c)}</li>`).join("")}</ul>
+<ul class="plain">${v.certifications.map((c) => `<li>${esc(c)}</li>`).join("")}</ul>
 <h2>Education</h2>
-<ul>${v.education.map((e) => `<li>${esc(e)}</li>`).join("")}</ul>
+<ul class="plain">${v.education.map((e) => `<li>${esc(e)}</li>`).join("")}</ul>
 </body></html>`;
 }
 
