@@ -4,6 +4,7 @@ const axios = require("axios");
 const { decryptPassword } = require("../lib/crypto");
 const { ExecutionLogger } = require("../lib/logger");
 const { generateAiPersonalizedEmail } = require("../services/ai.service");
+const { checkEmail } = require("../services/emailVerify.service");
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -220,6 +221,13 @@ async function runAutomailJobs(supabase) {
         if (!recipient.email || !recipient.email.trim()) {
           await logger.append("WARN", `Recipient ${recipient.id} has no email address. Skipping.`);
           await supabase.from("automailsend_recipients").update({ status: "no_email" }).eq("id", recipient.id);
+          continue;
+        }
+
+        const verify = await checkEmail(recipient.email);
+        if (verify.reachable === "invalid") {
+          await logger.append("WARN", `Email does not exist, skipping ${recipient.email}${verify.reason ? ` (${verify.reason})` : ""}`);
+          await supabase.from("automailsend_recipients").update({ status: "failed" }).eq("id", recipient.id);
           continue;
         }
 
