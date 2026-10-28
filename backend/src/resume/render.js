@@ -61,8 +61,9 @@ function viewToText(v) {
 
 function renderHtml(v) {
   const p = v.profile;
-  const contact = [esc(p.phone), `<a href="mailto:${esc(p.email)}">${esc(p.email)}</a>`]
+  const contact = [p.location && esc(p.location), esc(p.phone), `<a href="mailto:${esc(p.email)}">${esc(p.email)}</a>`]
     .concat(p.links.map((l) => `<a href="${esc(l.url)}">${esc(l.label)}</a>`))
+    .filter(Boolean)
     .join(" &nbsp;|&nbsp; ");
   const bullets = (bs) => `<ul>${bs.map((b) => `<li>${esc(b.text)}</li>`).join("")}</ul>`;
 
