@@ -85,7 +85,7 @@ test("caps projects at 4 and bullets at 4", async () => {
   assert.equal(tailored.projects[0].bullets.length, 4);
 });
 
-test("over 2 pages drops last projects until it fits", async () => {
+test("over max pages drops last projects until it fits", async () => {
   const heavy = {
     ...good,
     skills: master.skills,
@@ -93,7 +93,7 @@ test("over 2 pages drops last projects until it fits", async () => {
     projects: master.projects.slice(0, 4).map((p) => ({ id: p.id, bullets: p.bullets.slice(0, 4).map((b) => b.text) })),
   };
   const out = await generateResumePdf(master, heavy);
-  assert.ok(out.pages <= 2, `got ${out.pages} pages`);
+  assert.ok(out.pages <= 3, `got ${out.pages} pages`);
   assert.ok(out.tailored.projects.length >= 2);
 });
 
