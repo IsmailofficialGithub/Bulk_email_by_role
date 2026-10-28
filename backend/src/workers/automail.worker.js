@@ -309,6 +309,22 @@ async function runAutomailJobs(supabase) {
           }));
         }
 
+        // Off unless RESUME_TAILOR=on; required lazily so a missing master.json can't break normal sending.
+        if (process.env.RESUME_TAILOR === "on" && aiProvider !== "none" && aiApiKey) {
+          try {
+            const resumeTailor = require("../resume");
+            const tailored = await resumeTailor.tailorForRecipient(recipient, aiProvider, aiApiKey);
+            if (tailored.skip) {
+              await logger.append("WARN", `Resume tailoring skipped: ${tailored.reason}. Sending normal resume.`);
+            } else {
+              mailOptions.attachments = resumeTailor.withTailoredResume(template.files, tailored);
+              await logger.append("SUCCESS", `Tailored resume attached for ${recipient.email}`);
+            }
+          } catch (resumeErr) {
+            await logger.append("WARN", `Resume tailoring failed: ${resumeErr.message}. Sending normal resume.`);
+          }
+        }
+
         try {
           await transporter.sendMail(mailOptions);
           status = "sent";
