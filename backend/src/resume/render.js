@@ -139,15 +139,18 @@ async function renderPdf(html) {
   }
 }
 
-// Over MAX_PAGES: drop the least relevant (last) project and re-render, keeping at least 2.
+// Over MAX_PAGES: drop the least relevant (last) project, keeping at least 2; then cut every item to max 2 bullets.
 async function generateResumePdf(master, tailored) {
   let t = tailored;
   for (;;) {
     const pdf = await renderPdf(renderHtml(buildView(master, t)));
     const pages = countPages(pdf);
     if (!t || pages <= MAX_PAGES) return { pdf, pages, tailored: t };
-    if (t.projects.length <= 2) throw new Error(`Resume is ${pages} pages, max is ${MAX_PAGES}`);
-    t = { ...t, projects: t.projects.slice(0, -1) };
+    if (t.projects.length > 2) { t = { ...t, projects: t.projects.slice(0, -1) }; continue; }
+    const two = (items) => (items || []).map((i) => ({ ...i, bullets: i.bullets.slice(0, 2) }));
+    const trimmed = { ...t, experience: two(t.experience), projects: two(t.projects) };
+    if (JSON.stringify(trimmed) === JSON.stringify(t)) throw new Error(`Resume is ${pages} pages, max is ${MAX_PAGES}`);
+    t = trimmed;
   }
 }
 
