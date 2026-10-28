@@ -68,7 +68,7 @@ function keyed(text) {
   return m ? `<b>${esc(m[1])}</b>${esc(text.slice(m[1].length))}` : esc(text);
 }
 
-// "BSCS — GCUF | 2019 – 2023" -> degree, school, years
+// "BSCS — University of Arizona | 2019 – 2023" -> degree, school, years
 function parseEducation(line) {
   const [main, years = ""] = line.split(" | ");
   const [degree, school = ""] = main.split(" — ");
@@ -183,7 +183,7 @@ async function renderPdf(html, footerHtml) {
   const browser = await chromium.launch();
   try {
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle", timeout: 15000 }).catch(() => {}); // web font is optional; falls back to Liberation Sans
+    await page.setContent(html, { waitUntil: "networkidle", timeout: 15000 }).catch(() => { }); // web font is optional; falls back to Liberation Sans
     return await page.pdf({
       format: "A4", printBackground: true, displayHeaderFooter: true, headerTemplate: "<span></span>", footerTemplate: footerHtml,
       margin: { top: "11mm", bottom: "16mm", left: "16mm", right: "16mm" },
@@ -196,7 +196,7 @@ async function renderPdf(html, footerHtml) {
 // Over MAX_PAGES: drop the least relevant (last) project, keeping at least 2; then cut every item to max 2 bullets.
 async function generateResumePdf(master, tailored) {
   let t = tailored;
-  for (;;) {
+  for (; ;) {
     const v = buildView(master, t);
     const pdf = await renderPdf(renderHtml(v), footer(v));
     const pages = countPages(pdf);
