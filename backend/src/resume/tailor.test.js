@@ -3,51 +3,94 @@ const test = require("node:test");
 const assert = require("node:assert");
 const master = require("./master.json");
 const { tailorResume } = require("./tailor");
-const { generateResumePdf } = require("./render");
+const { generateResumePdf, buildView } = require("./render");
 
 const good = {
-  summary: "Backend and DevOps engineer focused on AWS, Kubernetes and Node.js production systems.",
+  headline: "Senior DevOps Engineer | AWS | Kubernetes | Terraform",
+  summary: "DevOps engineer focused on AWS, Kubernetes and Terraform production systems.",
+  skills: [{ category: "Cloud", items: ["AWS", "EKS", "Java"] }],
+  experience: [{ id: "e2", title: "DevOps Engineer", bullets: ["Built CI/CD with GitHub Actions."] }],
   projects: [
-    { id: "p3", description: "Streaming infra on EKS.", tags: ["EKS", "Made-up"], bulletIds: ["p3b4", "p3b1", "p3b4"] },
-    { id: "p6", bulletIds: ["p6b1", "p6b2"] },
+    { id: "p3", subtitle: "Streaming on EKS", description: "Streaming infra on EKS.", tags: ["EKS"], bullets: ["Ran EKS with HPA."] },
+    { id: "p6", bullets: ["Terraform-managed VPC and RDS."] },
   ],
-  experience: [{ id: "e1", bulletIds: ["e1b3", "e1b1"] }],
-  skillIds: ["s5", "s6"],
 };
-const fakeAi = (...answers) => async () => answers.shift();
 
-test("valid output passes, dedupes bullet ids", async () => {
-  const { tailored } = await tailorResume(master, "DevOps JD", fakeAi(good));
-  assert.deepStrictEqual(tailored.projects[0].bulletIds, ["p3b4", "p3b1"]);
+// Fake AI: tailoring calls get `tailorAnswers` in order, ATS calls get `scores` in order.
+function fakeAi(tailorAnswers, scores = [90]) {
+  const calls = { tailor: 0, ats: 0 };
+  const fn = async (system) => {
+    if (system.startsWith("You are an ATS")) return { score: scores[calls.ats++], missingKeywords: ["Helm"], tips: [] };
+    return tailorAnswers[calls.tailor++];
+  };
+  fn.calls = calls;
+  return fn;
+}
+
+test("rewritten content renders; locked fields come from master", async () => {
+  const { tailored, ats } = await tailorResume(master, "DevOps JD", fakeAi([good]));
+  const v = buildView(master, tailored);
+  assert.equal(ats.score, 90);
+  assert.equal(v.profile.headline, good.headline);
+  assert.equal(v.profile.email, master.profile.email);
+  const encs = v.experience.find((e) => e.id === "e2");
+  assert.equal(encs.title, "DevOps Engineer");
+  assert.equal(encs.company, "ENCS");
+  assert.equal(encs.dates, master.experience[1].dates);
+  assert.equal(v.projects[0].link, "https://offstream.co/");
+  assert.equal(v.projects[0].bullets[0].text, "Ran EKS with HPA.");
+});
+
+test("claims list added skills and changed titles", async () => {
+  const { claims } = await tailorResume(master, "JD", fakeAi([good]));
+  assert.deepStrictEqual(claims.addedSkills, ["AWS", "Java"]);
+  assert.deepStrictEqual(claims.changedTitles, ['ENCS: "Backend Developer / DevOps Engineer" -> "DevOps Engineer"']);
+});
+
+test("low ATS score triggers one rewrite and keeps the better version", async () => {
+  const better = { ...good, summary: "Better summary with Helm, AWS and Kubernetes experience." };
+  const ai = fakeAi([good, better], [60, 85]);
+  const r = await tailorResume(master, "JD", ai);
+  assert.equal(ai.calls.tailor, 2);
+  assert.equal(r.ats.score, 85);
+  assert.equal(r.tailored.summary, better.summary);
+});
+
+test("rewrite that scores worse is discarded", async () => {
+  const worse = { ...good, summary: "Worse summary that scored lower than the first one." };
+  const r = await tailorResume(master, "JD", fakeAi([good, worse], [70, 50]));
+  assert.equal(r.ats.score, 70);
+  assert.equal(r.tailored.summary, good.summary);
 });
 
 test("invalid output retries once, then succeeds", async () => {
-  const { tailored } = await tailorResume(master, "JD", fakeAi({ summary: "x" }, good));
+  const { tailored } = await tailorResume(master, "JD", fakeAi([{ summary: "x" }, good]));
   assert.equal(tailored.projects.length, 2);
 });
 
 test("invented ids fail after retry", async () => {
-  const bad = { ...good, projects: [{ id: "p99", bulletIds: ["p99b1"] }] };
-  await assert.rejects(tailorResume(master, "JD", fakeAi(bad, bad)), /Unknown project id: p99/);
+  const bad = { ...good, projects: [{ id: "p99", bullets: ["x"] }] };
+  await assert.rejects(tailorResume(master, "JD", fakeAi([bad, bad])), /Unknown project id: p99/);
 });
 
 test("non-job post returns skip", async () => {
-  const r = await tailorResume(master, "happy birthday", fakeAi({ skip: true, reason: "Not a job" }));
+  const r = await tailorResume(master, "happy birthday", fakeAi([{ skip: true, reason: "Not a job" }]));
   assert.deepStrictEqual(r, { skip: true, reason: "Not a job" });
 });
 
-test("caps projects at 4", async () => {
-  const many = { ...good, projects: ["p1", "p2", "p3", "p4", "p5", "p6"].map((id) => ({ id, bulletIds: [`${id}b1`] })) };
-  const { tailored } = await tailorResume(master, "JD", fakeAi(many));
+test("caps projects at 4 and bullets at 4", async () => {
+  const many = { ...good, projects: ["p1", "p2", "p3", "p4", "p5", "p6"].map((id) => ({ id, bullets: ["a", "b", "c", "d", "e"] })) };
+  const { tailored } = await tailorResume(master, "JD", fakeAi([many]));
   assert.equal(tailored.projects.length, 4);
+  assert.equal(tailored.projects[0].bullets.length, 4);
 });
 
 test("over 2 pages drops last projects until it fits", async () => {
   const heavy = {
     ...good,
-    skillIds: master.skills.map((s) => s.id),
-    experience: master.experience.map((e) => ({ id: e.id, bulletIds: e.bullets.map((b) => b.id) })),
-    projects: master.projects.slice(0, 4).map((p) => ({ id: p.id, bulletIds: p.bullets.slice(0, 4).map((b) => b.id) })),
+    skills: master.skills,
+    experience: master.experience.map((e) => ({ id: e.id, bullets: e.bullets.map((b) => b.text) })),
+    projects: master.projects.slice(0, 4).map((p) => ({ id: p.id, bullets: p.bullets.slice(0, 4).map((b) => b.text) })),
   };
   const out = await generateResumePdf(master, heavy);
   assert.ok(out.pages <= 2, `got ${out.pages} pages`);
@@ -68,12 +111,11 @@ test("tailorCached calls AI once for the same JD", async () => {
   process.env.RESUME_OUTPUT_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "resume-"));
   delete require.cache[require.resolve("./tailor")];
   const { tailorCached } = require("./tailor");
-  let calls = 0;
-  const ai = async () => { calls++; return good; };
+  const ai = fakeAi([good, good]);
   const jd = "Senior DevOps engineer needed: AWS, EKS, Terraform, GitHub Actions.";
   const a = await tailorCached(master, jd, ai);
   const b = await tailorCached(master, jd + "\n#hiring", ai); // same after trimming
-  assert.equal(calls, 1);
+  assert.equal(ai.calls.tailor, 1);
   assert.equal(b.cached, true);
   assert.deepStrictEqual(b.tailored, a.tailored);
   assert.equal((await tailorCached(master, "hi", ai)).skip, true);

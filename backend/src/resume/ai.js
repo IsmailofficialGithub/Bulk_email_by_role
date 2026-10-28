@@ -5,9 +5,10 @@ function sleep(ms) {
 }
 
 // Same providers, URLs, env vars and model rules as services/ai.service.js, kept separate so email code stays untouched.
-async function callAiJson(provider, apiKey, systemPrompt, userPrompt, maxTokens = 1200) {
-  let retries = 3;
-  let delay = 2000;
+async function callAiJson(provider, apiKey, systemPrompt, userPrompt, maxTokens = 2800) {
+  // More patient than ai.service.js: on low per-minute token tiers this call runs right after the email call.
+  let retries = 5;
+  let delay = 5000;
 
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
@@ -32,7 +33,9 @@ async function callAiJson(provider, apiKey, systemPrompt, userPrompt, maxTokens 
             { role: "user", content: userPrompt }
           ],
           response_format: { type: "json_object" },
-          max_tokens: maxTokens
+          max_tokens: maxTokens,
+          // Reasoning models spend max_tokens on thinking first; keep it short so the JSON fits.
+          ...(model.includes("gpt-oss") ? { reasoning_effort: "low" } : {})
         }, {
           headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" }
         });
@@ -56,7 +59,8 @@ async function callAiJson(provider, apiKey, systemPrompt, userPrompt, maxTokens 
       throw new Error(`Unsupported AI Provider: ${provider}`);
     } catch (error) {
       if (error.response && error.response.status === 429 && attempt < retries) {
-        await sleep(delay);
+        const retryAfterMs = (parseFloat(error.response.headers?.["retry-after"]) || 0) * 1000;
+        await sleep(Math.max(delay, retryAfterMs + 1000));
         delay *= 2;
         continue;
       }

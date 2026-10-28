@@ -5,12 +5,11 @@ const { generateResumePdf } = require("./render");
 const { tailorCached, OUTPUT_DIR } = require("./tailor");
 const { callAiJson } = require("./ai");
 
-const TIMEOUT_MS = 90000;
+const TIMEOUT_MS = 300000; // up to 4 AI calls, each may wait on per-minute token limits
 const RESUME_FILE = /resume|cv/i;
 
-const isEnabled = () => process.env.RESUME_TAILOR === "on";
 
-// Returns { pdf, filename } or { skip, reason }. Throws on failure/timeout so the caller can fall back.
+// Returns { pdf, filename, ats, claims } or { skip, reason }. Throws on failure/timeout so the caller can fall back.
 async function tailorForRecipient(recipient, provider, apiKey) {
   const work = (async () => {
     const result = await tailorCached(master, recipient.context_text, (s, u) => callAiJson(provider, apiKey, s, u));
@@ -19,9 +18,11 @@ async function tailorForRecipient(recipient, provider, apiKey) {
     const { pdf } = await generateResumePdf(master, result.tailored);
     const filename = `${master.profile.name.replace(/\s+/g, "_")}_Resume.pdf`;
     const dir = path.join(OUTPUT_DIR, "pdfs");
+    const base = path.join(dir, `${new Date().toISOString().slice(0, 10)}_${recipient.id}`);
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, `${new Date().toISOString().slice(0, 10)}_${recipient.id}.pdf`), pdf);
-    return { pdf, filename };
+    fs.writeFileSync(`${base}.pdf`, pdf);
+    fs.writeFileSync(`${base}.json`, JSON.stringify({ email: recipient.email, ats: result.ats, claims: result.claims, tailored: result.tailored }, null, 2));
+    return { pdf, filename, ats: result.ats, claims: result.claims };
   })();
 
   let timer;
@@ -41,4 +42,4 @@ function withTailoredResume(templateFiles, tailored) {
   return [...others, { filename: tailored.filename, content: tailored.pdf, contentType: "application/pdf" }];
 }
 
-module.exports = { isEnabled, tailorForRecipient, withTailoredResume };
+module.exports = { tailorForRecipient, withTailoredResume };

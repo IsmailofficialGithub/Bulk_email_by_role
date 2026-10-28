@@ -10,37 +10,53 @@ function esc(s) {
     .replaceAll('"', "&quot;");
 }
 
-function pick(list, ids, what) {
-  return ids.map((id) => {
-    const found = list.find((x) => x.id === id);
-    if (!found) throw new Error(`Unknown ${what} id: ${id}`);
-    return found;
-  });
-}
+const asBullets = (texts) => texts.map((text) => ({ text }));
 
-// Merge AI selections onto master data. Names, links, dates and logins always come from master.
-// tailored = null renders the full master resume (used to check the template).
+// Merge AI-rewritten content onto master data. Name, contact, companies, dates, project names,
+// links, logins and education always come from master. tailored = null renders the full master resume.
 function buildView(master, tailored) {
   if (!tailored) return master;
 
+  for (const e of tailored.experience || []) {
+    if (!master.experience.some((j) => j.id === e.id)) throw new Error(`Unknown job id: ${e.id}`);
+  }
   const experience = master.experience.map((job) => {
     const sel = tailored.experience?.find((e) => e.id === job.id);
-    return { ...job, bullets: sel ? pick(job.bullets, sel.bulletIds, "bullet") : job.bullets.slice(0, 2) };
+    return sel ? { ...job, title: sel.title || job.title, bullets: asBullets(sel.bullets) } : { ...job, bullets: job.bullets.slice(0, 2) };
   });
 
   const projects = tailored.projects.map((sel) => {
-    const [proj] = pick(master.projects, [sel.id], "project");
+    const proj = master.projects.find((p) => p.id === sel.id);
+    if (!proj) throw new Error(`Unknown project id: ${sel.id}`);
     return {
       ...proj,
+      subtitle: sel.subtitle || proj.subtitle,
       description: sel.description || proj.description,
-      tags: sel.tags?.length ? sel.tags.filter((t) => proj.tags.includes(t)) : proj.tags,
-      bullets: pick(proj.bullets, sel.bulletIds, "bullet"),
+      tags: sel.tags?.length ? sel.tags : proj.tags,
+      bullets: asBullets(sel.bullets),
     };
   });
 
-  const skills = tailored.skillIds?.length ? pick(master.skills, tailored.skillIds, "skill") : master.skills;
+  return {
+    ...master,
+    profile: { ...master.profile, headline: tailored.headline || master.profile.headline },
+    summary: tailored.summary || master.summary,
+    skills: tailored.skills?.length ? tailored.skills : master.skills,
+    certifications: tailored.certifications?.length ? tailored.certifications : master.certifications,
+    experience,
+    projects,
+  };
+}
 
-  return { ...master, summary: tailored.summary || master.summary, experience, projects, skills };
+// Plain text of the rendered resume, for ATS scoring.
+function viewToText(v) {
+  return [
+    v.profile.name, v.profile.headline, "SUMMARY", v.summary,
+    "SKILLS", ...v.skills.map((s) => `${s.category}: ${s.items.join(", ")}`),
+    "EXPERIENCE", ...v.experience.flatMap((e) => [`${e.company} — ${e.title} (${e.dates})`, ...e.bullets.map((b) => `- ${b.text}`)]),
+    "PROJECTS", ...v.projects.flatMap((p) => [`${p.name} - ${p.subtitle} [${p.tags.join(", ")}]`, p.description, ...p.bullets.map((b) => `- ${b.text}`)]),
+    "CERTIFICATIONS", ...v.certifications, "EDUCATION", ...v.education,
+  ].filter(Boolean).join("\n");
 }
 
 function renderHtml(v) {
@@ -59,6 +75,7 @@ function renderHtml(v) {
   .headline { color: #555; font-size: 11pt; margin: 2px 0; }
   .contact { color: #555; font-size: 9.5pt; }
   h2 { color: #1f3864; font-size: 11pt; text-transform: uppercase; border-bottom: 1.5px solid #1f3864; margin: 12px 0 5px; padding-bottom: 2px; }
+  h2, .row { break-after: avoid; }
   p { margin: 0; }
   .skills div { margin: 1px 0; }
   .row { display: flex; justify-content: space-between; margin-top: 7px; font-weight: bold; }
@@ -121,4 +138,4 @@ async function generateResumePdf(master, tailored) {
   }
 }
 
-module.exports = { buildView, renderHtml, generateResumePdf, countPages };
+module.exports = { buildView, viewToText, renderHtml, generateResumePdf, countPages };

@@ -309,8 +309,8 @@ async function runAutomailJobs(supabase) {
           }));
         }
 
-        // Off unless RESUME_TAILOR=on; required lazily so a missing master.json can't break normal sending.
-        if (process.env.RESUME_TAILOR === "on" && aiProvider !== "none" && aiApiKey) {
+        // Off unless RESUME_TAILOR=on, and only for the master.json owner; required lazily so a missing master.json can't break sending.
+        if (process.env.RESUME_TAILOR === "on" && userId === process.env.RESUME_TAILOR_USER_ID && aiProvider !== "none" && aiApiKey) {
           try {
             const resumeTailor = require("../resume");
             const tailored = await resumeTailor.tailorForRecipient(recipient, aiProvider, aiApiKey);
@@ -318,7 +318,11 @@ async function runAutomailJobs(supabase) {
               await logger.append("WARN", `Resume tailoring skipped: ${tailored.reason}. Sending normal resume.`);
             } else {
               mailOptions.attachments = resumeTailor.withTailoredResume(template.files, tailored);
-              await logger.append("SUCCESS", `Tailored resume attached for ${recipient.email}`);
+              await logger.append("SUCCESS", `Tailored resume attached for ${recipient.email} (ATS ${tailored.ats?.score ?? "?"}/100)`);
+              const { addedSkills = [], changedTitles = [] } = tailored.claims || {};
+              if (addedSkills.length || changedTitles.length) {
+                await logger.append("WARN", `Resume claims to review: added skills [${addedSkills.join(", ")}]; titles [${changedTitles.join("; ")}]`);
+              }
             }
           } catch (resumeErr) {
             await logger.append("WARN", `Resume tailoring failed: ${resumeErr.message}. Sending normal resume.`);
