@@ -16,7 +16,7 @@ Rules:
 - summary: 2-3 sentences aimed at this job, no "I".
 - skills: 4-${CAPS.skillGroups} groups, most relevant first; put every skill the job asks for first in its group.
 - experience: include every job by id. title may be adjusted toward the target role. 2-${CAPS.bullets} bullets each, rewritten with the job's keywords, action verb first, keep numbers/metrics, max 30 words each.
-- projects: pick the ${CAPS.projects - 1}-${CAPS.projects} most relevant project ids, most relevant first. Rewrite subtitle, a one-sentence description, tags (tech stack matched to the job) and 2-${CAPS.bullets} bullets (max 30 words each).
+- projects: pick the ${CAPS.projects - 1}-${CAPS.projects} most relevant project ids, most relevant first. Rewrite subtitle, description (plain English for a non-technical business owner, max 60 words: "Problem: <business pain> Fix: <what was built> Result: <money, time or growth gained>", framed for this job's industry), tags (tech stack matched to the job) and 2-${CAPS.bullets} bullets (max 30 words each).
 - certifications: reorder/reword the candidate's list, most relevant first.
 - Never change ids. Company names, dates, project names and links are kept by code.
 - If the text is not a job/hiring post, return {"skip": true, "reason": "<why>"}.

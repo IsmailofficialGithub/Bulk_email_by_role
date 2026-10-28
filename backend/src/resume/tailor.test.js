@@ -12,7 +12,7 @@ const good = {
   experience: [{ id: "e2", title: "DevOps Engineer", bullets: ["Built CI/CD with GitHub Actions."] }],
   projects: [
     { id: "p3", subtitle: "Streaming on EKS", description: "Streaming infra on EKS.", tags: ["EKS"], bullets: ["Ran EKS with HPA."] },
-    { id: "p6", bullets: ["Terraform-managed VPC and RDS."] },
+    { id: "p4", bullets: ["Terraform-managed VPC and RDS."] },
   ],
 };
 
@@ -36,7 +36,7 @@ test("rewritten content renders; locked fields come from master", async () => {
   const encs = v.experience.find((e) => e.id === "e2");
   assert.equal(encs.title, "DevOps Engineer");
   assert.equal(encs.company, "ENCS");
-  assert.equal(encs.dates, master.experience[1].dates);
+  assert.equal(encs.dates, master.experience.find((e) => e.id === "e2").dates);
   assert.equal(v.projects[0].link, "https://offstream.co/");
   assert.equal(v.projects[0].bullets[0].text, "Ran EKS with HPA.");
 });
@@ -79,7 +79,7 @@ test("non-job post returns skip", async () => {
 });
 
 test("caps projects at 4 and bullets at 4", async () => {
-  const many = { ...good, projects: ["p1", "p2", "p3", "p4", "p5", "p6"].map((id) => ({ id, bullets: ["a", "b", "c", "d", "e"] })) };
+  const many = { ...good, projects: ["p1", "p2", "p3", "p4", "p5"].map((id) => ({ id, bullets: ["a", "b", "c", "d", "e"] })) };
   const { tailored } = await tailorResume(master, "JD", fakeAi([many]));
   assert.equal(tailored.projects.length, 4);
   assert.equal(tailored.projects[0].bullets.length, 4);
