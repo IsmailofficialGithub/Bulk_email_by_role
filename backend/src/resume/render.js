@@ -65,35 +65,37 @@ function renderHtml(v) {
   const contact = [p.location && esc(p.location), esc(p.phone), `<a href="mailto:${esc(p.email)}">${esc(p.email)}</a>`]
     .concat(p.links.map((l) => `<a href="${esc(l.url)}">${esc(l.label)}</a>`))
     .filter(Boolean)
-    .join(" &nbsp;|&nbsp; ");
+    .join(" &nbsp;·&nbsp; ");
   const bullets = (bs) => `<ul>${bs.map((b) => `<li>${esc(b.text)}</li>`).join("")}</ul>`;
 
-  return `<!doctype html><html><head><meta charset="utf-8"><style>
-  @page { size: Letter; margin: 0.4in 0.5in; }
-  :root { --ink: #1d2433; --muted: #5b6475; --accent: #0f766e; --tint: #effaf8; --rule: #d9dee7; }
-  body { font-family: "Source Sans 3", "Helvetica Neue", Carlito, Calibri, Arial, sans-serif; font-size: 10.2pt; color: var(--ink); line-height: 1.34; margin: 0; }
+  return `<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  @page { size: Letter; margin: 0.45in 0.55in; }
+  :root { --ink: #1a1f2b; --muted: #555f70; --accent: #0f766e; --tint: #f1f8f7; --rule: #cfd6df; }
+  body { font-family: Inter, "Liberation Sans", Arial, sans-serif; font-size: 10.2pt; color: var(--ink); line-height: 1.42; margin: 0; }
   a { color: inherit; text-decoration: none; }
-  header { border-left: 5px solid var(--accent); padding: 2px 0 2px 12px; margin-bottom: 4px; }
-  h1 { font-size: 23pt; margin: 0; letter-spacing: -.3px; font-weight: 700; }
-  .headline { color: var(--accent); font-size: 11.5pt; font-weight: 600; margin: 1px 0 3px; }
-  .contact { color: var(--muted); font-size: 9pt; }
+  header { border-left: 5px solid var(--accent); padding: 2px 0 4px 14px; margin-bottom: 6px; }
+  h1 { font-size: 24pt; margin: 0; letter-spacing: -.4px; font-weight: 700; line-height: 1.15; }
+  .headline { color: var(--accent); font-size: 12pt; font-weight: 600; margin: 3px 0 5px; }
+  .contact { color: var(--muted); font-size: 9.5pt; }
   .contact a { color: var(--accent); }
-  h2 { color: var(--accent); font-size: 9.5pt; letter-spacing: 1.6px; text-transform: uppercase; margin: 11px 0 5px; display: flex; align-items: center; gap: 8px; }
-  h2::after { content: ""; flex: 1; border-top: 1px solid var(--rule); }
+  h2 { color: var(--accent); font-size: 10.5pt; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; margin: 14px 0 6px; padding-bottom: 3px; border-bottom: 1.5px solid var(--rule); }
   h2, .row { break-after: avoid; }
   p { margin: 0; }
-  .skills { display: grid; grid-template-columns: 1.75in 1fr; gap: 2px 10px; }
-  .skills b { color: var(--muted); font-weight: 600; }
-  .job { margin-top: 7px; break-inside: avoid; }
-  .row { display: flex; justify-content: space-between; align-items: baseline; }
-  .title { font-weight: 700; font-size: 10.6pt; }
+  .skills { display: grid; grid-template-columns: 1.9in 1fr; gap: 3px 12px; }
+  .skills b { font-weight: 600; }
+  .job { margin-top: 9px; break-inside: avoid; }
+  .job:first-of-type { margin-top: 0; }
+  .row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .title { font-weight: 700; font-size: 11pt; }
   .org { color: var(--accent); font-weight: 600; }
-  .when { color: var(--muted); font-size: 9pt; white-space: nowrap; }
-  .proj { margin-top: 8px; break-inside: avoid; }
-  .meta { color: var(--muted); font-size: 8.8pt; }
-  .impact { background: var(--tint); border-left: 3px solid var(--accent); padding: 3px 8px; margin: 3px 0 2px; font-size: 9.6pt; }
-  ul { margin: 2px 0 0; padding-left: 15px; }
-  li { margin: 1px 0; }
+  .when { color: var(--muted); font-size: 9.5pt; white-space: nowrap; }
+  .proj { margin-top: 10px; break-inside: avoid; }
+  .meta { color: var(--muted); font-size: 9.5pt; margin-top: 1px; }
+  .impact { background: var(--tint); border-left: 3px solid var(--accent); padding: 5px 10px; margin: 5px 0 3px; line-height: 1.45; }
+  ul { margin: 4px 0 0; padding-left: 18px; }
+  li { margin: 2px 0; padding-left: 2px; }
   li::marker { color: var(--accent); }
   .plain { list-style: none; padding: 0; }
 </style></head><body>
@@ -130,7 +132,7 @@ async function renderPdf(html) {
   const browser = await chromium.launch();
   try {
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "load" });
+    await page.setContent(html, { waitUntil: "networkidle", timeout: 15000 }).catch(() => {}); // web font is optional; falls back to Liberation Sans
     return await page.pdf({ format: "Letter", printBackground: true, preferCSSPageSize: true });
   } finally {
     await browser.close();
