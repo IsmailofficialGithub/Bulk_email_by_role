@@ -140,9 +140,10 @@ export function SendPanel({
     return result;
   }
 
+  // Recipient status counts too: the sent log only loads the newest rows, so older sends would show as pending.
   const pending = useMemo(
     () =>
-      filterAndSort(recipients.filter((r) => !sentKeys.has(sentKey(r.email, r.role)))),
+      filterAndSort(recipients.filter((r) => r.status !== "sent" && !sentKeys.has(sentKey(r.email, r.role)))),
     [recipients, sentKeys, searchQuery, sortOrder]
   );
   
@@ -152,7 +153,7 @@ export function SendPanel({
   );
 
   const activeSent = useMemo(() => {
-    return filterAndSort(recipients.filter((r) => sentKeys.has(sentKey(r.email, r.role))));
+    return filterAndSort(recipients.filter((r) => r.status === "sent" || sentKeys.has(sentKey(r.email, r.role))));
   }, [recipients, sentKeys, searchQuery, sortOrder]);
 
   const displayedSentLog = useMemo(() => filterAndSort(sentLog), [sentLog, searchQuery, sortOrder]);
