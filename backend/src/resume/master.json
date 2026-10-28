@@ -1,0 +1,503 @@
+{
+  "profile": {
+    "name": "Ismail Abbasi",
+    "headline": "Senior Full-Stack Engineer | Node.js · React · AWS",
+    "phone": "+92 325 5028225",
+    "email": "mail@ismailabbasi.qzz.io",
+    "links": [
+      {
+        "label": "LinkedIn",
+        "url": "https://linkedin.com/in/ismailabbasi"
+      },
+      {
+        "label": "Github",
+        "url": "https://github.com/ismailofficialGithub"
+      },
+      {
+        "label": "Portfolio",
+        "url": "https://ismailabbasi.qzz.io"
+      }
+    ],
+    "location": "Remote – available for US hours (EST)"
+  },
+  "summary": "Senior Full-Stack Engineer with 6+ years building SaaS products that cut costs and grow revenue for businesses in the US, Australia and Pakistan. Turns slow, manual or expensive operations into fast, automated systems — AI call agents, real-time platforms and cloud infrastructure on Node.js, React, Rust and AWS. Leads projects from the business problem to a live, reliable product.",
+  "skills": [
+    {
+      "id": "s1",
+      "category": "Languages",
+      "items": [
+        "TypeScript",
+        "JavaScript",
+        "Python",
+        "Rust"
+      ]
+    },
+    {
+      "id": "s2",
+      "category": "Frontend",
+      "items": [
+        "React.js",
+        "Next.js",
+        "Zustand",
+        "React Query",
+        "Tailwind CSS"
+      ]
+    },
+    {
+      "id": "s3",
+      "category": "Backend",
+      "items": [
+        "Node.js",
+        "Express.js",
+        "REST APIs",
+        "Prisma ORM",
+        "WebSockets",
+        "WebRTC",
+        "MediaSoup",
+        "Graph API"
+      ]
+    },
+    {
+      "id": "s4",
+      "category": "Rust & Libraries",
+      "items": [
+        "Actix Web",
+        "Tokio (async runtime)",
+        "SQLx / Diesel"
+      ]
+    },
+    {
+      "id": "s5",
+      "category": "AWS Cloud Services",
+      "items": [
+        "EC2",
+        "EKS",
+        "Lambda",
+        "S3",
+        "CloudFront",
+        "Route 53",
+        "RDS",
+        "ElastiCache",
+        "VPC",
+        "IAM",
+        "Auto Scaling Groups",
+        "Elastic/Application Load Balancers",
+        "CloudWatch"
+      ]
+    },
+    {
+      "id": "s6",
+      "category": "Containerization & Orchestration",
+      "items": [
+        "Docker",
+        "Docker Compose",
+        "Kubernetes",
+        "Helm",
+        "Ingress Controllers",
+        "HPA",
+        "Cluster Autoscaler"
+      ]
+    },
+    {
+      "id": "s7",
+      "category": "CI/CD & IaC",
+      "items": [
+        "GitHub Actions",
+        "ArgoCD",
+        "Terraform",
+        "GitOps",
+        "Blue-Green & Zero-Downtime Deployments"
+      ]
+    },
+    {
+      "id": "s8",
+      "category": "Databases",
+      "items": [
+        "PostgreSQL",
+        "MySQL",
+        "MongoDB",
+        "Redis",
+        "Supabase",
+        "Pgvector (RAG)"
+      ]
+    },
+    {
+      "id": "s9",
+      "category": "AI / ML",
+      "items": [
+        "OpenAI API",
+        "Gemini",
+        "LangChain",
+        "Vector Embeddings",
+        "RAG Pipelines"
+      ]
+    },
+    {
+      "id": "s10",
+      "category": "Monitoring & Web Servers",
+      "items": [
+        "Prometheus",
+        "Grafana",
+        "Loki",
+        "Nginx",
+        "SSL/TLS",
+        "Let's Encrypt"
+      ]
+    },
+    {
+      "id": "s11",
+      "category": "Automation",
+      "items": [
+        "n8n",
+        "Kafka"
+      ]
+    }
+  ],
+  "experience": [
+    {
+      "id": "e0",
+      "company": "Mars Digital",
+      "title": "Senior Full-Stack Engineer",
+      "type": "full time",
+      "dates": "Oct 2025 – Present",
+      "bullets": [
+        {
+          "id": "e0b1",
+          "text": "Lead development of client SaaS products end-to-end with Next.js, React, Node.js and TypeScript, shipping features weekly from architecture to production."
+        },
+        {
+          "id": "e0b2",
+          "text": "Replaced manual client workflows with AI automation (OpenAI, LangChain), saving client teams 20+ hours per week."
+        },
+        {
+          "id": "e0b3",
+          "text": "Moved infrastructure to Terraform-managed AWS with Docker and GitHub Actions, cutting hosting cost 30% and making every release zero-downtime."
+        }
+      ],
+      "intro": "Lead engineer for client SaaS products, owning architecture, delivery and cloud cost."
+    },
+    {
+      "id": "e1",
+      "company": "YC Solutions",
+      "title": "Full-Stack & AI Developer",
+      "type": "full time",
+      "dates": "Jan 2023 – Oct 2025",
+      "bullets": [
+        {
+          "id": "e1b1",
+          "text": "Architected and shipped production-grade AI SaaS applications end-to-end using React, Node.js, and TypeScript — including admin dashboards and Role-Based Access Control (RBAC) for secure, multi-tenant access."
+        },
+        {
+          "id": "e1b2",
+          "text": "Built an AI interview bot with OpenAI and n8n that screens candidates automatically, cutting recruiter screening time by 70% and replacing a manual hiring step."
+        },
+        {
+          "id": "e1b3",
+          "text": "Owned the full AWS deployment lifecycle, using Docker and Nginx to establish CI/CD pipelines that enabled scalable, high-availability infrastructure with minimal manual intervention."
+        }
+      ],
+      "intro": "Full-stack and AI developer shipping multi-tenant SaaS and automation products for clients."
+    },
+    {
+      "id": "e2",
+      "company": "ENCS",
+      "title": "Backend Developer / DevOps Engineer",
+      "type": "full time",
+      "dates": "Mar 2022 – Jan 2023",
+      "bullets": [
+        {
+          "id": "e2b1",
+          "text": "Developed and optimized 20+ REST APIs using Node.js/Express, integrating JWT authentication and tuning PostgreSQL/MongoDB queries for performance."
+        },
+        {
+          "id": "e2b2",
+          "text": "Raised uptime to 99.9% by fixing critical production bugs and hardening 15+ legacy endpoints (validation, rate limiting, secrets), ending customer-facing outages."
+        },
+        {
+          "id": "e2b3",
+          "text": "Built and standardized CI/CD workflows across multiple projects; containerized applications with Docker and Docker Compose to reduce environment inconsistencies."
+        },
+        {
+          "id": "e2b4",
+          "text": "Configured networking, DNS, SSL, and Nginx/Apache infrastructure for production and staging; implemented centralized monitoring and logging to improve uptime and incident visibility."
+        }
+      ],
+      "intro": "Backend and DevOps engineer responsible for APIs, CI/CD and production reliability."
+    },
+    {
+      "id": "e3",
+      "company": "Leecare Solutions (Remote – Australia)",
+      "title": "Backend Developer",
+      "type": "part time",
+      "dates": "Oct 2020 – Mar 2022",
+      "bullets": [
+        {
+          "id": "e3b1",
+          "text": "Sped up backend REST APIs and database queries for a healthcare SaaS used by care facilities, so staff got patient data faster in daily care workflows."
+        },
+        {
+          "id": "e3b2",
+          "text": "Implemented secure authentication flows and data-integrity safeguards, supporting compliance and reliability standards required for handling sensitive healthcare-adjacent data."
+        },
+        {
+          "id": "e3b3",
+          "text": "Built real-time communication features using WebRTC, enabling low-latency audio/video connectivity within the platform's care-coordination workflows."
+        },
+        {
+          "id": "e3b4",
+          "text": "Built an end-to-end in-house meeting app with MediaSoup for WebRTC connection management."
+        }
+      ],
+      "intro": "Remote backend developer in a distributed team building a healthcare SaaS platform."
+    }
+  ],
+  "projects": [
+    {
+      "id": "p3",
+      "name": "MoviesHunter",
+      "subtitle": "Data Streaming Platform — Cloud Infrastructure & Delivery",
+      "link": "https://offstream.co/",
+      "login": "Publicly available",
+      "description": "Problem: videos loaded slowly and server bills grew with every new viewer, so users left. Fix: moved video delivery to a global CDN and added caching. Result: pages 60% faster, 40% lower database cost, and the platform grew to 50,000 users without new servers.",
+      "tags": [
+        "Node.js",
+        "PostgreSQL",
+        "Redis",
+        "Multi-region CDN/Edge",
+        "React Native",
+        "Next.js",
+        "Docker",
+        "K8s",
+        "EKS",
+        "Linux",
+        "S3",
+        "CloudFront",
+        "Terraform",
+        "Lambda",
+        "GitHub Actions"
+      ],
+      "bullets": [
+        {
+          "id": "p3b1",
+          "text": "Led architecture and a 3-engineer team for a video streaming platform serving 10,000–50,000 active users; S3 + CloudFront CDN cut stream load times by 60%."
+        },
+        {
+          "id": "p3b2",
+          "text": "Managed a catalog of 50,000+ movies and web series, with metadata, search indexing, and access-control logic scaled for fast discovery and playback."
+        },
+        {
+          "id": "p3b3",
+          "text": "Designed data architecture across a 2TB+ datastore spanning session/presence, access control, and release metadata."
+        },
+        {
+          "id": "p3b4",
+          "text": "Deployed containerized Node.js services on EKS with HPA autoscaling; ElastiCache (Redis) reduced database load by 40%."
+        },
+        {
+          "id": "p3b5",
+          "text": "Provisioned all infrastructure with Terraform (VPC, ASGs, RDS, CloudFront) and GitHub Actions blue-green deploys, holding 99.9% uptime with zero-downtime releases."
+        },
+        {
+          "id": "p3b6",
+          "text": "Added serverless media processing with AWS Lambda on S3 events for automated uploads, resizing, and format conversion."
+        }
+      ]
+    },
+    {
+      "id": "p2",
+      "name": "Trackese",
+      "subtitle": "Pay-Per-Call Routing & Tracking Platform",
+      "link": "https://portal.callloom.com",
+      "login": "OAuth / Continue with Google available",
+      "description": "Problem: the client lost paid phone leads because calls were routed slowly and buyers could not see what they paid for. Fix: built real-time routing and live tracking. Result: every call reaches the right buyer in under a second, and buyers trust the reports, so they spend more.",
+      "tags": [
+        "Node.js",
+        "Fastify",
+        "Rust",
+        "Actix Web",
+        "Tokio",
+        "Redis",
+        "Kafka",
+        "PostgreSQL"
+      ],
+      "bullets": [
+        {
+          "id": "p2b1",
+          "text": "Sole architect of a dual-microservice platform: a Node.js/Fastify core service paired with a Rust/Actix Web call-processing service on Tokio for concurrent, low-latency call handling."
+        },
+        {
+          "id": "p2b2",
+          "text": "Engineered real-time call routing with a Redis-first decision layer (sub-50ms routing decisions) and Kafka event streaming to sync routing config across services without downtime."
+        },
+        {
+          "id": "p2b3",
+          "text": "Scaled to 20,000+ tracked calls per day with per-campaign attribution, buyer caps, and live revenue reporting for publishers and buyers."
+        },
+        {
+          "id": "p2b4",
+          "text": "Set up observability with Prometheus and Grafana, cutting incident detection time from hours to minutes."
+        }
+      ]
+    },
+    {
+      "id": "p5",
+      "name": "Q-up.ai",
+      "subtitle": "Inbound and Outbound Call Automation SaaS",
+      "link": "https://q-up.ai/",
+      "login": "Demo access available on request",
+      "description": "Problem: the business paid a team of callers to answer and chase leads, and missed calls after hours. Fix: built an AI agent that answers, qualifies and follows up 24/7. Result: thousands of calls a month handled with no extra staff, and no lead goes unanswered.",
+      "tags": [
+        "Node.js",
+        "Express.js",
+        "TypeScript",
+        "Prisma ORM",
+        "PostgreSQL",
+        "n8n",
+        "OpenAI"
+      ],
+      "bullets": [
+        {
+          "id": "p5b1",
+          "text": "Led backend development of an AI call automation platform handling inbound and outbound calls — call handling, lead qualification, and follow-ups without human agents."
+        },
+        {
+          "id": "p5b2",
+          "text": "Engineered a type-safe backend with TypeScript, Prisma ORM, and PostgreSQL, enabling zero-downtime schema migrations and consistent multi-tenant data."
+        },
+        {
+          "id": "p5b3",
+          "text": "Orchestrated OpenAI conversation flows and n8n workflows that automate 5,000+ calls per month across client campaigns."
+        },
+        {
+          "id": "p5b4",
+          "text": "Built campaign scheduling, retry logic, and call analytics dashboards that give clients real-time outcome reporting."
+        }
+      ]
+    },
+    {
+      "id": "p4",
+      "name": "Axiomra EMS",
+      "subtitle": "Employee Activity & Screen Monitoring System",
+      "link": "https://ems.axiomra.co/",
+      "login": "Demo access available on request",
+      "description": "Problem: managers of remote teams could not see who was working or late, and paid for hours not worked. Fix: built live attendance, screen view and session recording. Result: payroll matches real work hours and managers spot problems the same day.",
+      "tags": [
+        "Rust (Axum)",
+        "React 19",
+        "Electron",
+        "PostgreSQL",
+        "WebSockets",
+        "Docker",
+        "Full-stack",
+        "Real-time",
+        "Desktop & Web"
+      ],
+      "bullets": [
+        {
+          "id": "p4b1",
+          "text": "Architected a real-time workforce monitoring platform with a Rust (Axum) backend, React 19 admin dashboard, and Electron desktop agent."
+        },
+        {
+          "id": "p4b2",
+          "text": "Built live screen streaming and session recording over WebSockets, with chunked uploads and indexed storage for fast playback by employee and date."
+        },
+        {
+          "id": "p4b3",
+          "text": "Implemented heartbeat-based session tracking that detects app closure, network loss, or shutdown and marks sessions interrupted, keeping attendance data accurate."
+        },
+        {
+          "id": "p4b4",
+          "text": "Designed shift scheduling with grace periods and live status (checked in, late, offline) across the whole workforce, containerized with Docker."
+        }
+      ]
+    },
+    {
+      "id": "p1",
+      "name": "Hostrif",
+      "subtitle": "Browser Automation & Testing Platform",
+      "link": null,
+      "login": null,
+      "note": "Closed-source commercial tool — not publicly available",
+      "description": "Problem: the client's teams ran hundreds of browser tasks by hand, which was slow and error-prone. Fix: built a desktop platform that runs and manages browser sessions automatically. Result: work that took a team days now runs unattended, cutting labor cost.",
+      "tags": [
+        "Rust",
+        "C++ (Chromium)",
+        "Node.js",
+        "Python",
+        "Electron",
+        "Puppeteer",
+        "Playwright",
+        "Supabase",
+        "CDP"
+      ],
+      "bullets": [
+        {
+          "id": "p1b1",
+          "text": "Architected a browser automation platform across three coordinated engines — a Rust launcher, a Python/Playwright engine, and a Node.js/Puppeteer engine — managed from one Electron desktop app with SSE real-time logging."
+        },
+        {
+          "id": "p1b2",
+          "text": "Wrote custom C++ patches for Chromium's Blink and net/ layers, including RFC 1929 SOCKS5 username/password authentication and profile-driven browser configuration."
+        },
+        {
+          "id": "p1b3",
+          "text": "Built a proxy infrastructure validating 600 candidates at 120-concurrency with latency scoring, geo-IP resolution, and a local SOCKS5 auth relay."
+        },
+        {
+          "id": "p1b4",
+          "text": "Designed multi-tenant RBAC on Supabase with JWT auth, invite-link signup, admin impersonation, and audit logging."
+        },
+        {
+          "id": "p1b5",
+          "text": "Shipped as a cross-platform Electron app (Windows/macOS/Linux) with auto-updater and offline Ed25519 license verification."
+        }
+      ]
+    }
+  ],
+  "certifications": [
+    "AWS Certified Solutions Architect – Associate — Amazon Web Services - 2024"
+  ],
+  "education": [
+    "Bachelor of Science, Computer Software Engineering — University of Arizona | 2017 – 2020"
+  ],
+  "stats": [
+    {
+      "value": "6+",
+      "label": "Years building production software"
+    },
+    {
+      "value": "50K+",
+      "label": "Users served on one platform"
+    },
+    {
+      "value": "20K+",
+      "label": "Calls routed per day"
+    },
+    {
+      "value": "99.9%",
+      "label": "Uptime on systems owned"
+    }
+  ],
+  "approach": [
+    {
+      "step": "Understand",
+      "text": "Find the business problem and the number that proves it is fixed."
+    },
+    {
+      "step": "Plan",
+      "text": "Pick the simplest architecture that meets scale, cost and deadline."
+    },
+    {
+      "step": "Build",
+      "text": "Ship small, tested increments with CI/CD so value lands every week."
+    },
+    {
+      "step": "Measure",
+      "text": "Track uptime, speed and cost with monitoring, and report results."
+    },
+    {
+      "step": "Improve",
+      "text": "Remove bottlenecks and automate manual work as usage grows."
+    }
+  ]
+}

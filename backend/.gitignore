@@ -39,5 +39,5 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-src/resume/master.json
+# src/resume/master.json
 src/resume/output/
