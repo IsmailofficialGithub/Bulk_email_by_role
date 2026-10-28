@@ -40,7 +40,8 @@ function buildView(master, tailored) {
   return {
     ...master,
     profile: { ...master.profile, headline: tailored.headline || master.profile.headline },
-    summary: tailored.summary || master.summary,
+    // AI sometimes copies the job's "3+ years" ask; years always come from master.
+    summary: (tailored.summary || master.summary).replace(/\b\d+\+?\s*years/gi, (m) => (master.summary.match(/\b\d+\+?\s*years/i) || [m])[0]),
     skills: tailored.skills?.length ? tailored.skills : master.skills,
     certifications: tailored.certifications?.length ? tailored.certifications : master.certifications,
     experience,

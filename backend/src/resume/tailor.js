@@ -13,7 +13,7 @@ const SYSTEM_PROMPT = `You rewrite a candidate's resume so it matches a job desc
 Rules:
 - Mirror the job description's exact keywords and phrases (ATS matches literal terms): tech names, role title, responsibilities.
 - headline: the target role title from the job + 3-4 matching specialties, separated by " | ".
-- summary: 2-3 sentences aimed at this job, no "I".
+- summary: 2-3 sentences aimed at this job, no "I". Keep the candidate's exact years of experience from their summary, never the number the job asks for.
 - skills: 4-${CAPS.skillGroups} groups, most relevant first; put every skill the job asks for first in its group.
 - experience: include every job by id. title may be adjusted toward the target role. 2-${CAPS.bullets} bullets each, rewritten with the job's keywords, action verb first, keep numbers/metrics, max 30 words each.
 - projects: pick the ${CAPS.projects - 1}-${CAPS.projects} most relevant project ids, most relevant first. Rewrite subtitle, description (plain English for a non-technical business owner, max 60 words: "Problem: <business pain> Fix: <what was built> Result: <money, time or growth gained>", framed for this job's industry), tags (tech stack matched to the job) and 2-${CAPS.bullets} bullets (max 30 words each).

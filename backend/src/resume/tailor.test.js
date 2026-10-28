@@ -133,3 +133,8 @@ test("withTailoredResume replaces only the resume/cv file", () => {
   assert.equal(out[1].content, pdf);
   assert.equal(withTailoredResume(undefined, { pdf, filename: "r.pdf" }).length, 1);
 });
+
+test("summary keeps master's years of experience", () => {
+  const v = buildView(master, { ...good, summary: "Engineer with 4+ years building email flows." });
+  assert.match(v.summary, /6\+ years building/);
+});
