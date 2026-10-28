@@ -17,6 +17,7 @@ const cors = require("cors");
 const linkedinRoutes = require("./routes/linkedin");
 const emailRoutes = require("./routes/email");
 const authRoutes = require("./routes/auth");
+const resumeRoutes = require("./routes/resume");
 
 // Initialize Express Server
 const app = express();
@@ -26,6 +27,7 @@ app.use(express.json());
 app.use("/api/linkedin", linkedinRoutes);
 app.use("/api/email", emailRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/resume", resumeRoutes);
 
 const PORT = process.env.PORT || 4000;
 const server = app.listen(PORT, () => {

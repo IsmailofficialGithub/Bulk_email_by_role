@@ -35,7 +35,10 @@ jobs:
               echo "Installing backend dependencies..."
               cd backend
               npm i
-              
+
+              echo "Installing Chromium for resume PDFs..."
+              npx playwright install --with-deps chromium
+
               echo "Restarting PM2 process..."
               pm2 restart auto_apply_linkedin_backend
             '
